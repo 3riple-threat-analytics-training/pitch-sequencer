@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pitch Sequencer v37</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+<div id="app">
+  <div id="header">
+    <div><div id="title">PITCH SEQUENCER</div><div id="subtitle">CATCHER'S VIEW</div></div>
+    <div class="header-controls">
+      <div id="hand-toggle">
+        <button class="hbtn active" id="brhp" onclick="setHand('R')">RHP</button>
+        <button class="hbtn" id="blhp" onclick="setHand('L')">LHP</button>
+      </div>
+      <div class="tgrp">
+        <button class="tbtn" id="blhb" onclick="setBatter('LHB')">LHB</button>
+        <button class="tbtn" id="boff" onclick="setBatter('OFF')">OFF</button>
+        <button class="tbtn active" id="brhb" onclick="setBatter('RHB')">RHB</button>
+      </div>
+      <button id="simbtn" onclick="toggleSimMode()">SIM MODE OFF</button>
+    </div>
+  </div>
+  <div id="main">
+    <div id="cwrap"><canvas id="c"></canvas></div>
+    <div id="panel">
+      <div>
+        <div class="plbl">pitch type</div>
+        <button class="pbtn sel" id="p4FB" onclick="selPitch('4FB')"><span class="dot dot-4fb"></span>4-seam FB</button>
+        <button class="pbtn" id="p2FB" onclick="selPitch('2FB')"><span class="dot dot-2fb"></span>2-seam FB</button>
+        <button class="pbtn" id="pCB" onclick="selPitch('CB')"><span class="dot dot-cb"></span>Curveball</button>
+        <button class="pbtn" id="pSL" onclick="selPitch('SL')"><span class="dot dot-sl"></span>Slider</button>
+        <button class="pbtn" id="pCH" onclick="selPitch('CH')"><span class="dot dot-ch"></span>Changeup</button>
+        <button class="pbtn" id="pCT" onclick="selPitch('CT')"><span class="dot dot-ct"></span>Cutter</button>
+        <button class="pbtn" id="pSP" onclick="selPitch('SP')"><span class="dot dot-sp"></span>Splitter</button>
+      </div>
+      <div>
+        <div class="plbl">speed (mph)</div>
+        <div id="srow">
+          <input type="range" min="45" max="100" value="85" id="spd" step="1" oninput="handleSpeedInput(this.value)">
+          <span id="sval">85 mph</span>
+        </div>
+      </div>
+      <div>
+        <div class="plbl">pitch role</div>
+        <div id="rolepills">
+          <button class="rpill active" data-role="SETUP" onclick="selRole('SETUP')">SETUP</button>
+          <button class="rpill" data-role="TUNNEL" onclick="selRole('TUNNEL')">TUNNEL</button>
+          <button class="rpill" data-role="CHASE" onclick="selRole('CHASE')">CHASE</button>
+          <button class="rpill" data-role="PUTAWAY" onclick="selRole('PUTAWAY')">PUTAWAY</button>
+          <button class="rpill" data-role="RESET" onclick="selRole('RESET')">RESET</button>
+        </div>
+      </div>
+      <div>
+        <div class="plbl">count</div>
+        <div id="countrow">
+          <span class="clbl">B</span>
+          <button class="carr" onclick="adjCount('b',-1)">◀</button>
+          <span id="bnum" class="cnum">0</span>
+          <button class="carr" onclick="adjCount('b',1)">▶</button>
+          <span class="clbl count-s-label">S</span>
+          <button class="carr" onclick="adjCount('s',-1)">◀</button>
+          <span id="snum" class="cnum">0</span>
+          <button class="carr" onclick="adjCount('s',1)">▶</button>
+          <span id="countdisp">0-0</span>
+        </div>
+      </div>
+      <div>
+        <div class="plbl">target zone</div>
+        <div id="ze-toggle" class="zone-toggle">
+          <button class="zebtn active" id="zezone" type="button" onclick="setTargetMode('ZONE')">ZONE</button>
+          <button class="zebtn" id="zeedge" type="button" onclick="setTargetMode('EDGE')">EDGE</button>
+        </div>
+        <div id="zonediagram"></div>
+      </div>
+      <div>
+        <div class="plbl">options</div>
+        <div class="crow"><input type="checkbox" id="ckbd" onchange="refreshGhost()"><label for="ckbd">Backdoor / back-foot strike</label></div>
+      </div>
+      <div>
+        <div class="plbl">tunnel visualization</div>
+        <button id="tunnelbtn" onclick="toggleTunnel()">⬡ TUNNEL OFF</button>
+      </div>
+      <div>
+        <div class="plbl">rubber position</div>
+        <div id="rwrap" onclick="setRubber(event)"><div id="rbar"></div><div id="rdot"></div></div>
+        <div class="rlbls"><span>1B side</span><span>center</span><span>3B side</span></div>
+        <div id="tip">Click rubber to set pitcher position.</div>
+      </div>
+      <div class="actbtns">
+        <button class="actbtn" id="throwbtn" onclick="throwPitch()">THROW</button>
+        <button class="actbtn" id="replaybtn" onclick="replaySeq()">REPLAY</button>
+      </div>
+      <div>
+        <div class="plbl">sequence <span id="seqn" class="seqn-color">0</span>/6</div>
+        <div id="seqlist"></div>
+        <button id="clrbtn" onclick="clearAll()">CLEAR ALL</button>
+        <div id="simpanelwrap">
+          <div class="plbl sim-results-label">sim results</div>
+          <div id="battertypewrap">
+            <div class="plbl">batter type</div>
+            <div class="planrow">
+              <select id="battertype" class="planselect" onchange="onBatterTypeChange(this.value)">
+                <option value="GENERIC">GENERIC</option>
+                <option value="FREE_SWINGER">FREE SWINGER</option>
+                <option value="PATIENT">PATIENT</option>
+                <option value="LOW_BALL">LOW BALL HITTER</option>
+                <option value="HIGH_BALL">HIGH BALL HITTER</option>
+                <option value="PULL_RHB">PULL HITTER</option>
+                <option value="RANDOM">RANDOM</option>
+              </select>
+            </div>
+          </div>
+          <div id="simstatbar" class="simstatbar">
+            <div class="simstat-inn"><strong>Inning</strong> <span id="siminning">1 ↑</span></div>
+            <div class="simstat-outs" id="simoutsrow">
+              <div class="sim-out-slot"><span class="sim-out-lbl">OUT 1</span><span id="simdot0" class="sim-out-dot"></span></div>
+              <div class="sim-out-slot"><span class="sim-out-lbl">OUT 2</span><span id="simdot1" class="sim-out-dot"></span></div>
+              <div class="sim-out-slot"><span class="sim-out-lbl">OUT 3</span><span id="simdot2" class="sim-out-dot"></span></div>
+            </div>
+          </div>
+          <button type="button" id="simnewbatterbtn" class="simnewbatterbtn" onclick="onSimAdvanceClick()">NEW BATTER</button>
+          <div id="simlog" class="simlog"></div>
+        </div>
+      </div>
+      <div>
+        <div class="plbl">save plan</div>
+        <div class="planrow">
+          <input id="planname" class="planinput" type="text" placeholder="Batter name / type">
+          <button class="planbtn" onclick="savePlan()">SAVE</button>
+        </div>
+        <div class="planrow planrow-mt4">
+          <button class="planbtn" id="exportpdfbtn" onclick="openPrintView()" disabled>EXPORT PDF</button>
+        </div>
+      </div>
+      <div>
+        <div class="plbl">load plan</div>
+        <div class="planrow">
+          <select id="planselect" class="planselect"></select>
+        </div>
+        <div class="planrow planrow-mt4">
+          <button class="planbtn" onclick="loadPlan()">LOAD</button>
+          <button class="planbtn" id="deleteplanbtn" onclick="deletePlan()">DELETE</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/pitches.js"></script>
+<script src="js/zones.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/sim.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

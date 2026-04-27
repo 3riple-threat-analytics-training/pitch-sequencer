@@ -3,289 +3,501 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pitch Sequencer Print</title>
+<title>Pitch Sequencer — Print</title>
 <style>
-@page{size:letter portrait;margin:0.35in;}
-*{box-sizing:border-box;}
-body{
-  margin:0;
-  font-family:Arial,Helvetica,sans-serif;
-  background:#fff;
-  color:#111;
+@page {
+  size: letter portrait;
+  margin: 0.35in;
 }
-.page{
-  width:100%;
-  padding:0;
+* {
+  box-sizing: border-box;
 }
-.header{
-  display:flex;
-  justify-content:space-between;
-  align-items:flex-end;
-  border-bottom:1.2px solid #222;
-  padding-bottom:8px;
-  margin-bottom:10px;
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: Arial, Helvetica, sans-serif;
+  background: #fff;
+  color: #111;
 }
-.title{
-  font-size:18px;
-  letter-spacing:1.1px;
-  font-weight:700;
+#controlbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding: 12px;
+  background: #e8e8e8;
+  border-bottom: 1px solid #ccc;
 }
-.date{
-  font-size:11px;
-  color:#333;
+#controlbar label {
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.5px;
 }
-.grid{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  grid-template-rows:repeat(3,minmax(0,1fr));
-  gap:10px;
+#controlbar select {
+  min-width: 220px;
+  padding: 6px 8px;
+  font-size: 12px;
 }
-.slot{
-  border:1px solid #c8ced6;
-  border-radius:4px;
-  min-height:226px;
-  background:#fff;
-  padding:8px;
-  display:flex;
-  flex-direction:column;
+#controlbar button#printbtn {
+  padding: 8px 16px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
 }
-.slot-head{
-  display:flex;
-  justify-content:space-between;
-  align-items:center;
-  gap:8px;
-  border-bottom:1px solid #e3e7eb;
-  margin-bottom:6px;
-  padding-bottom:5px;
+#pages {
+  padding: 0;
 }
-.plan-name{
-  font-size:12px;
-  font-weight:700;
-  line-height:1.2;
+.page {
+  width: 8.5in;
+  min-height: 11in;
+  page-break-after: always;
+  page-break-inside: avoid;
+  padding: 0.4in;
+  box-sizing: border-box;
+  background: white;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
 }
-.plan-hand{
-  font-size:10px;
-  border:1px solid #777;
-  border-radius:999px;
-  padding:2px 7px;
+.page:last-child {
+  page-break-after: auto;
 }
-.slot-body{
-  display:grid;
-  grid-template-columns:1.2fr 1fr;
-  gap:7px;
-  align-items:start;
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  border-bottom: 1.5px solid #222;
+  padding-bottom: 10px;
+  margin-bottom: 12px;
+  flex-shrink: 0;
 }
-.zone-wrap{
-  border:1px solid #e5e7eb;
-  border-radius:4px;
-  padding:2px;
+.page-header .title {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
 }
-.table-wrap{overflow:hidden;}
-.seq-table{
-  width:100%;
-  border-collapse:collapse;
-  font-size:9px;
+.page-header .date {
+  font-size: 11px;
+  color: #333;
 }
-.seq-table th,.seq-table td{
-  border:1px solid #d8dde3;
-  padding:2px 3px;
-  text-align:left;
-  vertical-align:middle;
+.slots {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
 }
-.seq-table th{
-  background:#f8f9fb;
-  font-weight:700;
+.slot {
+  flex: 1;
+  min-height: 4.6in;
+  border: 1px solid #333;
+  border-radius: 2px;
+  background: #fff;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.slot.slot-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #888;
+  font-size: 14px;
+  font-weight: 600;
+  border-color: #999;
+}
+.slot-header {
+  padding: 8px 10px;
+  border-bottom: 1px solid #ccc;
+  font-size: 12px;
+  line-height: 1.35;
+  flex-shrink: 0;
+}
+.slot-header .plan-name {
+  font-weight: 700;
+  font-size: 13px;
+}
+.slot-header .meta {
+  color: #444;
+  margin-top: 2px;
+}
+.slot-diagram {
+  flex: 3;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 8px;
+  background: #fff;
+  border-bottom: 1px solid #ddd;
+}
+.slot-diagram svg {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+.slot-table-wrap {
+  flex: 1;
+  min-height: 0;
+  padding: 6px 8px 8px;
+  overflow: auto;
+  background: #fff;
+}
+.seq-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  color: #111;
+}
+.seq-table th,
+.seq-table td {
+  border: 1px solid #bbb;
+  padding: 4px 6px;
+  text-align: left;
+  vertical-align: middle;
+}
+.seq-table th {
+  background: #f5f5f5;
+  font-weight: 700;
 }
 .seq-table td:nth-child(1),
 .seq-table td:nth-child(3),
 .seq-table td:nth-child(4),
-.seq-table td:nth-child(5){
-  text-align:center;
+.seq-table td:nth-child(5) {
+  text-align: center;
 }
-.role-tag{
-  font-size:8px;
-  font-weight:700;
-  letter-spacing:0.2px;
+.role-tag {
+  font-weight: 700;
+  font-size: 10px;
 }
-.role-SETUP{color:#3b82f6;}
-.role-TUNNEL{color:#b8860b;}
-.role-CHASE{color:#f97316;}
-.role-PUTAWAY{color:#ef4444;}
-.role-RESET{color:#6b7280;}
-.empty-slot{
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  color:#9ca3af;
-  font-size:16px;
-  font-weight:600;
-  border:1px solid #d1d5db;
-}
-.empty-table{
-  color:#6b7280;
-  text-align:center;
-  font-style:italic;
-}
-@media print{
-  .slot{break-inside:avoid;}
+.role-SETUP { color: #2563eb; }
+.role-TUNNEL { color: #b8860b; }
+.role-CHASE { color: #ea580c; }
+.role-PUTAWAY { color: #dc2626; }
+.role-RESET { color: #6b7280; }
+@media print {
+  body { background: #fff; }
+  #controlbar { display: none; }
+  .slot { break-inside: avoid; }
 }
 </style>
 </head>
 <body>
-  <div class="page">
-    <div class="header">
-      <div class="title">PITCH SEQUENCER &mdash; ATTACK PLANS</div>
-      <div class="date" id="gendate"></div>
-    </div>
-    <div class="grid" id="grid"></div>
-  </div>
+<div id="controlbar">
+  <label for="planfilter">FILTER PLANS</label>
+  <select id="planfilter" aria-label="Filter plans to print"></select>
+  <button type="button" id="printbtn">PRINT</button>
+</div>
+<div id="pages"></div>
 
 <script>
-const PLAN_STORAGE_KEY='pitchSequencerSavedPlansV1';
-const PITCHES={
-  '4FB':{name:'4-seam FB',color:'#ef4444'},
-  '2FB':{name:'2-seam FB',color:'#f97316'},
-  'CB':{name:'Curveball',color:'#3b82f6'},
-  'SL':{name:'Slider',color:'#a855f7'},
-  'CH':{name:'Changeup',color:'#22c55e'},
-  'CT':{name:'Cutter',color:'#eab308'},
-  'SP':{name:'Splitter',color:'#06b6d4'}
-};
+(function () {
+  'use strict';
 
-function escHtml(v){
-  return String(v==null?'':v).replace(/[&<>"']/g,function(ch){
-    if(ch==='&') return '&amp;';
-    if(ch==='<') return '&lt;';
-    if(ch==='>') return '&gt;';
-    if(ch==='"') return '&quot;';
-    return '&#39;';
-  });
-}
+  var PLAN_STORAGE_KEY = 'pitchSequencerSavedPlansV1';
 
-function getSavedPlans(){
-  try{
-    const raw=localStorage.getItem(PLAN_STORAGE_KEY);
-    const parsed=raw?JSON.parse(raw):[];
-    return Array.isArray(parsed)?parsed:[];
-  }catch(e){
-    return [];
-  }
-}
-
-function mapPointToSvg(x,y){
-  const svgXMin=44,svgXMax=236;
-  const strikeTop=58,strikeBottom=138;
-  const zoneYHigh=1.37,zoneYLow=0.75;
-  const ySpan=(strikeBottom-strikeTop)/(zoneYHigh-zoneYLow);
-  const svgYMin=16,svgYMax=184;
-  const px=svgXMin+(((-x)+0.50)/1.0)*(svgXMax-svgXMin);
-  const py=strikeBottom-((y-zoneYLow)*ySpan);
-  return {
-    x:Math.max(10,Math.min(270,px)),
-    y:Math.max(svgYMin,Math.min(svgYMax,py))
+  var PITCH_NAMES = {
+    '4FB': '4-seam FB',
+    '2FB': '2-seam FB',
+    'CB': 'Curveball',
+    'SL': 'Slider',
+    'CH': 'Changeup',
+    'CT': 'Cutter',
+    'SP': 'Splitter'
   };
-}
 
-function svgPathFromPitchPoints(pts){
-  if(!Array.isArray(pts)||!pts.length) return '';
-  const p0=mapPointToSvg(pts[0].x,pts[0].y);
-  if(pts.length===1) return 'M '+p0.x.toFixed(1)+' '+p0.y.toFixed(1);
-  const p1i=Math.floor((pts.length-1)/3);
-  const p2i=Math.floor((pts.length-1)*2/3);
-  const p1=mapPointToSvg(pts[p1i].x,pts[p1i].y);
-  const p2=mapPointToSvg(pts[p2i].x,pts[p2i].y);
-  const pe=mapPointToSvg(pts[pts.length-1].x,pts[pts.length-1].y);
-  return 'M '+p0.x.toFixed(1)+' '+p0.y.toFixed(1)+' C '+p1.x.toFixed(1)+' '+p1.y.toFixed(1)+', '+p2.x.toFixed(1)+' '+p2.y.toFixed(1)+', '+pe.x.toFixed(1)+' '+pe.y.toFixed(1);
-}
+  var PITCH_COLORS = {
+    '4FB': '#ef4444',
+    '2FB': '#f97316',
+    'CB': '#3b82f6',
+    'SL': '#a855f7',
+    'CH': '#22c55e',
+    'CT': '#eab308',
+    'SP': '#06b6d4'
+  };
 
-function buildZoneSvg(plan){
-  const seqItems=Array.isArray(plan.sequence)?plan.sequence:[];
-  const paths=seqItems.map(function(s,i){
-    const p=PITCHES[s.pk];
-    if(!p) return '';
-    const d=svgPathFromPitchPoints(s.pts3d||[]);
-    if(!d) return '';
-    const end=(s.pts3d&&s.pts3d.length)?s.pts3d[s.pts3d.length-1]:null;
-    const pt=end?mapPointToSvg(end.x,end.y):{x:140,y:70};
-    return ''
-      +'<path d="'+d+'" fill="none" stroke="'+p.color+'" stroke-width="2" stroke-linecap="round" opacity="0.95"></path>'
-      +'<circle cx="'+pt.x.toFixed(1)+'" cy="'+pt.y.toFixed(1)+'" r="8.5" fill="'+p.color+'" stroke="#000" stroke-width="0.8"></circle>'
-      +'<text x="'+pt.x.toFixed(1)+'" y="'+(pt.y+3).toFixed(1)+'" text-anchor="middle" font-size="9" fill="#fff" font-weight="700">'+(i+1)+'</text>';
-  }).join('');
+  var svgW = 700;
+  var svgH = 480;
 
-  return ''
-    +'<svg viewBox="0 0 280 200" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Pitch zone diagram">'
-    +'<rect x="0" y="0" width="280" height="200" fill="#fff"></rect>'
-    +'<rect x="84" y="58" width="112" height="80" fill="none" stroke="#111" stroke-width="1.5"></rect>'
-    +'<line x1="121.3" y1="58" x2="121.3" y2="138" stroke="#111" stroke-width="1"></line>'
-    +'<line x1="158.7" y1="58" x2="158.7" y2="138" stroke="#111" stroke-width="1"></line>'
-    +'<line x1="84" y1="84.7" x2="196" y2="84.7" stroke="#111" stroke-width="1"></line>'
-    +'<line x1="84" y1="111.3" x2="196" y2="111.3" stroke="#111" stroke-width="1"></line>'
-    +'<rect x="102" y="24" width="76" height="20" fill="#fff" stroke="#666" stroke-width="0.8"></rect>'
-    +'<text x="140" y="37" text-anchor="middle" font-size="8.5" fill="#222">UP</text>'
-    +'<rect x="102" y="154" width="76" height="20" fill="#fff" stroke="#666" stroke-width="0.8"></rect>'
-    +'<text x="140" y="167" text-anchor="middle" font-size="8.5" fill="#222">LOW</text>'
-    +'<rect x="50" y="88" width="28" height="22" fill="#fff" stroke="#666" stroke-width="0.8"></rect>'
-    +'<text x="64" y="102" text-anchor="middle" font-size="8.5" fill="#222">IN</text>'
-    +'<rect x="202" y="88" width="28" height="22" fill="#fff" stroke="#666" stroke-width="0.8"></rect>'
-    +'<text x="216" y="102" text-anchor="middle" font-size="8.5" fill="#222">OUT</text>'
-    +paths
-    +'</svg>';
-}
-
-function buildTable(plan){
-  const seqItems=Array.isArray(plan.sequence)?plan.sequence:[];
-  const rows=seqItems.map(function(s,i){
-    const pitchName=PITCHES[s.pk]?PITCHES[s.pk].name:(s.pk||'');
-    const role=s.role||'';
-    return ''
-      +'<tr>'
-      +'<td>'+(i+1)+'</td>'
-      +'<td>'+escHtml(pitchName)+'</td>'
-      +'<td>'+(Number.isFinite(s.spd)?s.spd:'')+'</td>'
-      +'<td>'+escHtml(s.zk||'')+'</td>'
-      +'<td>'+escHtml(s.count||'')+'</td>'
-      +'<td><span class="role-tag role-'+escHtml(role)+'">'+escHtml(role)+'</span></td>'
-      +'</tr>';
-  }).join('');
-  return ''
-    +'<table class="seq-table">'
-    +'<thead><tr><th>#</th><th>Pitch</th><th>MPH</th><th>Zone</th><th>Count</th><th>Role</th></tr></thead>'
-    +'<tbody>'+(rows||'<tr><td colspan="6" class="empty-table">No pitches saved</td></tr>')+'</tbody>'
-    +'</table>';
-}
-
-function buildSlot(plan){
-  if(!plan){
-    return '<section class="slot empty-slot"><div>Empty slot</div></section>';
+  function projectPoint(wx, wy, wz, w, h) {
+    var dx = wx - 0;
+    var dy = wy - 1.06;
+    var dz = wz - (-1.2);
+    if (dz <= 0.001) dz = 0.001;
+    var focalLength = h / (2 * Math.tan(52 * Math.PI / 180 / 2));
+    var projX = (-dx / dz) * focalLength + w / 2;
+    var projY = (-dy / dz) * focalLength + h / 2;
+    return { x: projX, y: projY };
   }
-  const hand=(plan.batter==='LHB'||plan.batter==='RHB')?plan.batter:'N/A';
-  return ''
-    +'<section class="slot">'
-    +'<div class="slot-head">'
-    +'<div class="plan-name">'+escHtml(plan.name||'Untitled plan')+'</div>'
-    +'<div class="plan-hand">'+escHtml(hand)+'</div>'
-    +'</div>'
-    +'<div class="slot-body">'
-    +'<div class="zone-wrap">'+buildZoneSvg(plan)+'</div>'
-    +'<div class="table-wrap">'+buildTable(plan)+'</div>'
-    +'</div>'
-    +'</section>';
-}
 
-function render(){
-  const plans=getSavedPlans().slice(-6);
-  const grid=document.getElementById('grid');
-  const slots=[];
-  for(let i=0;i<6;i++) slots.push(buildSlot(plans[i]||null));
-  grid.innerHTML=slots.join('');
-  document.getElementById('gendate').textContent='Generated: '+new Date().toLocaleDateString(undefined,{year:'numeric',month:'long',day:'numeric'});
-}
+  function escHtml(v) {
+    return String(v == null ? '' : v).replace(/[&<>"']/g, function (ch) {
+      if (ch === '&') return '&amp;';
+      if (ch === '<') return '&lt;';
+      if (ch === '>') return '&gt;';
+      if (ch === '"') return '&quot;';
+      return '&#39;';
+    });
+  }
 
-window.addEventListener('load',function(){
-  render();
-  setTimeout(function(){window.print();},220);
-});
+  function getSavedPlans() {
+    try {
+      var raw = localStorage.getItem(PLAN_STORAGE_KEY);
+      var parsed = raw ? JSON.parse(raw) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function fmtPt(p) {
+    return p.x.toFixed(2) + ',' + p.y.toFixed(2);
+  }
+
+  function polylineFromProjected(pts) {
+    if (!pts.length) return '';
+    return pts.map(fmtPt).join(' ');
+  }
+
+  function buildStrikeZoneAndLabels() {
+    var zPlate = 0.12;
+    var corners = [
+      projectPoint(-0.24, 1.37, zPlate, svgW, svgH),
+      projectPoint(0.24, 1.37, zPlate, svgW, svgH),
+      projectPoint(0.24, 0.75, zPlate, svgW, svgH),
+      projectPoint(-0.24, 0.75, zPlate, svgW, svgH)
+    ];
+    var outline = corners.map(fmtPt).join(' ');
+
+    var v1a = projectPoint(-0.08, 0.75, zPlate, svgW, svgH);
+    var v1b = projectPoint(-0.08, 1.37, zPlate, svgW, svgH);
+    var v2a = projectPoint(0.08, 0.75, zPlate, svgW, svgH);
+    var v2b = projectPoint(0.08, 1.37, zPlate, svgW, svgH);
+
+    var h1a = projectPoint(-0.24, 0.957, zPlate, svgW, svgH);
+    var h1b = projectPoint(0.24, 0.957, zPlate, svgW, svgH);
+    var h2a = projectPoint(-0.24, 1.163, zPlate, svgW, svgH);
+    var h2b = projectPoint(0.24, 1.163, zPlate, svgW, svgH);
+
+    var up = projectPoint(0, 1.50, zPlate, svgW, svgH);
+    var low = projectPoint(0, 0.60, zPlate, svgW, svgH);
+    var inn = projectPoint(-0.50, 1.06, zPlate, svgW, svgH);
+    var out = projectPoint(0.50, 1.06, zPlate, svgW, svgH);
+
+    var s = '';
+    s += '<polygon points="' + outline + '" fill="none" stroke="#000" stroke-width="2" stroke-linejoin="round"/>';
+    s += '<line x1="' + v1a.x.toFixed(2) + '" y1="' + v1a.y.toFixed(2) + '" x2="' + v1b.x.toFixed(2) + '" y2="' + v1b.y.toFixed(2) + '" stroke="#000" stroke-width="2"/>';
+    s += '<line x1="' + v2a.x.toFixed(2) + '" y1="' + v2a.y.toFixed(2) + '" x2="' + v2b.x.toFixed(2) + '" y2="' + v2b.y.toFixed(2) + '" stroke="#000" stroke-width="2"/>';
+    s += '<line x1="' + h1a.x.toFixed(2) + '" y1="' + h1a.y.toFixed(2) + '" x2="' + h1b.x.toFixed(2) + '" y2="' + h1b.y.toFixed(2) + '" stroke="#000" stroke-width="2"/>';
+    s += '<line x1="' + h2a.x.toFixed(2) + '" y1="' + h2a.y.toFixed(2) + '" x2="' + h2b.x.toFixed(2) + '" y2="' + h2b.y.toFixed(2) + '" stroke="#000" stroke-width="2"/>';
+
+    s += '<text x="' + up.x.toFixed(2) + '" y="' + (up.y - 8).toFixed(2) + '" text-anchor="middle" font-size="11" fill="#222" font-weight="600">UP</text>';
+    s += '<text x="' + low.x.toFixed(2) + '" y="' + (low.y + 18).toFixed(2) + '" text-anchor="middle" font-size="11" fill="#222" font-weight="600">LOW</text>';
+    s += '<text x="' + (inn.x - 14).toFixed(2) + '" y="' + (inn.y + 4).toFixed(2) + '" text-anchor="middle" font-size="11" fill="#222" font-weight="600">IN</text>';
+    s += '<text x="' + (out.x + 14).toFixed(2) + '" y="' + (out.y + 4).toFixed(2) + '" text-anchor="middle" font-size="11" fill="#222" font-weight="600">OUT</text>';
+
+    return s;
+  }
+
+  function projectPath(pts3d) {
+    if (!Array.isArray(pts3d)) return [];
+    return pts3d.map(function (p) {
+      return projectPoint(Number(p.x), Number(p.y), Number(p.z), svgW, svgH);
+    });
+  }
+
+  function tunnelOverlays(seq) {
+    var parts = '';
+    var nPitch = seq.length;
+    for (var a = 0; a < nPitch; a++) {
+      for (var b = a + 1; b < nPitch; b++) {
+        var pa = projectPath(seq[a].pts3d || []);
+        var pb = projectPath(seq[b].pts3d || []);
+        var n = Math.min(pa.length, pb.length);
+        if (n < 4) continue;
+        var s0 = Math.floor(n * 0.15);
+        var s1 = Math.floor(n * 0.72);
+        for (var i = s0; i < s1; i++) {
+          var d = Math.hypot(pa[i].x - pb[i].x, pa[i].y - pb[i].y);
+          if (d < 15 && i + 1 < n) {
+            var d2 = Math.hypot(pa[i + 1].x - pb[i + 1].x, pa[i + 1].y - pb[i + 1].y);
+            if (d2 < 15) {
+              var quad = fmtPt(pa[i]) + ' ' + fmtPt(pa[i + 1]) + ' ' + fmtPt(pb[i + 1]) + ' ' + fmtPt(pb[i]);
+              parts += '<polygon points="' + quad + '" fill="rgba(234,179,8,0.28)" stroke="none"/>';
+            }
+          }
+        }
+      }
+    }
+    return parts;
+  }
+
+  function buildDiagramSvg(plan) {
+    var seq = Array.isArray(plan.sequence) ? plan.sequence : [];
+    var inner = '';
+
+    inner += '<rect width="' + svgW + '" height="' + svgH + '" fill="#fff"/>';
+    inner += buildStrikeZoneAndLabels();
+
+    for (var p = 0; p < seq.length; p++) {
+      var pitch = seq[p];
+      var pts = Array.isArray(pitch.pts3d) ? pitch.pts3d : [];
+      if (!pts.length) continue;
+      var col = PITCH_COLORS[pitch.pk] || '#6b7280';
+      var projectedPoints = pts.map(function (pt) {
+        return projectPoint(Number(pt.x), Number(pt.y), Number(pt.z), svgW, svgH);
+      });
+      var pl = polylineFromProjected(projectedPoints);
+      inner += '<polyline points="' + pl + '" fill="none" stroke="' + col + '" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity="0.85"/>';
+    }
+
+    inner += tunnelOverlays(seq);
+
+    for (var q = 0; q < seq.length; q++) {
+      var pitch2 = seq[q];
+      var pts2 = Array.isArray(pitch2.pts3d) ? pitch2.pts3d : [];
+      if (!pts2.length) continue;
+      var last = pts2[pts2.length - 1];
+      var c = projectPoint(Number(last.x), Number(last.y), Number(last.z), svgW, svgH);
+      var col2 = PITCH_COLORS[pitch2.pk] || '#6b7280';
+      inner += '<circle cx="' + c.x.toFixed(2) + '" cy="' + c.y.toFixed(2) + '" r="10" fill="' + col2 + '"/>';
+      inner += '<text x="' + c.x.toFixed(2) + '" y="' + (c.y + 4).toFixed(2) + '" text-anchor="middle" font-size="10" fill="#fff" font-weight="700">' + (q + 1) + '</text>';
+    }
+
+    if (seq.length) {
+      var first = Array.isArray(seq[0].pts3d) ? seq[0].pts3d : [];
+      if (first.length) {
+        var r0 = first[0];
+        var rel = projectPoint(Number(r0.x), Number(r0.y), Number(r0.z), svgW, svgH);
+        inner += '<circle cx="' + rel.x.toFixed(2) + '" cy="' + rel.y.toFixed(2) + '" r="4" fill="#9ca3af"/>';
+        inner += '<text x="' + (rel.x + 8).toFixed(2) + '" y="' + (rel.y + 3).toFixed(2) + '" font-size="9" fill="#6b7280" font-weight="600">Release</text>';
+      }
+    }
+
+    return '<svg xmlns="http://www.w3.org/2000/svg" width="' + svgW + '" height="' + svgH + '" viewBox="0 0 ' + svgW + ' ' + svgH + '" role="img" aria-label="Pitch diagram">' + inner + '</svg>';
+  }
+
+  function buildTable(plan) {
+    var seq = Array.isArray(plan.sequence) ? plan.sequence : [];
+    var rows = seq.map(function (s, i) {
+      var pitchName = PITCH_NAMES[s.pk] || escHtml(s.pk || '');
+      var role = s.role || '';
+      return ''
+        + '<tr>'
+        + '<td>' + (i + 1) + '</td>'
+        + '<td>' + escHtml(pitchName) + '</td>'
+        + '<td>' + (Number.isFinite(s.spd) ? s.spd : '') + '</td>'
+        + '<td>' + escHtml(s.zk || '') + '</td>'
+        + '<td>' + escHtml(s.count || '') + '</td>'
+        + '<td><span class="role-tag role-' + escHtml(role) + '">' + escHtml(role) + '</span></td>'
+        + '</tr>';
+    }).join('');
+    return ''
+      + '<table class="seq-table">'
+      + '<thead><tr><th>#</th><th>Pitch</th><th>MPH</th><th>Zone</th><th>Count</th><th>Role</th></tr></thead>'
+      + '<tbody>' + (rows || '<tr><td colspan="6" style="text-align:center;color:#666;">No pitches</td></tr>') + '</tbody>'
+      + '</table>';
+  }
+
+  function slotHeaderHtml(plan) {
+    var name = escHtml(plan.name || 'Untitled plan');
+    var bat = plan.batter === 'LHB' || plan.batter === 'RHB' ? plan.batter : (plan.batterHand || '');
+    var batStr = bat ? escHtml(bat) : '—';
+    var pitchHand = plan.pitcherHand || plan.pitchHand || plan.hand;
+    var handLine = '';
+    if (pitchHand === 'R' || pitchHand === 'RHP') handLine = ' · Pitcher: RHP';
+    else if (pitchHand === 'L' || pitchHand === 'LHP') handLine = ' · Pitcher: LHP';
+    return ''
+      + '<div class="slot-header">'
+      + '<div class="plan-name">' + name + '</div>'
+      + '<div class="meta">Batter: ' + batStr + handLine + '</div>'
+      + '</div>';
+  }
+
+  function buildFilledSlot(plan) {
+    return ''
+      + '<section class="slot">'
+      + slotHeaderHtml(plan)
+      + '<div class="slot-diagram">' + buildDiagramSvg(plan) + '</div>'
+      + '<div class="slot-table-wrap">' + buildTable(plan) + '</div>'
+      + '</section>';
+  }
+
+  function buildEmptySlot() {
+    return '<section class="slot slot-empty">Empty slot</section>';
+  }
+
+  function buildPage(dateStr, planTop, planBottom) {
+    var slotTop = planTop ? buildFilledSlot(planTop) : buildEmptySlot();
+    var slotBottom = planBottom ? buildFilledSlot(planBottom) : buildEmptySlot();
+    return ''
+      + '<div class="page">'
+      + '<div class="page-header">'
+      + '<div class="title">PITCH SEQUENCER — ATTACK PLANS</div>'
+      + '<div class="date">' + escHtml(dateStr) + '</div>'
+      + '</div>'
+      + '<div class="slots">' + slotTop + slotBottom + '</div>'
+      + '</div>';
+  }
+
+  function populatePlanFilter(plans) {
+    var sel = document.getElementById('planfilter');
+    var prev = sel.value;
+    sel.innerHTML = '';
+    var optAll = document.createElement('option');
+    optAll.value = '';
+    optAll.textContent = 'ALL PLANS';
+    sel.appendChild(optAll);
+    plans.forEach(function (p, idx) {
+      var o = document.createElement('option');
+      o.value = p.id || '';
+      o.textContent = p.name || ('Plan ' + (idx + 1));
+      sel.appendChild(o);
+    });
+    var hasPrev = false;
+    for (var i = 0; i < sel.options.length; i++) {
+      if (sel.options[i].value === prev) { hasPrev = true; break; }
+    }
+    sel.value = hasPrev ? prev : '';
+  }
+
+  function render() {
+    var plans = getSavedPlans();
+    populatePlanFilter(plans);
+    var filterId = document.getElementById('planfilter').value;
+    var dateStr = 'Generated: ' + new Date().toLocaleDateString(undefined, {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+    var html = '';
+    if (filterId) {
+      var one = null;
+      for (var j = 0; j < plans.length; j++) {
+        if (plans[j].id === filterId) { one = plans[j]; break; }
+      }
+      html += buildPage(dateStr, one, null);
+    } else {
+      var nPages = Math.max(1, Math.ceil(plans.length / 2));
+      for (var pi = 0; pi < nPages; pi++) {
+        var a = plans[pi * 2] || null;
+        var b = plans[pi * 2 + 1] || null;
+        html += buildPage(dateStr, a, b);
+      }
+    }
+    document.getElementById('pages').innerHTML = html;
+  }
+
+  window.addEventListener('load', function () {
+    render();
+    document.getElementById('planfilter').addEventListener('change', function () {
+      render();
+    });
+    document.getElementById('printbtn').addEventListener('click', function () {
+      window.print();
+    });
+  });
+})();
 </script>
 </body>
 </html>
