@@ -45,4 +45,54 @@ const PITCHES={
   'SP':{color:0x06b6d4,name:'Splitter',ms:730,
     ctrl:(s,t,h)=>[cl(new THREE.Vector3(s.x,s.y+0.06,s.z*.70+t.z*.30)),cl(new THREE.Vector3(t.x+h*0.03,Math.max(MIN_Y,t.y+0.32),s.z*.05+t.z*.95))],
     bd:(s,t,h)=>{const o=h*0.38;return[cl(new THREE.Vector3(s.x+o,s.y+0.08,s.z*.68+t.z*.32)),cl(new THREE.Vector3(t.x+o*0.06,Math.max(MIN_Y,t.y+0.28),s.z*.05+t.z*.95))];}},
+  'SK':{color:0xf43f5e,name:'Sinker',ms:550,
+    ctrl:(s,t,h)=>[
+      cl(new THREE.Vector3(s.x+h*0.05,s.y+0.05,s.z*.66+t.z*.34)),
+      cl(new THREE.Vector3(t.x+h*0.12,Math.max(MIN_Y,t.y-0.22),s.z*.08+t.z*.92))
+    ],
+    bd:(s,t,h)=>{const o=h*0.48;return[
+      cl(new THREE.Vector3(s.x+o,s.y+0.05,s.z*.64+t.z*.36)),
+      cl(new THREE.Vector3(t.x+o*0.10,Math.max(MIN_Y,t.y-0.18),s.z*.08+t.z*.92))
+    ];}
+  },
+  'FK':{color:0x0891b2,name:'Forkball',ms:760,
+    ctrl:(s,t,h)=>[
+      cl(new THREE.Vector3(s.x+h*0.01,s.y+0.05,s.z*.72+t.z*.28)),
+      cl(new THREE.Vector3(t.x+h*0.02,Math.max(MIN_Y,t.y+0.42),s.z*.03+t.z*.97))
+    ],
+    bd:(s,t,h)=>{const o=h*0.36;return[
+      cl(new THREE.Vector3(s.x+o,s.y+0.06,s.z*.70+t.z*.30)),
+      cl(new THREE.Vector3(t.x+o*0.05,Math.max(MIN_Y,t.y+0.38),s.z*.03+t.z*.97))
+    ];}
+  },
+  'SCR':{color:0xec4899,name:'Screwball',ms:850,
+    ctrl:(s,t,h)=>{const p=t.y+SQ;return[
+      cl(new THREE.Vector3(s.x-h*0.02,p+0.20,s.z*.52+t.z*.48)),
+      cl(new THREE.Vector3(t.x-h*0.14,p+0.08,s.z*.18+t.z*.82))
+    ];},
+    bd:(s,t,h)=>{const p=t.y+SQ,o=h*0.44;return[
+      cl(new THREE.Vector3(s.x-o,p+0.20,s.z*.52+t.z*.48)),
+      cl(new THREE.Vector3(t.x-o*0.10,p+0.08,s.z*.16+t.z*.84))
+    ];}
+  },
+  'EPH':{color:0xd97706,name:'Eephus',ms:1400,
+    ctrl:(s,t,h)=>{const peak=t.y+SQ*4.5;return[
+      cl(new THREE.Vector3(s.x+h*0.01,peak+0.55,s.z*.40+t.z*.60)),
+      cl(new THREE.Vector3(t.x+h*0.01,peak+0.22,s.z*.15+t.z*.85))
+    ];},
+    bd:(s,t,h)=>{const peak=t.y+SQ*4.5,o=h*0.40;return[
+      cl(new THREE.Vector3(s.x+o,peak+0.55,s.z*.40+t.z*.60)),
+      cl(new THREE.Vector3(t.x+o*0.08,peak+0.22,s.z*.15+t.z*.85))
+    ];}
+  },
+  'SLV':{color:0x7c3aed,name:'Slurve',ms:840,
+    ctrl:(s,t,h)=>[
+      cl(new THREE.Vector3(s.x+h*0.03,s.y+0.10,s.z*.58+t.z*.42)),
+      cl(new THREE.Vector3(t.x+h*0.26,Math.max(MIN_Y,t.y+0.18),s.z*.12+t.z*.88))
+    ],
+    bd:(s,t,h)=>{const o=h*0.46;return[
+      cl(new THREE.Vector3(s.x+o,s.y+0.08,s.z*.56+t.z*.44)),
+      cl(new THREE.Vector3(t.x+o*0.10,Math.max(MIN_Y,t.y+0.14),s.z*.10+t.z*.90))
+    ];}
+  },
 };
