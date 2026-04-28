@@ -95,4 +95,14 @@ const PITCHES={
       cl(new THREE.Vector3(t.x+o*0.10,Math.max(MIN_Y,t.y+0.14),s.z*.10+t.z*.90))
     ];}
   },
+  'SWP':{color:0x10b981,name:'Sweeper',ms:720,
+    ctrl:(s,t,h)=>[
+      cl(new THREE.Vector3(s.x+h*0.04,s.y+0.06,s.z*.64+t.z*.36)),
+      cl(new THREE.Vector3(t.x+h*0.58,t.y+0.04,s.z*.08+t.z*.92))
+    ],
+    bd:(s,t,h)=>[
+      cl(new THREE.Vector3(s.x+h*FRAME_EDGE,s.y+0.05,s.z*.56+t.z*.44)),
+      cl(new THREE.Vector3(t.x+h*0.08,t.y+0.02,s.z*.05+t.z*.95))
+    ]
+  },
 };
