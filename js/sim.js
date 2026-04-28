@@ -14,6 +14,7 @@ let simInningBreak=false;
 let simInningLogPending=false;
 let simClearTimer=null;
 let pitchCount='0-0';
+let atBatOver=false;
 
 const WEAK_CONTACT_TABLE=[
   {outcome:'FOUL',weight:40},
@@ -47,6 +48,7 @@ function toggleSimMode(){
   pitchesInAtBat=0;
   const bt=document.getElementById('battertype');
   if(bt) bt.value='GENERIC';
+  if(!simMode) unlockThrowButton();
   updateSimPanelVisibility();
   saveSimState();
 }
@@ -68,7 +70,28 @@ function showSimAdvanceButton(){
   btn.style.display='block';
 }
 
+function lockThrowButton(){
+  atBatOver=true;
+  const btn=document.getElementById('throwbtn');
+  if(!btn)return;
+  btn.disabled=true;
+  btn.style.opacity='0.4';
+  btn.style.cursor='not-allowed';
+  btn.textContent='NEW BATTER REQUIRED';
+}
+
+function unlockThrowButton(){
+  atBatOver=false;
+  const btn=document.getElementById('throwbtn');
+  if(!btn)return;
+  btn.disabled=false;
+  btn.style.opacity='1';
+  btn.style.cursor='pointer';
+  btn.textContent='THROW';
+}
+
 function handleNewBatter(){
+  unlockThrowButton();
   cancelSimScheduledClear();
   let startedNewInning=false;
   ballCount=0;strikeCount=0;renderCount();
@@ -317,6 +340,7 @@ function buildSimWeights(zk,rl,bd,ct){
 
 function getSimOutcome(zk,rl,bd,ct){return pickWeightedRecord(buildSimWeights(zk,rl,bd,ct));}
 function simulateOutcome(zk,rl,bd,ct){
+  if(simMode&&atBatOver) return 'BALL';
   if(CHASE_ZONE_KEYS.includes(zk)){
     const pSwing=getChaseZoneSwingProbability(strikeCount);
     if(Math.random()<pSwing){
@@ -332,16 +356,33 @@ function simulateOutcome(zk,rl,bd,ct){
 
 function applySimCountOutcome(outcome,strikesAtStart){
   let display=outcome;
-  if(outcome==='BALL'||outcome==='CALLED BALL') ballCount=Math.min(3,ballCount+1);
+  if(outcome==='BALL'||outcome==='CALLED BALL') ballCount=Math.min(4,ballCount+1);
   else if(outcome==='STRIKE'||outcome==='SWING & MISS'||outcome==='CALLED STRIKE') strikeCount=Math.min(3,strikeCount+1);
   else if(outcome==='FOUL'&&strikesAtStart<2) strikeCount=Math.min(2,strikeCount+1);
   renderCount();
-  if(ballCount>=3){display='WALK';showSimAdvanceButton();saveSimState();return display;}
-  if(strikeCount>=3&&(outcome==='STRIKE'||outcome==='SWING & MISS'||outcome==='CALLED STRIKE')){display='STRIKEOUT';addSimOutCore();showSimAdvanceButton();saveSimState();return display;}
-  if(outcome==='GROUND OUT'||outcome==='POP FLY'){ballCount=0;strikeCount=0;renderCount();addSimOutCore();showSimAdvanceButton();saveSimState();return outcome;}
-  if(outcome==='SINGLE'||outcome==='DOUBLE'||outcome==='TRIPLE'||outcome==='HOME RUN'){ballCount=0;strikeCount=0;renderCount();scheduleSimSequenceClear(2000);saveSimState();return outcome;}
+  if(ballCount>=4){display='WALK';if(simMode) lockThrowButton();showSimAdvanceButton();saveSimState();return display;}
+  if(strikeCount>=3&&(outcome==='STRIKE'||outcome==='SWING & MISS'||outcome==='CALLED STRIKE')){display='STRIKEOUT';addSimOutCore();if(simMode) lockThrowButton();showSimAdvanceButton();saveSimState();return display;}
+  if(outcome==='GROUND OUT'||outcome==='POP FLY'){ballCount=0;strikeCount=0;renderCount();addSimOutCore();if(simMode) lockThrowButton();showSimAdvanceButton();saveSimState();return outcome;}
+  if(outcome==='SINGLE'||outcome==='DOUBLE'||outcome==='TRIPLE'||outcome==='HOME RUN'){ballCount=0;strikeCount=0;renderCount();if(simMode) lockThrowButton();showSimAdvanceButton();scheduleSimSequenceClear(2000);saveSimState();return outcome;}
   saveSimState();
   return display;
+}
+
+function installSimThrowGuard(){
+  if(typeof throwPitch==='function'&&!throwPitch.__simGuarded){
+    const originalThrowPitch=throwPitch;
+    const guardedThrowPitch=function(){
+      if(simMode&&atBatOver) return;
+      return originalThrowPitch.apply(this,arguments);
+    };
+    guardedThrowPitch.__simGuarded=true;
+    throwPitch=guardedThrowPitch;
+  }
+}
+
+if(typeof window!=='undefined'){
+  if(document.readyState==='complete') installSimThrowGuard();
+  else window.addEventListener('load',installSimThrowGuard);
 }
 
 function handleSimOutcome(pitchName,outcome){
