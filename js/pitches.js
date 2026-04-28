@@ -7,9 +7,32 @@ const PITCHES={
   '2FB':{color:0xf97316,name:'2-seam FB',ms:570,
     ctrl:(s,t,h)=>[cl(new THREE.Vector3(s.x+h*0.04,s.y+0.04,s.z*.65+t.z*.35)),cl(new THREE.Vector3(t.x+h*0.14,t.y-0.08,s.z*.16+t.z*.84))],
     bd:(s,t,h)=>{const o=h*0.50;return[cl(new THREE.Vector3(s.x+o,s.y+0.04,s.z*.62+t.z*.38)),cl(new THREE.Vector3(t.x+o*0.12,t.y-0.05,s.z*.10+t.z*.90))];}},
-  'CB':{color:0x3b82f6,name:'Curveball',ms:920,
-    ctrl:(s,t,h)=>{const p=t.y+SQ;return[cl(new THREE.Vector3(s.x+h*0.02,p+0.18,s.z*.52+t.z*.48)),cl(new THREE.Vector3(t.x+h*0.03,p+0.08,s.z*.18+t.z*.82))];},
-    bd:(s,t,h)=>{const p=t.y+SQ,o=h*0.44;return[cl(new THREE.Vector3(s.x+o,p+0.20,s.z*.52+t.z*.48)),cl(new THREE.Vector3(t.x+o*0.10,p+0.06,s.z*.16+t.z*.84))];}},
+  'CB':{color:0x3b82f6,name:'Curveball',ms:980,
+    ctrl:(s,t,h)=>{
+      const peak=t.y+SQ*2.8;
+      const midZ=s.z*0.45+t.z*0.55;
+      return[
+        cl(new THREE.Vector3(
+          s.x+h*0.01,
+          peak+0.32,
+          midZ
+        )),
+        cl(new THREE.Vector3(
+          t.x+h*0.01,
+          peak+0.14,
+          s.z*0.12+t.z*0.88
+        ))
+      ];
+    },
+    bd:(s,t,h)=>{
+      const peak=t.y+SQ*2.8;
+      const off=h*0.44;
+      return[
+        cl(new THREE.Vector3(s.x+off,peak+0.32,s.z*0.45+t.z*0.55)),
+        cl(new THREE.Vector3(t.x+off*0.08,peak+0.14,s.z*0.12+t.z*0.88))
+      ];
+    }
+  },
   'SL':{color:0xa855f7,name:'Slider',ms:780,
     ctrl:(s,t,h)=>[cl(new THREE.Vector3(s.x+h*0.02,s.y+0.06,s.z*.66+t.z*.34)),cl(new THREE.Vector3(t.x+h*0.38,t.y+0.03,s.z*.10+t.z*.90))],
     bd:(s,t,h)=>[cl(new THREE.Vector3(s.x+h*FRAME_EDGE,s.y+0.05,s.z*.58+t.z*.42)),cl(new THREE.Vector3(t.x+h*0.05,t.y+0.02,s.z*.06+t.z*.94))]},
