@@ -3,6 +3,32 @@ let tunnelOn=false,role='SETUP',batter='RHB';
 let targetMode='ZONE';
 let seq=[],pathObjs=[],landObjs=[],ghostLines=[],tunnelObjs=[];
 let statics=[];
+const ALL_PITCHES_LIST=[
+  {key:'4FB',name:'4-seam FB',color:'#ef4444'},
+  {key:'2FB',name:'2-seam FB',color:'#f97316'},
+  {key:'CB', name:'Curveball', color:'#3b82f6'},
+  {key:'SL', name:'Slider',    color:'#a855f7'},
+  {key:'CH', name:'Changeup',  color:'#22c55e'},
+  {key:'CT', name:'Cutter',    color:'#eab308'},
+  {key:'SP', name:'Splitter',  color:'#06b6d4'},
+  {key:'SK', name:'Sinker',    color:'#f43f5e'},
+  {key:'FK', name:'Forkball',  color:'#0891b2'},
+  {key:'SCR',name:'Screwball', color:'#ec4899'},
+  {key:'EPH',name:'Eephus',    color:'#d97706'},
+  {key:'SLV',name:'Slurve',    color:'#7c3aed'},
+  {key:'SWP',name:'Sweeper',   color:'#10b981'},
+  {key:'KN', name:'Knuckleball',color:'#94a3b8'},
+];
+
+const AGE_SPEED={
+  youth: {min:35,max:70,default:55},
+  hs:    {min:55,max:85,default:72},
+  college:{min:70,max:95,default:83},
+  pro:   {min:80,max:102,default:90}
+};
+
+let profHand='R';
+let profSelectedPitches=[];
 
 const cv=document.getElementById('c');
 const wrap=document.getElementById('cwrap');
@@ -33,6 +59,140 @@ function setRubber(e){
 function toggleTunnel(){tunnelOn=!tunnelOn;const b=document.getElementById('tunnelbtn');b.textContent=tunnelOn?'⬡ TUNNEL ON':'⬡ TUNNEL OFF';b.classList.toggle('on',tunnelOn);buildTunnels();}
 function handleSpeedInput(value){document.getElementById('sval').textContent=value+' mph';refreshGhost();}
 function openPrintView(){window.open('print.html','_blank');}
+
+function buildArsenalGrid(){
+  const grid=document.getElementById('arsenalgrid');
+  if(!grid)return;
+  grid.innerHTML='';
+  ALL_PITCHES_LIST.forEach(p=>{
+    const btn=document.createElement('button');
+    btn.className='arsenalbtn'+(profSelectedPitches.includes(p.key)?' sel':'');
+    btn.dataset.key=p.key;
+    btn.innerHTML=`<span style="width:8px;height:8px;border-radius:50%;background:${p.color};flex-shrink:0;display:inline-block;"></span>${p.name}`;
+    btn.onclick=()=>toggleArsenalPitch(p.key);
+    grid.appendChild(btn);
+  });
+  updateArsenalCount();
+}
+
+function toggleArsenalPitch(key){
+  if(profSelectedPitches.includes(key)){
+    if(profSelectedPitches.length<=2){
+      document.getElementById('profileerror').textContent='Minimum 2 pitches required';
+      return;
+    }
+    profSelectedPitches=profSelectedPitches.filter(k=>k!==key);
+  } else {
+    if(profSelectedPitches.length>=5){
+      document.getElementById('profileerror').textContent='Maximum 5 pitches allowed';
+      return;
+    }
+    profSelectedPitches.push(key);
+  }
+  document.getElementById('profileerror').textContent='';
+  buildArsenalGrid();
+}
+
+function updateArsenalCount(){
+  const el=document.getElementById('arsenalcount');
+  if(el) el.textContent=`(${profSelectedPitches.length} selected — min 2, max 5)`;
+}
+
+function profSetHand(h){
+  profHand=h;
+  document.getElementById('prof-rhp').classList.toggle('active',h==='R');
+  document.getElementById('prof-lhp').classList.toggle('active',h==='L');
+}
+
+function profAgeChanged(){
+  const age=document.getElementById('prof-age').value;
+  return age;
+}
+
+function openProfileOverlay(){
+  const profile=getProfile();
+  const overlay=document.getElementById('profileoverlay');
+  document.getElementById('profileerror').textContent='';
+  if(profile){
+    document.getElementById('prof-name').value=profile.name||'';
+    profHand=profile.hand||'R';
+    profSetHand(profHand);
+    document.getElementById('prof-age').value=profile.ageGroup||'youth';
+    profSelectedPitches=[...(profile.arsenal||['4FB','CH'])];
+    document.getElementById('profilesubtitle').textContent='Update your profile';
+    document.getElementById('profsavebtn').textContent='SAVE PROFILE';
+    document.getElementById('profileeditlbl').style.display='block';
+  } else {
+    profHand='R';
+    profSetHand('R');
+    profSelectedPitches=['4FB','CH'];
+    document.getElementById('prof-name').value='';
+    document.getElementById('prof-age').value='youth';
+    document.getElementById('profilesubtitle').textContent='Set up your profile to get started';
+    document.getElementById('profsavebtn').textContent='START PITCHING';
+    document.getElementById('profileeditlbl').style.display='none';
+  }
+  buildArsenalGrid();
+  overlay.classList.add('visible');
+}
+
+function closeProfileOverlay(){
+  document.getElementById('profileoverlay').classList.remove('visible');
+}
+
+function saveProfileAndStart(){
+  const name=(document.getElementById('prof-name').value||'').trim();
+  if(!name){
+    document.getElementById('profileerror').textContent='Please enter a pitcher name';
+    return;
+  }
+  if(profSelectedPitches.length<2){
+    document.getElementById('profileerror').textContent='Please select at least 2 pitches';
+    return;
+  }
+  if(profSelectedPitches.length>5){
+    document.getElementById('profileerror').textContent='Please select no more than 5 pitches';
+    return;
+  }
+  const ageGroup=document.getElementById('prof-age').value;
+  const profile={name,hand:profHand,ageGroup,arsenal:profSelectedPitches};
+  saveProfile(profile);
+  applyProfile(profile);
+  closeProfileOverlay();
+}
+
+function applyProfile(profile){
+  if(!profile)return;
+  setHand(profile.hand||'R');
+  const speeds=AGE_SPEED[profile.ageGroup]||AGE_SPEED.youth;
+  const spdEl=document.getElementById('spd');
+  if(spdEl){
+    spdEl.min=speeds.min;
+    spdEl.max=speeds.max;
+    const cur=parseInt(spdEl.value,10);
+    const nextVal=Math.max(speeds.min,Math.min(speeds.max,isNaN(cur)?speeds.default:cur));
+    spdEl.value=nextVal;
+    document.getElementById('sval').textContent=spdEl.value+' mph';
+  }
+  ALL_PITCHES_LIST.forEach(p=>{
+    const btn=document.getElementById('p'+p.key);
+    if(btn) btn.style.display=profile.arsenal.includes(p.key)?'flex':'none';
+  });
+  if(!profile.arsenal.includes(pitch)&&profile.arsenal.length){
+    selPitch(profile.arsenal[0]);
+  }
+  const gear=document.getElementById('gearbtn');
+  if(gear) gear.title=profile.name+' — Edit Profile';
+}
+
+function initProfile(){
+  const profile=getProfile();
+  if(!profile){
+    openProfileOverlay();
+  } else {
+    applyProfile(profile);
+  }
+}
 
 function buildBatterSilhouette(add,isRHB){
   const xOff=isRHB?0.40:-0.40;
@@ -287,3 +447,4 @@ refreshPlanDropdown();
 updateSimPanelVisibility();
 updateSimStatBar();
 updateSimLogUI();
+initProfile();

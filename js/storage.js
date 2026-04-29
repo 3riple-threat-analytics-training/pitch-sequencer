@@ -1,3 +1,22 @@
+const PROFILE_KEY='pitchseq-pitcher-profile';
+
+function getProfile(){
+  try{
+    const raw=localStorage.getItem(PROFILE_KEY);
+    return raw?JSON.parse(raw):null;
+  }catch(e){return null;}
+}
+
+function saveProfile(profile){
+  try{
+    localStorage.setItem(PROFILE_KEY,JSON.stringify(profile));
+  }catch(e){console.error('Profile save failed',e);}
+}
+
+function clearProfile(){
+  localStorage.removeItem(PROFILE_KEY);
+}
+
 function getSavedPlans(){
   try{
     const raw=localStorage.getItem(PLAN_STORAGE_KEY);
