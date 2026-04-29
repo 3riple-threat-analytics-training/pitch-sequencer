@@ -18,6 +18,7 @@ const ALL_PITCHES_LIST=[
   {key:'SLV',name:'Slurve',    color:'#7c3aed'},
   {key:'SWP',name:'Sweeper',   color:'#10b981'},
   {key:'KN', name:'Knuckleball',color:'#94a3b8'},
+  {key:'KC', name:'Knuckle Curve', color:'#6366f1'},
 ];
 
 const AGE_SPEED={

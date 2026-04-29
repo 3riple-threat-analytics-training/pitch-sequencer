@@ -121,4 +121,4 @@ const SPEED_DIFF_MODIFIERS=[
 ];
 
 // Breaking ball pitch keys — these are affected by recognition rate
-const BREAKING_BALL_KEYS=['CB','SL','CT','SCR','SLV','SWP','KN','FK'];
+const BREAKING_BALL_KEYS=['CB','SL','CT','SCR','SLV','SWP','KN','FK','KC'];

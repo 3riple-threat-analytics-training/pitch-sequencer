@@ -128,4 +128,33 @@ const PITCHES={
       ];
     }
   },
+  'KC':{color:0x6366f1,name:'Knuckle Curve',ms:940,
+    ctrl:(s,t,h)=>{
+      // Knuckle curve: big downward break like curveball but with
+      // unpredictable lateral drift added on each throw
+      const lateralDrift=(Math.random()-0.5)*0.18;
+      const peak=t.y+SQ*2.2;
+      return[
+        cl(new THREE.Vector3(
+          s.x+h*0.01+lateralDrift*0.4,
+          peak+0.24,
+          s.z*0.48+t.z*0.52
+        )),
+        cl(new THREE.Vector3(
+          t.x+h*0.02+lateralDrift,
+          peak+0.10,
+          s.z*0.14+t.z*0.86
+        ))
+      ];
+    },
+    bd:(s,t,h)=>{
+      const lateralDrift=(Math.random()-0.5)*0.18;
+      const peak=t.y+SQ*2.2;
+      const o=h*0.42;
+      return[
+        cl(new THREE.Vector3(s.x+o,peak+0.24,s.z*0.48+t.z*0.52)),
+        cl(new THREE.Vector3(t.x+o*0.09+lateralDrift,peak+0.10,s.z*0.14+t.z*0.86))
+      ];
+    }
+  },
 };
