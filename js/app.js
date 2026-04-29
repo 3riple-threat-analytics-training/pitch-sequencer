@@ -130,10 +130,19 @@ function buildTunnels(){
 
 function bdTarget(tp,h){return{x:h*BD_BORDER,y:tp.y};}
 function makeCurve(pk,zk,bd){
-  const rp=getRP(),tp=ZPOS[zk]||{x:0,y:Y_MID},h=hand==='R'?1:-1;
+  const rp=getRP();
+  const tp=ZPOS[zk]||{x:0,y:Y_MID};
+  const h=hand==='R'?1:-1;
   const landing=bd?bdTarget(tp,h):tp;
-  const t=new THREE.Vector3(landing.x,landing.y,0.12);
-  const P=PITCHES[pk],[c1,c2]=bd&&P.bd?P.bd(rp,t,h):P.ctrl(rp,t,h);
+  let endX=landing.x;
+  let endY=landing.y;
+  if(pk==='KN'){
+    endX=landing.x+(Math.random()-0.5)*0.52;
+    endY=Math.max(MIN_Y,landing.y+(Math.random()-0.5)*0.48);
+  }
+  const t=new THREE.Vector3(endX,endY,0.12);
+  const P=PITCHES[pk];
+  const[c1,c2]=bd&&P.bd?P.bd(rp,t,h):P.ctrl(rp,t,h);
   return new THREE.CubicBezierCurve3(rp.clone(),c1,c2,t.clone());
 }
 

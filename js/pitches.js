@@ -105,4 +105,27 @@ const PITCHES={
       cl(new THREE.Vector3(t.x+h*0.08,t.y+0.02,s.z*.05+t.z*.95))
     ]
   },
+  'KN':{color:0x94a3b8,name:'Knuckleball',ms:1100,
+    ctrl:(s,t,h)=>{
+      const landX=t.x+(Math.random()-0.5)*0.52;
+      const landY=Math.max(MIN_Y,t.y+(Math.random()-0.5)*0.48);
+      const wobbleX=s.x+(Math.random()-0.5)*0.38;
+      const wobbleY=s.y+0.02+Math.random()*0.26;
+      return[
+        cl(new THREE.Vector3(wobbleX,wobbleY,s.z*0.58+t.z*0.42)),
+        cl(new THREE.Vector3(landX+(Math.random()-0.5)*0.18,Math.max(MIN_Y,landY+(Math.random()-0.5)*0.14),s.z*0.06+t.z*0.94))
+      ];
+    },
+    bd:(s,t,h)=>{
+      const landX=t.x+(Math.random()-0.5)*0.52;
+      const landY=Math.max(MIN_Y,t.y+(Math.random()-0.5)*0.48);
+      const wobbleX=s.x+(Math.random()-0.5)*0.38;
+      const wobbleY=s.y+0.02+Math.random()*0.26;
+      const o=h*0.36;
+      return[
+        cl(new THREE.Vector3(wobbleX+o,wobbleY,s.z*0.58+t.z*0.42)),
+        cl(new THREE.Vector3(landX+o*0.06+(Math.random()-0.5)*0.18,Math.max(MIN_Y,landY+(Math.random()-0.5)*0.14),s.z*0.06+t.z*0.94))
+      ];
+    }
+  },
 };
