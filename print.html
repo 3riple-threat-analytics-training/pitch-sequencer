@@ -80,6 +80,12 @@ html, body {
   font-size: 11px;
   color: #333;
 }
+.page-pitcher-info{
+  font-size:11px;
+  color:#444;
+  margin-top:3px;
+  font-family:'DM Mono',monospace;
+}
 .slots {
   flex: 1;
   display: flex;
@@ -120,6 +126,18 @@ html, body {
 .slot-header .meta {
   color: #444;
   margin-top: 2px;
+}
+.slot-arsenal{
+  font-size:9px;
+  color:#888;
+  margin-top:2px;
+  font-family:'DM Mono',monospace;
+  letter-spacing:0.3px;
+}
+.slot-matchup{
+  font-size:10px;
+  color:#555;
+  font-family:'DM Mono',monospace;
 }
 .slot-diagram {
   flex: 3;
@@ -249,6 +267,29 @@ html, body {
       return [];
     }
   }
+
+  function loadPitcherProfile(){
+    try{
+      var raw=localStorage.getItem('pitchseq-pitcher-profile');
+      return raw?JSON.parse(raw):null;
+    }catch(e){return null;}
+  }
+
+  function getSavedPlansForPrint() {
+    return getSavedPlans();
+  }
+
+  function getBatterHand(plan){
+    var raw=(plan && (plan.batterHand||plan.batter||plan.batterType))||'';
+    var hand=String(raw).trim().toUpperCase();
+    if(hand==='LHB'||hand==='RHB') return hand;
+    return '';
+  }
+
+  var pitcherProfile = loadPitcherProfile();
+  // DEBUG - log all saved plans to console
+  const debugPlans=getSavedPlansForPrint();
+  console.log('Saved plans:', JSON.stringify(debugPlans, null, 2));
 
   function fmtPt(p) {
     return p.x.toFixed(2) + ',' + p.y.toFixed(2);
@@ -401,16 +442,25 @@ html, body {
 
   function slotHeaderHtml(plan) {
     var name = escHtml(plan.name || 'Untitled plan');
-    var bat = plan.batter === 'LHB' || plan.batter === 'RHB' ? plan.batter : (plan.batterHand || '');
-    var batStr = bat ? escHtml(bat) : '—';
-    var pitchHand = plan.pitcherHand || plan.pitchHand || plan.hand;
-    var handLine = '';
-    if (pitchHand === 'R' || pitchHand === 'RHP') handLine = ' · Pitcher: RHP';
-    else if (pitchHand === 'L' || pitchHand === 'LHP') handLine = ' · Pitcher: LHP';
+    var batterHand=getBatterHand(plan);
+    var pitcherHand=pitcherProfile?(pitcherProfile.hand==='R'?'RHP':(pitcherProfile.hand==='L'?'LHP':'')):'';
+    var slotMatchup='';
+    if(batterHand&&pitcherHand) slotMatchup=batterHand+' vs '+pitcherHand;
+    else if(pitcherHand) slotMatchup='vs '+pitcherHand;
+    else if(batterHand) slotMatchup=batterHand;
+    slotMatchup=String(slotMatchup||'').trim();
+    var arsenalLine = '';
+    if (pitcherProfile && Array.isArray(pitcherProfile.arsenal) && pitcherProfile.arsenal.length) {
+      var arsenalNames = pitcherProfile.arsenal.map(function (k) {
+        return PITCH_NAMES[k] || k;
+      }).join(' · ');
+      arsenalLine = '<div class="slot-arsenal">Arsenal: ' + escHtml(arsenalNames) + '</div>';
+    }
     return ''
       + '<div class="slot-header">'
       + '<div class="plan-name">' + name + '</div>'
-      + '<div class="meta">Batter: ' + batStr + handLine + '</div>'
+      + '<div class="meta slot-matchup">' + slotMatchup + '</div>'
+      + arsenalLine
       + '</div>';
   }
 
@@ -427,13 +477,32 @@ html, body {
     return '<section class="slot slot-empty">Empty slot</section>';
   }
 
+  function getAgeGroupLabel(v){
+    if(v==='youth') return 'Youth / Rec (12U and under)';
+    if(v==='hs') return 'High School (14U–18U)';
+    if(v==='college') return 'College / Minor League';
+    if(v==='pro') return 'Professional';
+    return '';
+  }
+
   function buildPage(dateStr, planTop, planBottom) {
     var slotTop = planTop ? buildFilledSlot(planTop) : buildEmptySlot();
     var slotBottom = planBottom ? buildFilledSlot(planBottom) : buildEmptySlot();
+    var headerInfo = '';
+    if (pitcherProfile) {
+      var nm = pitcherProfile.name ? escHtml(pitcherProfile.name) : '';
+      var hand = pitcherProfile.hand === 'R' ? 'RHP' : (pitcherProfile.hand === 'L' ? 'LHP' : '');
+      var age = getAgeGroupLabel(pitcherProfile.ageGroup);
+      var parts = [];
+      if (nm) parts.push(nm);
+      if (hand) parts.push(hand);
+      if (age) parts.push(age);
+      if (parts.length) headerInfo = '<div class="page-pitcher-info">' + parts.join(' · ') + '</div>';
+    }
     return ''
       + '<div class="page">'
       + '<div class="page-header">'
-      + '<div class="title">PITCH SEQUENCER — ATTACK PLANS</div>'
+      + '<div><div class="title">PITCH SEQUENCER — ATTACK PLANS</div>' + headerInfo + '</div>'
       + '<div class="date">' + escHtml(dateStr) + '</div>'
       + '</div>'
       + '<div class="slots">' + slotTop + slotBottom + '</div>'

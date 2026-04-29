@@ -72,7 +72,16 @@ function savePlan(){
   const planName=nm||('Plan '+new Date().toLocaleString());
   const plans=getSavedPlans();
   const id='plan-'+Date.now()+'-'+Math.floor(Math.random()*100000);
-  plans.push({id,name:planName,savedAt:new Date().toISOString(),sequence:toStorableSeq(seq)});
+  // Explicitly read batter toggle state at save time
+  const batterHand=typeof batter!=='undefined'?batter:'';
+  plans.push({
+    id,
+    name:planName,
+    batter:batterHand,
+    batterHand:batterHand,
+    savedAt:new Date().toISOString(),
+    sequence:toStorableSeq(seq)
+  });
   setSavedPlans(plans);
   refreshPlanDropdown(id);
   nameInput.value='';
