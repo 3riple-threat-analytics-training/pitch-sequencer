@@ -162,6 +162,20 @@
               </select>
             </div>
           </div>
+          <div id="batterlevelwrap" style="display:none;">
+            <div class="plbl">batter level</div>
+            <select id="batterlevel" class="planselect" onchange="onBatterLevelChange(this.value)">
+              <option value="rec10">8U-10U Rec</option>
+              <option value="club10">8U-10U Club</option>
+              <option value="rec12" selected>11U-12U Rec</option>
+              <option value="club12">11U-12U Club</option>
+              <option value="comp13">12U-13U Competitive</option>
+              <option value="hsjv">HS JV (14U-15U)</option>
+              <option value="hsvar">HS Varsity (16U-18U)</option>
+              <option value="college">College / Minor League</option>
+              <option value="pro">Professional (MLB / Mexican League / NPB)</option>
+            </select>
+          </div>
           <div id="simstatbar" class="simstatbar">
             <div class="simstat-inn"><strong>Inning</strong> <span id="siminning">1 ↑</span></div>
             <div class="simstat-outs" id="simoutsrow">

@@ -16,3 +16,109 @@ const EDGE8_ZONE_KEYS=['TL-CRN','TR-CRN','BL-CRN','BR-CRN','TOP-EDG','BOT-EDG','
 const EDGE_LINE_KEYS=['LFT-EDG','RGT-EDG','TOP-EDG','BOT-EDG'];
 const STRIKE_ZONE_KEYS=STRIKE9_ZONE_KEYS.concat(EDGE8_ZONE_KEYS);
 const CHASE_ZONE_KEYS=['CUR','CUM','CUL','CIN','COUT','CLO-L','CLO-M','CLO-R'];
+
+// Batter level definitions
+const BATTER_LEVELS={
+  rec10:{
+    label:'8U-10U Rec',
+    chaseSwing:{0:0.70,1:0.80,2:0.90},
+    velocityRange:{min:35,max:52},
+    aboveRangeSwingMiss:0.25,
+    belowRangeContact:0.20,
+    breakingBallRecognition:0.05,
+    weakContactPct:0.75,
+    strongContactPct:0.25
+  },
+  club10:{
+    label:'8U-10U Club',
+    chaseSwing:{0:0.50,1:0.65,2:0.85},
+    velocityRange:{min:40,max:58},
+    aboveRangeSwingMiss:0.22,
+    belowRangeContact:0.18,
+    breakingBallRecognition:0.15,
+    weakContactPct:0.65,
+    strongContactPct:0.35
+  },
+  rec12:{
+    label:'11U-12U Rec',
+    chaseSwing:{0:0.50,1:0.65,2:0.85},
+    velocityRange:{min:40,max:58},
+    aboveRangeSwingMiss:0.22,
+    belowRangeContact:0.18,
+    breakingBallRecognition:0.15,
+    weakContactPct:0.65,
+    strongContactPct:0.35
+  },
+  club12:{
+    label:'11U-12U Club',
+    chaseSwing:{0:0.35,1:0.50,2:0.75},
+    velocityRange:{min:48,max:65},
+    aboveRangeSwingMiss:0.20,
+    belowRangeContact:0.15,
+    breakingBallRecognition:0.28,
+    weakContactPct:0.55,
+    strongContactPct:0.45
+  },
+  comp13:{
+    label:'12U-13U Competitive',
+    chaseSwing:{0:0.35,1:0.50,2:0.75},
+    velocityRange:{min:48,max:65},
+    aboveRangeSwingMiss:0.20,
+    belowRangeContact:0.15,
+    breakingBallRecognition:0.28,
+    weakContactPct:0.55,
+    strongContactPct:0.45
+  },
+  hsjv:{
+    label:'HS JV (14U-15U)',
+    chaseSwing:{0:0.22,1:0.35,2:0.65},
+    velocityRange:{min:60,max:80},
+    aboveRangeSwingMiss:0.18,
+    belowRangeContact:0.12,
+    breakingBallRecognition:0.42,
+    weakContactPct:0.45,
+    strongContactPct:0.55
+  },
+  hsvar:{
+    label:'HS Varsity (16U-18U)',
+    chaseSwing:{0:0.15,1:0.28,2:0.60},
+    velocityRange:{min:68,max:92},
+    aboveRangeSwingMiss:0.15,
+    belowRangeContact:0.10,
+    breakingBallRecognition:0.55,
+    weakContactPct:0.38,
+    strongContactPct:0.62
+  },
+  college:{
+    label:'College / Minor League',
+    chaseSwing:{0:0.10,1:0.18,2:0.52},
+    velocityRange:{min:80,max:98},
+    aboveRangeSwingMiss:0.10,
+    belowRangeContact:0.08,
+    breakingBallRecognition:0.70,
+    weakContactPct:0.30,
+    strongContactPct:0.70
+  },
+  pro:{
+    label:'Professional (MLB / Mexican League / NPB)',
+    chaseSwing:{0:0.06,1:0.12,2:0.45},
+    velocityRange:{min:85,max:103},
+    aboveRangeSwingMiss:0.08,
+    belowRangeContact:0.15,
+    breakingBallRecognition:0.85,
+    weakContactPct:0.22,
+    strongContactPct:0.78
+  }
+};
+
+// Speed differential swing and miss modifiers
+const SPEED_DIFF_MODIFIERS=[
+  {minDiff:0,maxDiff:4,swingMissBonus:0},
+  {minDiff:5,maxDiff:9,swingMissBonus:0.05},
+  {minDiff:10,maxDiff:14,swingMissBonus:0.10},
+  {minDiff:15,maxDiff:19,swingMissBonus:0.15},
+  {minDiff:20,maxDiff:999,swingMissBonus:0.20}
+];
+
+// Breaking ball pitch keys — these are affected by recognition rate
+const BREAKING_BALL_KEYS=['CB','SL','CT','SCR','SLV','SWP','KN','FK'];

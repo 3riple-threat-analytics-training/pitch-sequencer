@@ -1,6 +1,8 @@
 let simMode=false;
 let batterType='GENERIC';
+let batterLevel='rec12';
 let secretBatterType='';
+let lastPitchSpeed=0;
 let ballCount=0;
 let strikeCount=0;
 let outCount=0;
@@ -36,6 +38,11 @@ function setBatterType(v){
   saveSimState();
 }
 function onBatterTypeChange(v){setBatterType(v);}
+function setBatterLevel(v){
+  batterLevel=v||'rec12';
+  saveSimState();
+}
+function onBatterLevelChange(v){setBatterLevel(v);}
 
 function toggleSimMode(){
   simMode=!simMode;
@@ -59,6 +66,8 @@ function updateSimPanelVisibility(){
   wrap.style.display=simMode?'block':'none';
   const btw=document.getElementById('battertypewrap');
   if(btw) btw.style.display=simMode?'block':'none';
+  const blw=document.getElementById('batterlevelwrap');
+  if(blw) blw.style.display=simMode?'block':'none';
   if(!simMode) document.getElementById('simnewbatterbtn').style.display='none';
 }
 
@@ -97,6 +106,7 @@ function handleNewBatter(){
   ballCount=0;strikeCount=0;renderCount();
   simClearSequenceOnly();
   pitchesInAtBat=0;
+  lastPitchSpeed=0;
   batterRevealed=false;
   if(batterType==='RANDOM'){
     const pool=['GENERIC','FREE_SWINGER','PATIENT','LOW_BALL','HIGH_BALL','PULL_RHB'];
@@ -253,6 +263,45 @@ function getBatterSimLogLabel(){
   return m[getEffectiveBatterType()]||'GENERIC';
 }
 
+function getBatterLevelConfig(){
+  return BATTER_LEVELS[batterLevel]||BATTER_LEVELS.rec12;
+}
+
+function getSpeedDiffModifier(currentSpeed){
+  if(lastPitchSpeed===0) return 0;
+  const diff=Math.abs(lastPitchSpeed-currentSpeed);
+  for(let i=SPEED_DIFF_MODIFIERS.length-1;i>=0;i--){
+    if(diff>=SPEED_DIFF_MODIFIERS[i].minDiff) return SPEED_DIFF_MODIFIERS[i].swingMissBonus;
+  }
+  return 0;
+}
+
+function getVelocityModifiers(speed,pitchKey){
+  const lvl=getBatterLevelConfig();
+  const min=lvl.velocityRange.min;
+  const max=lvl.velocityRange.max;
+
+  if(speed>max){
+    const excessMph=speed-max;
+    const bonus=Math.min(0.35,excessMph*0.008);
+    return {swingMissBonus:bonus+lvl.aboveRangeSwingMiss,contactBonus:0};
+  }
+
+  if(speed<min){
+    const deficitMph=min-speed;
+    const scaledBonus=Math.min(0.90,deficitMph*0.025);
+    return {swingMissBonus:0,contactBonus:scaledBonus};
+  }
+
+  return {swingMissBonus:0,contactBonus:0};
+}
+
+function getBreakingBallModifier(pitchKey){
+  if(!BREAKING_BALL_KEYS.includes(pitchKey)) return {swingMissBonus:0};
+  const lvl=getBatterLevelConfig();
+  return {swingMissBonus:(1-lvl.breakingBallRecognition)*0.20};
+}
+
 function getBatterSwingMultiplier(zk,strikes){
   const effType=getEffectiveBatterType();
   if(effType==='GENERIC') return 1;
@@ -270,18 +319,21 @@ function getBatterSwingMultiplier(zk,strikes){
 }
 
 function getChaseZoneSwingProbability(strikes){
+  const lvl=getBatterLevelConfig();
+  const baseChase=lvl.chaseSwing[strikes]||lvl.chaseSwing[2];
   const effType=getEffectiveBatterType();
-  const base=strikes===0?0.10:strikes===1?0.20:0.50;
-  if(effType==='PATIENT') return strikes===0?0.05:strikes===1?0.10:0.40;
-  if(effType==='FREE_SWINGER') return strikes===0?0.40:strikes===1?0.55:0.75;
-  if(effType==='GENERIC') return base;
-  return base;
+  let mult=1;
+  if(effType==='PATIENT') mult=strikes===0?0.4:strikes===1?0.5:0.85;
+  if(effType==='FREE_SWINGER') mult=1.4;
+  return Math.min(0.97,baseChase*mult);
 }
 
-function getChaseZoneOutcome(zoneKey,strikesNow,roleVal,bdVal,countVal,strikesAtStart){
+function getChaseZoneOutcome(zoneKey,strikesNow,roleVal,bdVal,countVal,strikesAtStart,speed,pitchKey){
   const pSwing=getChaseZoneSwingProbability(strikesNow);
+  const effSpeed=typeof speed==='number'?speed:parseInt((document.getElementById('spd')||{}).value,10)||0;
+  const effPitchKey=pitchKey||pitch;
   if(Math.random()<pSwing){
-    const w=buildSimWeights(zoneKey,roleVal,bdVal,countVal);
+    const w=buildSimWeights(zoneKey,roleVal,bdVal,countVal,effSpeed,effPitchKey);
     delete w.BALL;
     Object.keys(w).forEach(k=>{w[k]=Math.max(1,w[k]);});
     let raw=pickWeightedRecord(w);
@@ -292,12 +344,14 @@ function getChaseZoneOutcome(zoneKey,strikesNow,roleVal,bdVal,countVal,strikesAt
   }
 }
 
-function getEdgeZoneOutcome(zoneKey,strikesNow,roleVal,bdVal,countVal,strikesAtStart){
+function getEdgeZoneOutcome(zoneKey,strikesNow,roleVal,bdVal,countVal,strikesAtStart,speed,pitchKey){
   const baseSwing=strikesNow===0?0.15:strikesNow===1?0.30:0.70;
   const pSwing=Math.min(0.95,baseSwing*getBatterSwingMultiplier(zoneKey,strikesNow));
+  const effSpeed=typeof speed==='number'?speed:parseInt((document.getElementById('spd')||{}).value,10)||0;
+  const effPitchKey=pitchKey||pitch;
   let outcome='';
   if(Math.random()<pSwing){
-    const w=buildSimWeights(zoneKey,roleVal,bdVal,countVal);
+    const w=buildSimWeights(zoneKey,roleVal,bdVal,countVal,effSpeed,effPitchKey);
     w['SWING & MISS']=Math.max(1,w['SWING & MISS']*1.25);
     w['WEAK CONTACT']=Math.max(1,w['WEAK CONTACT']*1.12);
     w['STRONG CONTACT']=Math.max(1,w['STRONG CONTACT']*0.7);
@@ -317,41 +371,106 @@ function getContactSubOutcome(raw){
   return raw;
 }
 
-function buildSimWeights(zk,rl,bd,ct){
+function buildSimWeights(zk,rl,bd,ct,speed,pitchKey){
   const inStrike=STRIKE_ZONE_KEYS.includes(zk);
-  const inChase=CHASE_ZONE_KEYS.includes(zk);
-  const w=inStrike?{BALL:14,STRIKE:30,FOUL:18,'WEAK CONTACT':18,'STRONG CONTACT':12,'SWING & MISS':8}:{BALL:55,FOUL:10,'WEAK CONTACT':8,'STRONG CONTACT':4,'SWING & MISS':23};
-  if(inChase){w.BALL+=6;w['SWING & MISS']+=4;w['STRONG CONTACT']=Math.max(1,w['STRONG CONTACT']-2);}
-  if(PITCHER_COUNTS.includes(ct)){w.BALL-=8;w['SWING & MISS']+=10;if(w.STRIKE!==undefined) w.STRIKE+=2;w.FOUL+=2;w['STRONG CONTACT']-=3;}
-  if(HITTER_COUNTS.includes(ct)){w.BALL+=10;w['STRONG CONTACT']+=10;w['WEAK CONTACT']+=3;w['SWING & MISS']-=8;if(w.STRIKE!==undefined) w.STRIKE-=5;}
-  if(rl==='PUTAWAY'){w['SWING & MISS']+=12;if(w.STRIKE!==undefined) w.STRIKE+=4;w['STRONG CONTACT']-=4;}
-  if(rl==='CHASE'){w.BALL+=12;if(w.STRIKE!==undefined) w.STRIKE-=3;}
-  if(bd){if(w.STRIKE!==undefined) w.STRIKE+=10;w.BALL-=6;}
-  Object.keys(w).forEach(k=>{w[k]=Math.max(1,w[k]);});
-  if(inStrike){
-    const bMass=Math.max(0,w.BALL||0);
-    delete w.BALL;
-    const keys=Object.keys(w);
-    const sumR=keys.reduce((s,k)=>s+w[k],0);
-    if(sumR>0&&bMass>0) keys.forEach(k=>{w[k]+=bMass*(w[k]/sumR);});
+  const lvl=getBatterLevelConfig();
+  const weakMult=lvl.weakContactPct/0.65;
+  const strongMult=lvl.strongContactPct/0.35;
+  const w=inStrike?{
+    BALL:0,
+    STRIKE:30,
+    FOUL:18,
+    'WEAK CONTACT':Math.round(18*weakMult),
+    'STRONG CONTACT':Math.round(12*strongMult),
+    'SWING & MISS':8
+  }:{
+    BALL:55,
+    FOUL:10,
+    'WEAK CONTACT':Math.round(8*weakMult),
+    'STRONG CONTACT':Math.round(4*strongMult),
+    'SWING & MISS':23
+  };
+
+  if(PITCHER_COUNTS.includes(ct)){
+    w.BALL=Math.max(0,(w.BALL||0)-8);
+    w['SWING & MISS']+=10;
+    if(w.STRIKE!==undefined) w.STRIKE+=2;
+    w.FOUL+=2;
+    w['STRONG CONTACT']-=3;
   }
+  if(HITTER_COUNTS.includes(ct)){
+    w.BALL=Math.max(0,(w.BALL||0)+10);
+    w['STRONG CONTACT']+=10;
+    w['WEAK CONTACT']+=3;
+    w['SWING & MISS']-=8;
+    if(w.STRIKE!==undefined) w.STRIKE-=5;
+  }
+  if(rl==='PUTAWAY'){w['SWING & MISS']+=12;if(w.STRIKE!==undefined)w.STRIKE+=4;w['STRONG CONTACT']-=4;}
+  if(rl==='CHASE'){w.BALL=Math.max(0,(w.BALL||0)+12);if(w.STRIKE!==undefined)w.STRIKE-=3;}
+  if(bd){if(w.STRIKE!==undefined)w.STRIKE+=10;w.BALL=Math.max(0,(w.BALL||0)-6);}
+
+  if(speed){
+    const velMod=getVelocityModifiers(speed,pitchKey);
+    if(velMod.swingMissBonus>0){
+      w['SWING & MISS']=Math.max(1,w['SWING & MISS']*(1+velMod.swingMissBonus*3));
+    }
+    if(velMod.contactBonus>0){
+      const contactScale=1+velMod.contactBonus*4;
+      w['STRONG CONTACT']=Math.max(1,w['STRONG CONTACT']*contactScale);
+      if(velMod.contactBonus>0.50){
+        w['SWING & MISS']=Math.max(1,w['SWING & MISS']*0.20);
+        w['WEAK CONTACT']=Math.max(1,w['WEAK CONTACT']*0.50);
+      }else if(velMod.contactBonus>0.25){
+        w['SWING & MISS']=Math.max(1,w['SWING & MISS']*0.50);
+      }
+    }
+
+    if(velMod.contactBonus>0.70){
+      const totalWeight=Object.values(w).reduce((s,v)=>s+v,0);
+      const currentStrongPct=w['STRONG CONTACT']/totalWeight;
+      if(currentStrongPct<0.60){
+        const targetWeight=totalWeight*0.60;
+        w['STRONG CONTACT']=Math.max(w['STRONG CONTACT'],targetWeight);
+      }
+    }
+  }
+
+  if(speed){
+    const diffMod=getSpeedDiffModifier(speed);
+    w['SWING & MISS']=Math.max(1,w['SWING & MISS']+(diffMod*100));
+  }
+
+  if(pitchKey){
+    const bbMod=getBreakingBallModifier(pitchKey);
+    w['SWING & MISS']=Math.max(1,w['SWING & MISS']+(bbMod.swingMissBonus*100));
+  }
+
+  if(inStrike) delete w.BALL;
+  Object.keys(w).forEach(k=>{w[k]=Math.max(1,w[k]);});
   return w;
 }
 
-function getSimOutcome(zk,rl,bd,ct){return pickWeightedRecord(buildSimWeights(zk,rl,bd,ct));}
-function simulateOutcome(zk,rl,bd,ct){
+function getSimOutcome(zk,rl,bd,ct,speed,pitchKey){return pickWeightedRecord(buildSimWeights(zk,rl,bd,ct,speed,pitchKey));}
+function simulateOutcome(zk,rl,bd,ct,speed,pitchKey){
   if(simMode&&atBatOver) return 'BALL';
+  const effSpeed=typeof speed==='number'?speed:parseInt((document.getElementById('spd')||{}).value,10)||0;
+  const effPitchKey=pitchKey||pitch;
   if(CHASE_ZONE_KEYS.includes(zk)){
     const pSwing=getChaseZoneSwingProbability(strikeCount);
     if(Math.random()<pSwing){
-      const w=buildSimWeights(zk,rl,bd,ct);
+      const w=buildSimWeights(zk,rl,bd,ct,effSpeed,effPitchKey);
       delete w.BALL;
       Object.keys(w).forEach(k=>{w[k]=Math.max(1,w[k]);});
-      return pickWeightedRecord(w);
+      const result=pickWeightedRecord(w);
+      if(effSpeed) lastPitchSpeed=effSpeed;
+      return result;
     }
+    if(effSpeed) lastPitchSpeed=effSpeed;
     return 'BALL';
   }
-  return getSimOutcome(zk,rl,bd,ct);
+  const result=getSimOutcome(zk,rl,bd,ct,effSpeed,effPitchKey);
+  if(effSpeed) lastPitchSpeed=effSpeed;
+  return result;
 }
 
 function applySimCountOutcome(outcome,strikesAtStart){
@@ -385,9 +504,43 @@ if(typeof window!=='undefined'){
   else window.addEventListener('load',installSimThrowGuard);
 }
 
-function handleSimOutcome(pitchName,outcome){
+function handleSimOutcome(pitchName,outcome,speed,pitchKey){
+  const effSpeed=typeof speed==='number'?speed:parseInt((document.getElementById('spd')||{}).value,10)||0;
+  if(effSpeed) lastPitchSpeed=effSpeed;
   const prominent=outcome==='WALK'||outcome==='STRIKEOUT';
   const showLbl=(batterType!=='RANDOM')||batterRevealed;
   const takePrefix=(outcome==='CALLED STRIKE'||outcome==='CALLED BALL')?'TAKE: ':'';
   addSimLogEntry((showLbl?'['+getBatterSimLogLabel()+'] ':'')+pitchName+' → '+takePrefix+outcome,outcome,prominent);
 }
+
+const __baseSaveSimState=(typeof saveSimState==='function')?saveSimState:null;
+saveSimState=function(){
+  if(__baseSaveSimState) __baseSaveSimState();
+  try{
+    if(!simMode) return;
+    const raw=sessionStorage.getItem(SIM_SESSION_KEY);
+    if(!raw) return;
+    const d=JSON.parse(raw);
+    const bl=document.getElementById('batterlevel');
+    d.batterLevel=(bl&&bl.value?bl.value:batterLevel||'rec12');
+    d.lastPitchSpeed=lastPitchSpeed||0;
+    sessionStorage.setItem(SIM_SESSION_KEY,JSON.stringify(d));
+  }catch(e){}
+};
+
+const __baseRestoreSimState=(typeof restoreSimState==='function')?restoreSimState:null;
+restoreSimState=function(){
+  if(__baseRestoreSimState) __baseRestoreSimState();
+  try{
+    const raw=sessionStorage.getItem(SIM_SESSION_KEY);
+    if(!raw) return;
+    const d=JSON.parse(raw);
+    batterLevel=(typeof d.batterLevel==='string'&&BATTER_LEVELS[d.batterLevel])?d.batterLevel:'rec12';
+    lastPitchSpeed=Math.max(0,parseInt(d.lastPitchSpeed,10)||0);
+    const bl=document.getElementById('batterlevel');
+    if(bl) bl.value=batterLevel;
+  }catch(e){
+    batterLevel='rec12';
+    lastPitchSpeed=0;
+  }
+};
