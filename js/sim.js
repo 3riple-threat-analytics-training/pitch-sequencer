@@ -1,6 +1,7 @@
 let simMode=false;
 let batterType='GENERIC';
 let batterLevel='rec12';
+let gameSituation='NEUTRAL';
 let secretBatterType='';
 let lastPitchSpeed=0;
 let ballCount=0;
@@ -43,6 +44,19 @@ function setBatterLevel(v){
   saveSimState();
 }
 function onBatterLevelChange(v){setBatterLevel(v);}
+function setGameSituation(s){
+  const normalized=String(s||'NEUTRAL').trim().toUpperCase();
+  gameSituation=SITUATION_MODIFIERS[normalized]?normalized:'NEUTRAL';
+  ['NEUTRAL','AHEAD','BEHIND'].forEach(key=>{
+    const btn=document.getElementById('sit'+key);
+    if(btn) btn.classList.toggle('active',key===gameSituation);
+  });
+  saveSimState();
+}
+
+function getSituationModifier(){
+  return SITUATION_MODIFIERS[gameSituation]||SITUATION_MODIFIERS['NEUTRAL'];
+}
 
 function toggleSimMode(){
   simMode=!simMode;
@@ -55,6 +69,7 @@ function toggleSimMode(){
   pitchesInAtBat=0;
   const bt=document.getElementById('battertype');
   if(bt) bt.value='GENERIC';
+  setGameSituation('NEUTRAL');
   if(!simMode) unlockThrowButton();
   updateSimPanelVisibility();
   saveSimState();
@@ -68,6 +83,8 @@ function updateSimPanelVisibility(){
   if(btw) btw.style.display=simMode?'block':'none';
   const blw=document.getElementById('batterlevelwrap');
   if(blw) blw.style.display=simMode?'block':'none';
+  const sw=document.getElementById('situationwrap');
+  if(sw) sw.style.display=simMode?'block':'none';
   if(!simMode) document.getElementById('simnewbatterbtn').style.display='none';
 }
 
@@ -306,7 +323,7 @@ function getBatterSwingMultiplier(zk,strikes){
   const effType=getEffectiveBatterType();
   if(effType==='GENERIC') return 1;
   if(effType==='FREE_SWINGER') return 2;
-  if(effType==='PATIENT') return strikes===0?0.3:strikes===1?0.5:0.9;
+  if(effType==='PATIENT') return strikes===0?0.55:strikes===1?0.65:0.88;
   if(effType==='LOW_BALL'){if(['BOT-EDG','BL-CRN','BR-CRN'].includes(zk)) return 1.8;if(['TOP-EDG','TL-CRN','TR-CRN'].includes(zk)) return 0.5;return 1;}
   if(effType==='HIGH_BALL'){if(['TOP-EDG','TL-CRN','TR-CRN'].includes(zk)) return 1.8;if(['BOT-EDG','BL-CRN','BR-CRN'].includes(zk)) return 0.5;return 1;}
   if(effType==='PULL_RHB'){
@@ -322,10 +339,22 @@ function getChaseZoneSwingProbability(strikes){
   const lvl=getBatterLevelConfig();
   const baseChase=lvl.chaseSwing[strikes]||lvl.chaseSwing[2];
   const effType=getEffectiveBatterType();
-  let mult=1;
-  if(effType==='PATIENT') mult=strikes===0?0.4:strikes===1?0.5:0.85;
-  if(effType==='FREE_SWINGER') mult=1.4;
-  return Math.min(0.97,baseChase*mult);
+  let typeMult=1;
+  if(effType==='PATIENT') typeMult=strikes===0?0.55:strikes===1?0.65:0.88;
+  if(effType==='FREE_SWINGER') typeMult=1.4;
+  const sitMod=getSituationModifier();
+  const prob=Math.min(0.97,baseChase*typeMult*sitMod.chaseSwingMult);
+  if(gameSituation==='BEHIND'){
+    const neutralProb=baseChase*typeMult*1.0;
+    const finalProb=Math.min(0.97,Math.max(prob,neutralProb+0.15));
+    return finalProb;
+  }
+  if(gameSituation==='AHEAD'){
+    const neutralProb=baseChase*typeMult*1.0;
+    const finalProb=Math.min(neutralProb,prob);
+    return finalProb;
+  }
+  return prob;
 }
 
 function getChaseZoneOutcome(zoneKey,strikesNow,roleVal,bdVal,countVal,strikesAtStart,speed,pitchKey){
@@ -345,8 +374,10 @@ function getChaseZoneOutcome(zoneKey,strikesNow,roleVal,bdVal,countVal,strikesAt
 }
 
 function getEdgeZoneOutcome(zoneKey,strikesNow,roleVal,bdVal,countVal,strikesAtStart,speed,pitchKey){
-  const baseSwing=strikesNow===0?0.15:strikesNow===1?0.30:0.70;
-  const pSwing=Math.min(0.95,baseSwing*getBatterSwingMultiplier(zoneKey,strikesNow));
+  const sitMod=getSituationModifier();
+  const baseSwing=(strikesNow===0?0.15:strikesNow===1?0.30:0.70)*sitMod.edgeSwingMult;
+  const edgeTypeMult=getBatterSwingMultiplier(zoneKey,strikesNow);
+  const pSwing=Math.min(0.95,baseSwing*edgeTypeMult);
   const effSpeed=typeof speed==='number'?speed:parseInt((document.getElementById('spd')||{}).value,10)||0;
   const effPitchKey=pitchKey||pitch;
   let outcome='';
@@ -390,6 +421,9 @@ function buildSimWeights(zk,rl,bd,ct,speed,pitchKey){
     'STRONG CONTACT':Math.round(4*strongMult),
     'SWING & MISS':23
   };
+  const sitMod=getSituationModifier();
+  w['STRONG CONTACT']=Math.max(1,w['STRONG CONTACT']*sitMod.contactQualityMult);
+  w['WEAK CONTACT']=Math.max(1,w['WEAK CONTACT']*(2-sitMod.contactQualityMult));
 
   if(PITCHER_COUNTS.includes(ct)){
     w.BALL=Math.max(0,(w.BALL||0)-8);
@@ -523,6 +557,7 @@ saveSimState=function(){
     const d=JSON.parse(raw);
     const bl=document.getElementById('batterlevel');
     d.batterLevel=(bl&&bl.value?bl.value:batterLevel||'rec12');
+    d.gameSituation=gameSituation||'NEUTRAL';
     d.lastPitchSpeed=lastPitchSpeed||0;
     sessionStorage.setItem(SIM_SESSION_KEY,JSON.stringify(d));
   }catch(e){}
@@ -536,11 +571,17 @@ restoreSimState=function(){
     if(!raw) return;
     const d=JSON.parse(raw);
     batterLevel=(typeof d.batterLevel==='string'&&BATTER_LEVELS[d.batterLevel])?d.batterLevel:'rec12';
+    gameSituation=(typeof d.gameSituation==='string'&&SITUATION_MODIFIERS[d.gameSituation])?d.gameSituation:'NEUTRAL';
     lastPitchSpeed=Math.max(0,parseInt(d.lastPitchSpeed,10)||0);
     const bl=document.getElementById('batterlevel');
     if(bl) bl.value=batterLevel;
+    ['NEUTRAL','AHEAD','BEHIND'].forEach(key=>{
+      const btn=document.getElementById('sit'+key);
+      if(btn) btn.classList.toggle('active',key===gameSituation);
+    });
   }catch(e){
     batterLevel='rec12';
+    gameSituation='NEUTRAL';
     lastPitchSpeed=0;
   }
 };

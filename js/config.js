@@ -122,3 +122,28 @@ const SPEED_DIFF_MODIFIERS=[
 
 // Breaking ball pitch keys — these are affected by recognition rate
 const BREAKING_BALL_KEYS=['CB','SL','CT','SCR','SLV','SWP','KN','FK','KC'];
+
+// Game situation modifiers
+// Applied as multipliers to swing probabilities
+const SITUATION_MODIFIERS={
+  NEUTRAL:{
+    chaseSwingMult:1.0,
+    edgeSwingMult:1.0,
+    contactQualityMult:1.0,
+    label:'NEUTRAL'
+  },
+  AHEAD:{
+    // Winning team — batters more patient and selective
+    chaseSwingMult:0.55,
+    edgeSwingMult:0.70,
+    contactQualityMult:1.10,
+    label:'AHEAD'
+  },
+  BEHIND:{
+    // Losing team — batters more aggressive and desperate
+    chaseSwingMult:2.20,
+    edgeSwingMult:1.80,
+    contactQualityMult:0.90,
+    label:'BEHIND'
+  }
+};
