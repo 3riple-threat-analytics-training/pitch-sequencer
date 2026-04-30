@@ -387,11 +387,8 @@ function getChaseZoneOutcome(zoneKey,strikesNow,roleVal,bdVal,countVal,strikesAt
     raw=getContactSubOutcome(raw);
     return applySimCountOutcome(raw,strikesAtStart);
   }else{
-    const ump=getUmpireSetting();
-    if(Math.random()<ump.chaseStrikeProb){
-      return applySimCountOutcome('CALLED STRIKE',strikesAtStart);
-    }
-    return applySimCountOutcome('CALLED BALL',strikesAtStart);
+    // Batter takes chase pitch — always ball regardless of umpire
+    return applySimCountOutcome('BALL',strikesAtStart);
   }
 }
 
@@ -414,15 +411,13 @@ function getEdgeZoneOutcome(zoneKey,strikesNow,roleVal,bdVal,countVal,strikesAtS
   }else{
     const ump=getUmpireSetting();
     let calledStrike=false;
-    const isInconsistent=Math.random()<ump.inconsistencyRate;
     if(EDGE_ZONE_KEYS.includes(zoneKey)){
       calledStrike=Math.random()<ump.edgeStrikeProb;
     }else if(CORNER_ZONE_KEYS.includes(zoneKey)){
       calledStrike=Math.random()<ump.cornerStrikeProb;
-    }else{
-      calledStrike=Math.random()<ump.edgeStrikeProb;
     }
-    if(isInconsistent) calledStrike=!calledStrike;
+    // Apply inconsistency
+    if(Math.random()<ump.inconsistencyRate) calledStrike=!calledStrike;
     const call=calledStrike?'CALLED STRIKE':'CALLED BALL';
     outcome=applySimCountOutcome(call,strikesAtStart);
   }
@@ -535,14 +530,20 @@ function simulateOutcome(zk,rl,bd,ct,speed,pitchKey){
       return result;
     }
     const ump=getUmpireSetting();
-    if(Math.random()<ump.chaseStrikeProb){
-      if(effSpeed) lastPitchSpeed=effSpeed;
-      return 'CALLED STRIKE';
-    }
     if(effSpeed) lastPitchSpeed=effSpeed;
-    return 'CALLED BALL';
+    return 'BALL';
   }
   const result=getSimOutcome(zk,rl,bd,ct,effSpeed,effPitchKey);
+  if(result==='STRIKE'){
+    // Bad umpire occasionally calls in-zone pitch a ball
+    const ump=getUmpireSetting();
+    if(Math.random()<ump.inZoneBallProb){
+      if(effSpeed) lastPitchSpeed=effSpeed;
+      return 'CALLED BALL';
+    }
+    if(effSpeed) lastPitchSpeed=effSpeed;
+    return 'CALLED STRIKE';
+  }
   if(effSpeed) lastPitchSpeed=effSpeed;
   return result;
 }

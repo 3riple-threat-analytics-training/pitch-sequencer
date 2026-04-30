@@ -157,16 +157,18 @@ const UMPIRE_SETTINGS={
     cornerStrikeProb:0.60,
     cornerBallProb:0.40,
     chaseStrikeProb:0.00,
+    inZoneBallProb:0.00,
     inconsistencyRate:0.02
   },
   BAD:{
     label:'BAD',
-    edgeStrikeProb:0.55,
-    edgeBallProb:0.45,
-    cornerStrikeProb:0.35,
-    cornerBallProb:0.65,
-    chaseStrikeProb:0.12,
-    inconsistencyRate:0.08
+    edgeStrikeProb:0.35,
+    edgeBallProb:0.65,
+    cornerStrikeProb:0.10,
+    cornerBallProb:0.90,
+    chaseStrikeProb:0.00,
+    inZoneBallProb:0.22,
+    inconsistencyRate:0.15
   }
 };
 
