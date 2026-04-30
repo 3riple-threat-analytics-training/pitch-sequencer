@@ -28,6 +28,15 @@
 .umpbtn:hover{border-color:#4a7aaa;}
 .umpbtn.active[id='umpGOOD']{border-color:#4ade80;color:#4ade80;background:#0a1a10;}
 .umpbtn.active[id='umpBAD']{border-color:#f87171;color:#f87171;background:#1a0a0a;}
+#extendbtn{
+  width:100%;padding:4px;border-radius:4px;
+  border:0.5px solid #1e2a3a;background:transparent;
+  color:#3a5a7a;font-family:'DM Mono',monospace;font-size:8px;
+  cursor:pointer;letter-spacing:1px;transition:all 0.15s;
+  margin-bottom:4px;
+}
+#extendbtn:hover{border-color:#7ec8e3;color:#7ec8e3;}
+#extendbtn.active{border-color:#eab308;color:#eab308;background:#1a1500;}
 </style>
 </head>
 <body>
@@ -167,7 +176,10 @@
         <button class="actbtn" id="replaybtn" onclick="replaySeq()">REPLAY</button>
       </div>
       <div>
-        <div class="plbl">sequence <span id="seqn" class="seqn-color">0</span>/6</div>
+        <div class="plbl">sequence <span id="seqn" class="seqn-color">0</span><span id="seqlimit">/6</span></div>
+        <div id="extendwrap">
+          <button id="extendbtn" onclick="toggleExtendAtBat()">EXTEND AT BAT</button>
+        </div>
         <div id="seqlist"></div>
         <button id="clrbtn" onclick="clearAll()">CLEAR ALL</button>
         <div id="simpanelwrap">

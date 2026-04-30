@@ -1,6 +1,7 @@
 let hand='R',pitch='4FB',zone='MM',rubber=0.5;
 let tunnelOn=false,role='SETUP',batter='RHB';
 let targetMode='ZONE';
+let extendedAtBat=false;
 let seq=[],pathObjs=[],landObjs=[],ghostLines=[],tunnelObjs=[];
 let statics=[];
 const ALL_PITCHES_LIST=[
@@ -60,6 +61,15 @@ function setRubber(e){
 function toggleTunnel(){tunnelOn=!tunnelOn;const b=document.getElementById('tunnelbtn');b.textContent=tunnelOn?'⬡ TUNNEL ON':'⬡ TUNNEL OFF';b.classList.toggle('on',tunnelOn);buildTunnels();}
 function handleSpeedInput(value){document.getElementById('sval').textContent=value+' mph';refreshGhost();}
 function openPrintView(){window.open('print.html','_blank');}
+function toggleExtendAtBat(){
+  extendedAtBat=!extendedAtBat;
+  const btn=document.getElementById('extendbtn');
+  if(btn){
+    btn.textContent=extendedAtBat?'EXTENDED (12)':'EXTEND AT BAT';
+    btn.classList.toggle('active',extendedAtBat);
+  }
+  updateSeqUI();
+}
 
 function buildArsenalGrid(){
   const grid=document.getElementById('arsenalgrid');
@@ -350,7 +360,14 @@ function animBall(pts,color,ms,onDone){
 }
 
 function commitPitch(pts3d,pk,zk,spd,bd,rl,ct,outcome){
-  if(seq.length>=6)return;
+  // Sim mode: no pitch limit — at bat plays out naturally
+  // Planning mode: 6 pitch default, 12 with extension
+  if(simMode){
+    // No limit in sim mode
+  }else{
+    const planLimit=extendedAtBat?12:6;
+    if(seq.length>=planLimit)return;
+  }
   const col=PITCHES[pk].color;
   pathObjs.push(line3D(pts3d,col,0.88,3));
   animBall(pts3d,col,PITCHES[pk].ms,()=>addLanding(pts3d[pts3d.length-1],col,spd,outcome));
@@ -360,7 +377,10 @@ function commitPitch(pts3d,pk,zk,spd,bd,rl,ct,outcome){
 }
 
 function throwPitch(){
-  if(seq.length>=6)return;
+  if(!simMode){
+    const planLimit=extendedAtBat?12:6;
+    if(seq.length>=planLimit)return;
+  }
   if(simMode) cancelSimScheduledClear();
   const spd=parseInt(document.getElementById('spd').value,10),bd=document.getElementById('ckbd').checked;
   const ctBefore=pitchCount;
@@ -409,6 +429,12 @@ function rebuildPaths(){
 }
 function clearAll(){
   cancelSimScheduledClear();
+  extendedAtBat=false;
+  const btn=document.getElementById('extendbtn');
+  if(btn){
+    btn.textContent='EXTEND AT BAT';
+    btn.classList.remove('active');
+  }
   seq=[];simLog=[];outCount=0;inningNumber=1;simHalfTop=true;
   simInningBreak=false;simInningLogPending=false;pitchesInAtBat=0;batterRevealed=false;secretBatterType='';
   hideSimAdvanceButton();
@@ -435,6 +461,22 @@ function updateSeqUI(){
     d.appendChild(r1);d.appendChild(r2);el.appendChild(d);
   });
   document.getElementById('seqn').textContent=seq.length;
+  const limitEl=document.getElementById('seqlimit');
+  if(limitEl){
+    if(simMode) limitEl.textContent='/∞';
+    else limitEl.textContent=extendedAtBat?'/12':'/6';
+  }
+  const ew=document.getElementById('extendwrap');
+  if(ew) ew.style.display=simMode?'none':'block';
+}
+
+if(typeof toggleSimMode==='function'){
+  const __origToggleSimMode=toggleSimMode;
+  toggleSimMode=function(){
+    const result=__origToggleSimMode.apply(this,arguments);
+    updateSeqUI();
+    return result;
+  };
 }
 
 (function loop(){requestAnimationFrame(loop);renderer.render(scene,cam);})();
