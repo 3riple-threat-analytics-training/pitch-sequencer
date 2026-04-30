@@ -2,6 +2,7 @@ let hand='R',pitch='4FB',zone='MM',rubber=0.5;
 let tunnelOn=false,role='SETUP',batter='RHB';
 let targetMode='ZONE';
 let extendedAtBat=false;
+let currentView='catcher';
 let seq=[],pathObjs=[],landObjs=[],ghostLines=[],tunnelObjs=[];
 let statics=[];
 const ALL_PITCHES_LIST=[
@@ -61,6 +62,14 @@ function setRubber(e){
 function toggleTunnel(){tunnelOn=!tunnelOn;const b=document.getElementById('tunnelbtn');b.textContent=tunnelOn?'⬡ TUNNEL ON':'⬡ TUNNEL OFF';b.classList.toggle('on',tunnelOn);buildTunnels();}
 function handleSpeedInput(value){document.getElementById('sval').textContent=value+' mph';refreshGhost();}
 function openPrintView(){window.open('print.html','_blank');}
+function setView(v){
+  currentView=v;
+  document.getElementById('vcatcher').classList.toggle('active',v==='catcher');
+  document.getElementById('vside').classList.toggle('active',v==='side');
+  document.getElementById('c').style.display=v==='catcher'?'block':'none';
+  document.getElementById('sideview').style.display=v==='side'?'block':'none';
+  if(v==='side') drawSideView();
+}
 function toggleExtendAtBat(){
   extendedAtBat=!extendedAtBat;
   const btn=document.getElementById('extendbtn');
@@ -322,6 +331,370 @@ function dashedLine(pts,col){const lines=[];for(let i=0;i<pts.length-2;i+=4){con
 function removeObj(o){if(!o)return;Array.isArray(o)?o.forEach(x=>scene.remove(x)):scene.remove(o);}
 function refreshGhost(){ghostLines.forEach(o=>removeObj(o));ghostLines=[];const bd=document.getElementById('ckbd').checked;ghostLines=dashedLine(makeCurve(pitch,zone,bd).getPoints(80),PITCHES[pitch].color);}
 
+function drawSideView(){
+  const svg=document.getElementById('sidesvg');
+  if(!svg)return;
+  const W=svg.clientWidth||700;
+  const H=svg.clientHeight||560;
+  svg.innerHTML='';
+
+  const PAD_L=80;
+  const PAD_R=60;
+  const PAD_T=40;
+  const PAD_B=60;
+  const DRAW_W=W-PAD_L-PAD_R;
+  const DRAW_H=H-PAD_T-PAD_B;
+
+  const WORLD_Z_MIN=0;
+  const WORLD_Z_MAX=17;
+  const WORLD_Y_MIN=0.40;
+  const WORLD_Y_MAX=1.65;
+
+  function toSVG(wz,wy){
+    const sx=PAD_L+((WORLD_Z_MAX-wz)/(WORLD_Z_MAX-WORLD_Z_MIN))*DRAW_W;
+    const sy=PAD_T+((WORLD_Y_MAX-wy)/(WORLD_Y_MAX-WORLD_Y_MIN))*DRAW_H;
+    return {x:sx,y:sy};
+  }
+
+  function el(tag,attrs){
+    const e=document.createElementNS('http://www.w3.org/2000/svg',tag);
+    Object.entries(attrs).forEach(([k,v])=>e.setAttribute(k,v));
+    return e;
+  }
+  function txt(content,attrs){
+    const e=el('text',attrs);
+    e.textContent=content;
+    return e;
+  }
+
+  svg.appendChild(el('rect',{x:0,y:0,width:W,height:H,fill:'#0a0e1a'}));
+
+  const zoneTop=toSVG(0,1.37);
+  const zoneBtm=toSVG(0,0.75);
+  const groundY=toSVG(0,0.40).y;
+  const highY=toSVG(0,1.55).y;
+
+  svg.appendChild(el('rect',{x:PAD_L,y:zoneBtm.y,width:DRAW_W,height:groundY-zoneBtm.y,fill:'#1a0e06',opacity:0.4}));
+  svg.appendChild(el('rect',{x:PAD_L,y:zoneTop.y,width:DRAW_W,height:zoneBtm.y-zoneTop.y,fill:'#0f2035',opacity:0.5}));
+  svg.appendChild(el('rect',{x:PAD_L,y:highY,width:DRAW_W,height:zoneTop.y-highY,fill:'#091828',opacity:0.3}));
+
+  const zoneMid1=toSVG(0,0.75+0.207);
+  const zoneMid2=toSVG(0,0.75+0.414);
+  [zoneMid1.y,zoneMid2.y].forEach(y=>{
+    const l=el('line',{x1:PAD_L,y1:y,x2:W-PAD_R,y2:y,stroke:'#2a4a6a','stroke-width':'0.5','stroke-dasharray':'3 3'});
+    svg.appendChild(l);
+  });
+
+  [zoneTop.y,zoneBtm.y].forEach(y=>{
+    svg.appendChild(el('line',{x1:PAD_L,y1:y,x2:W-PAD_R,y2:y,stroke:'#4a7aaa','stroke-width':'0.5'}));
+  });
+
+  svg.appendChild(el('line',{x1:PAD_L,y1:groundY,x2:W-PAD_R,y2:groundY,stroke:'#2a3a2a','stroke-width':'1'}));
+
+  [
+    {label:'HIGH',y:(highY+zoneTop.y)/2},
+    {label:'ZONE',y:(zoneTop.y+zoneBtm.y)/2},
+    {label:'LOW',y:(zoneBtm.y+groundY)/2},
+  ].forEach(({label,y})=>{
+    const t=txt(label,{x:PAD_L-8,y,fill:'#3a5a7a','font-size':'9','font-family':'DM Mono,monospace','text-anchor':'end','dominant-baseline':'central'});
+    svg.appendChild(t);
+  });
+
+  const zBarX=W-PAD_R+8;
+  svg.appendChild(el('rect',{x:zBarX,y:zoneTop.y,width:18,height:zoneBtm.y-zoneTop.y,fill:'#0f2840',stroke:'#7ec8e3','stroke-width':'1.5'}));
+  [zoneMid1.y,zoneMid2.y].forEach(y=>{
+    svg.appendChild(el('line',{x1:zBarX,y1:y,x2:zBarX+18,y2:y,stroke:'#4a7aaa','stroke-width':'0.5'}));
+  });
+
+  const moundX=toSVG(17,0.40).x;
+  const moundY=groundY;
+  const mound=el('ellipse',{cx:moundX,cy:moundY,rx:18,ry:6,fill:'#1a0e06',stroke:'#2a1a06','stroke-width':'0.5'});
+  svg.appendChild(mound);
+  svg.appendChild(txt('60\'6"',{x:moundX,y:moundY+18,fill:'#2a3a4a','font-size':'8','font-family':'DM Mono,monospace','text-anchor':'middle'}));
+
+  const plateX=toSVG(0,0.40).x;
+  svg.appendChild(txt('PLATE',{x:plateX,y:moundY+18,fill:'#2a3a4a','font-size':'8','font-family':'DM Mono,monospace','text-anchor':'middle'}));
+
+  [17,12,6,0].forEach(d=>{
+    const px=toSVG(d,0.40).x;
+    svg.appendChild(el('line',{x1:px,y1:groundY,x2:px,y2:groundY+6,stroke:'#2a3a4a','stroke-width':'0.5'}));
+  });
+
+  if(!seq.length){
+    svg.appendChild(txt('No pitches thrown — throw pitches in catcher view first',{x:W/2,y:H/2,fill:'#3a5a7a','font-size':'11','font-family':'DM Mono,monospace','text-anchor':'middle'}));
+    return;
+  }
+
+  for(let a=0;a<seq.length-1;a++){
+    for(let b=a+1;b<seq.length;b++){
+      const ptsA=seq[a].pts3d;
+      const ptsB=seq[b].pts3d;
+      const n=Math.min(ptsA.length,ptsB.length);
+      const s0=Math.floor(n*0.15);
+      const s1=Math.floor(n*0.72);
+      let tunnelPts=[];
+      for(let i=s0;i<s1;i++){
+        const dist=ptsA[i].distanceTo(ptsB[i]);
+        if(dist<=0.22){
+          const mx=(ptsA[i].x+ptsB[i].x)/2;
+          const my=(ptsA[i].y+ptsB[i].y)/2;
+          const mz=(ptsA[i].z+ptsB[i].z)/2;
+          tunnelPts.push({x:mx,y:my,z:mz});
+        }else if(tunnelPts.length>3){
+          break;
+        }
+      }
+      if(tunnelPts.length>=3){
+        const svgPts=tunnelPts.map(p=>toSVG(p.z,p.y));
+        const pathD='M'+svgPts.map(p=>p.x+','+p.y).join(' L');
+        svg.appendChild(el('path',{d:pathD,fill:'none',stroke:'#eab308','stroke-width':'12',opacity:'0.08','stroke-linecap':'round'}));
+        svg.appendChild(el('path',{d:pathD,fill:'none',stroke:'#fde047','stroke-width':'4',opacity:'0.18','stroke-linecap':'round'}));
+        const ep=svgPts[svgPts.length-1];
+        svg.appendChild(el('circle',{cx:ep.x,cy:ep.y,r:'8',fill:'none',stroke:'#eab308','stroke-width':'1.5',opacity:'0.85'}));
+        svg.appendChild(txt('DECISION',{x:ep.x,y:ep.y-14,fill:'#eab308','font-size':'7','font-family':'DM Mono,monospace','text-anchor':'middle'}));
+      }
+    }
+  }
+
+  seq.forEach((s,i)=>{
+    const col='#'+PITCHES[s.pk].color.toString(16).padStart(6,'0');
+    const pts=s.pts3d;
+    if(!pts||!pts.length) return;
+    const svgPts=pts.map(p=>toSVG(p.z,p.y));
+    const pathD='M'+svgPts[0].x+','+svgPts[0].y+svgPts.slice(1).map(p=>' L'+p.x+','+p.y).join('');
+    svg.appendChild(el('path',{d:pathD,fill:'none',stroke:col,'stroke-width':'2',opacity:'0.85','stroke-linecap':'round'}));
+    const lp=svgPts[svgPts.length-1];
+    svg.appendChild(el('circle',{cx:lp.x,cy:lp.y,r:'8',fill:col}));
+    svg.appendChild(txt(String(i+1),{x:lp.x,y:lp.y,fill:'white','font-size':'8','font-family':'DM Mono,monospace','text-anchor':'middle','dominant-baseline':'central','font-weight':'bold'}));
+  });
+
+  if(seq.length){
+    const rp=toSVG(seq[0].pts3d[0].z,seq[0].pts3d[0].y);
+    svg.appendChild(el('circle',{cx:rp.x,cy:rp.y,r:'5',fill:'#c084fc'}));
+    svg.appendChild(txt('REL',{x:rp.x-10,y:rp.y,fill:'#c084fc','font-size':'8','font-family':'DM Mono,monospace','text-anchor':'end','dominant-baseline':'central'}));
+  }
+
+  const legY=H-PAD_B+20;
+  let legX=PAD_L;
+  seq.forEach((s,i)=>{
+    const col='#'+PITCHES[s.pk].color.toString(16).padStart(6,'0');
+    svg.appendChild(el('circle',{cx:legX+6,cy:legY,r:'5',fill:col}));
+    svg.appendChild(txt(`${i+1}. ${PITCHES[s.pk].name} ${s.spd}mph`,{x:legX+14,y:legY,fill:'#8aabb8','font-size':'9','font-family':'DM Mono,monospace','dominant-baseline':'central'}));
+    legX+=Math.min(160,DRAW_W/seq.length);
+  });
+}
+
+let sideReplayTimer=null;
+function replaySideView(){
+  if(!seq.length) return;
+  if(sideReplayTimer){clearInterval(sideReplayTimer);sideReplayTimer=null;}
+
+  const svg=document.getElementById('sidesvg');
+  if(!svg) return;
+  const W=svg.clientWidth||700;
+  const H=svg.clientHeight||560;
+
+  // Layout constants — must match drawSideView exactly
+  const PAD_L=80;
+  const PAD_R=60;
+  const PAD_T=40;
+  const PAD_B=60;
+  const DRAW_W=W-PAD_L-PAD_R;
+  const DRAW_H=H-PAD_T-PAD_B;
+  const WORLD_Z_MIN=0;
+  const WORLD_Z_MAX=17;
+  const WORLD_Y_MIN=0.40;
+  const WORLD_Y_MAX=1.65;
+
+  function toSVG(wz,wy){
+    const sx=PAD_L+((WORLD_Z_MAX-wz)/(WORLD_Z_MAX-WORLD_Z_MIN))*DRAW_W;
+    const sy=PAD_T+((WORLD_Y_MAX-wy)/(WORLD_Y_MAX-WORLD_Y_MIN))*DRAW_H;
+    return {x:sx,y:sy};
+  }
+  function el(tag,attrs){
+    const e=document.createElementNS('http://www.w3.org/2000/svg',tag);
+    Object.entries(attrs).forEach(([k,v])=>e.setAttribute(k,v));
+    return e;
+  }
+  function txt(content,attrs){
+    const e=el('text',attrs);e.textContent=content;return e;
+  }
+
+  // Start with a clean base — draw everything EXCEPT pitch arcs and tunnels
+  // Redraw the static background elements only
+  drawSideView();
+
+  // Remove all pitch arcs, landing dots, tunnel corridors and decision points
+  // from the static draw so we can rebuild them incrementally
+  // We do this by removing elements with specific attributes we will re-add
+  // Actually — clear the svg and redraw base only
+  svg.innerHTML='';
+
+  // Redraw background, zones, zone bar, mound, plate, labels — no pitches, no tunnels
+  svg.appendChild(el('rect',{x:0,y:0,width:W,height:H,fill:'#0a0e1a'}));
+
+  const groundY=toSVG(0,0.40).y;
+  const zoneTop=toSVG(0,1.37);
+  const zoneBtm=toSVG(0,0.75);
+  const highY=toSVG(0,1.55).y;
+  const zoneMid1=toSVG(0,0.75+0.207);
+  const zoneMid2=toSVG(0,0.75+0.414);
+
+  // Zone bands
+  svg.appendChild(el('rect',{x:PAD_L,y:zoneBtm.y,width:DRAW_W,
+    height:groundY-zoneBtm.y,fill:'#1a0e06',opacity:0.4}));
+  svg.appendChild(el('rect',{x:PAD_L,y:zoneTop.y,width:DRAW_W,
+    height:zoneBtm.y-zoneTop.y,fill:'#0f2035',opacity:0.5}));
+  svg.appendChild(el('rect',{x:PAD_L,y:highY,width:DRAW_W,
+    height:zoneTop.y-highY,fill:'#091828',opacity:0.3}));
+
+  // Zone dividers
+  [zoneMid1.y,zoneMid2.y].forEach(y=>{
+    svg.appendChild(el('line',{x1:PAD_L,y1:y,x2:W-PAD_R,y2:y,
+      stroke:'#2a4a6a','stroke-width':'0.5','stroke-dasharray':'3 3'}));
+  });
+  [zoneTop.y,zoneBtm.y].forEach(y=>{
+    svg.appendChild(el('line',{x1:PAD_L,y1:y,x2:W-PAD_R,y2:y,
+      stroke:'#4a7aaa','stroke-width':'0.5'}));
+  });
+
+  // Ground line
+  svg.appendChild(el('line',{x1:PAD_L,y1:groundY,x2:W-PAD_R,y2:groundY,
+    stroke:'#2a3a2a','stroke-width':'1'}));
+
+  // Zone labels
+  [{label:'HIGH',y:(highY+zoneTop.y)/2},
+   {label:'ZONE',y:(zoneTop.y+zoneBtm.y)/2},
+   {label:'LOW', y:(zoneBtm.y+groundY)/2}].forEach(({label,y})=>{
+    svg.appendChild(txt(label,{x:PAD_L-8,y,fill:'#3a5a7a','font-size':'9',
+      'font-family':'DM Mono,monospace','text-anchor':'end','dominant-baseline':'central'}));
+  });
+
+  // Strike zone bar
+  const zBarX=W-PAD_R+8;
+  svg.appendChild(el('rect',{x:zBarX,y:zoneTop.y,width:18,
+    height:zoneBtm.y-zoneTop.y,fill:'#0f2840',stroke:'#7ec8e3','stroke-width':'1.5'}));
+  [zoneMid1.y,zoneMid2.y].forEach(y=>{
+    svg.appendChild(el('line',{x1:zBarX,y1:y,x2:zBarX+18,y2:y,
+      stroke:'#4a7aaa','stroke-width':'0.5'}));
+  });
+
+  // Mound and plate
+  const moundX=toSVG(17,0.40).x;
+  svg.appendChild(el('ellipse',{cx:moundX,cy:groundY,rx:18,ry:6,
+    fill:'#1a0e06',stroke:'#2a1a06','stroke-width':'0.5'}));
+  svg.appendChild(txt('60\'6"',{x:moundX,y:groundY+18,fill:'#2a3a4a','font-size':'8',
+    'font-family':'DM Mono,monospace','text-anchor':'middle'}));
+  svg.appendChild(txt('PLATE',{x:toSVG(0,0.40).x,y:groundY+18,fill:'#2a3a4a',
+    'font-size':'8','font-family':'DM Mono,monospace','text-anchor':'middle'}));
+
+  // Release point dot
+  if(seq.length){
+    const rp=toSVG(seq[0].pts3d[0].z,seq[0].pts3d[0].y);
+    svg.appendChild(el('circle',{cx:rp.x,cy:rp.y,r:'5',fill:'#c084fc'}));
+    svg.appendChild(txt('REL',{x:rp.x-10,y:rp.y,fill:'#c084fc','font-size':'8',
+      'font-family':'DM Mono,monospace','text-anchor':'end','dominant-baseline':'central'}));
+  }
+
+  // Legend at bottom
+  const legY=H-PAD_B+20;
+  let legX=PAD_L;
+  seq.forEach((s,i)=>{
+    const col='#'+PITCHES[s.pk].color.toString(16).padStart(6,'0');
+    svg.appendChild(el('circle',{cx:legX+6,cy:legY,r:'5',fill:col}));
+    svg.appendChild(txt(`${i+1}. ${PITCHES[s.pk].name} ${s.spd}mph`,{
+      x:legX+14,y:legY,fill:'#8aabb8','font-size':'9',
+      'font-family':'DM Mono,monospace','dominant-baseline':'central'}));
+    legX+=Math.min(160,DRAW_W/seq.length);
+  });
+
+  // Helper to check if two pitch sequences tunnel at a given index pair
+  function getTunnelPath(ptsA, ptsB){
+    const n=Math.min(ptsA.length,ptsB.length);
+    const s0=Math.floor(n*0.15);
+    const s1=Math.floor(n*0.72);
+    let tunnelPts=[];
+    for(let i=s0;i<s1;i++){
+      const dist=ptsA[i].distanceTo(ptsB[i]);
+      if(dist<=0.22){
+        const mx=(ptsA[i].x+ptsB[i].x)/2;
+        const my=(ptsA[i].y+ptsB[i].y)/2;
+        const mz=(ptsA[i].z+ptsB[i].z)/2;
+        tunnelPts.push({x:mx,y:my,z:mz});
+      } else if(tunnelPts.length>3){
+        break;
+      }
+    }
+    return tunnelPts.length>=3?tunnelPts:null;
+  }
+
+  // Helper to draw a single pitch arc and landing dot
+  function drawPitchArc(s, i){
+    const col='#'+PITCHES[s.pk].color.toString(16).padStart(6,'0');
+    const pts=s.pts3d;
+    if(!pts||!pts.length) return;
+    const svgPts=pts.map(p=>toSVG(p.z,p.y));
+    const pathD='M'+svgPts[0].x+','+svgPts[0].y+
+      svgPts.slice(1).map(p=>' L'+p.x+','+p.y).join('');
+    svg.appendChild(el('path',{d:pathD,fill:'none',stroke:col,
+      'stroke-width':'2',opacity:'0.85','stroke-linecap':'round'}));
+    const lp=svgPts[svgPts.length-1];
+    svg.appendChild(el('circle',{cx:lp.x,cy:lp.y,r:'8',fill:col}));
+    svg.appendChild(txt(String(i+1),{x:lp.x,y:lp.y,fill:'white','font-size':'8',
+      'font-family':'DM Mono,monospace','text-anchor':'middle',
+      'dominant-baseline':'central','font-weight':'bold'}));
+  }
+
+  // Helper to draw tunnel corridor between two pitches
+  function drawTunnelCorridor(tunnelPts){
+    const svgPts=tunnelPts.map(p=>toSVG(p.z,p.y));
+    const pathD='M'+svgPts.map(p=>p.x+','+p.y).join(' L');
+    // Wide gold glow
+    svg.appendChild(el('path',{d:pathD,fill:'none',stroke:'#eab308',
+      'stroke-width':'12',opacity:'0.08','stroke-linecap':'round'}));
+    // Inner gold line
+    svg.appendChild(el('path',{d:pathD,fill:'none',stroke:'#fde047',
+      'stroke-width':'4',opacity:'0.18','stroke-linecap':'round'}));
+    // Decision point ring at end
+    const ep=svgPts[svgPts.length-1];
+    svg.appendChild(el('circle',{cx:ep.x,cy:ep.y,r:'8',fill:'none',
+      stroke:'#eab308','stroke-width':'1.5',opacity:'0.85'}));
+    svg.appendChild(txt('DECISION',{x:ep.x,y:ep.y-14,fill:'#eab308',
+      'font-size':'7','font-family':'DM Mono,monospace','text-anchor':'middle'}));
+  }
+
+  // INCREMENTAL REPLAY — show pitches one at a time, accumulating
+  // After each pitch check if it tunnels with any previous pitch
+  // If yes draw the tunnel corridor immediately
+  const drawnPitches=[];
+  let replayIndex=0;
+
+  sideReplayTimer=setInterval(()=>{
+    if(replayIndex>=seq.length){
+      clearInterval(sideReplayTimer);
+      sideReplayTimer=null;
+      return;
+    }
+
+    const s=seq[replayIndex];
+    // Draw this pitch arc
+    drawPitchArc(s,replayIndex);
+
+    // Check if this pitch tunnels with any previously drawn pitch
+    drawnPitches.forEach(prev=>{
+      const tunnelPts=getTunnelPath(prev.pts3d,s.pts3d);
+      if(tunnelPts){
+        // Draw tunnel corridor immediately alongside this pitch
+        drawTunnelCorridor(tunnelPts);
+      }
+    });
+
+    // Add this pitch to the drawn list
+    drawnPitches.push(s);
+    replayIndex++;
+  },900);
+}
+
 function makeOutcomeSprite(outcome){
   const palette=simSpritePalette(outcome);
   const tc=document.createElement('canvas');
@@ -373,6 +746,7 @@ function commitPitch(pts3d,pk,zk,spd,bd,rl,ct,outcome){
   animBall(pts3d,col,PITCHES[pk].ms,()=>addLanding(pts3d[pts3d.length-1],col,spd,outcome));
   seq.push({pk,zk,spd,bd,role:rl,count:ct,outcome:outcome||'',pts3d:pts3d.map(v=>v.clone())});
   updateSeqUI();buildTunnels();
+  if(currentView==='side') drawSideView();
   saveSimState();
 }
 
@@ -442,6 +816,7 @@ function clearAll(){
   pathObjs.forEach(o=>removeObj(o));pathObjs=[];landObjs.forEach(o=>scene.remove(o));landObjs=[];clearTunnels();updateSeqUI();updateSimLogUI();
   zone='MM';
   setTargetMode('ZONE');
+  if(currentView==='side') drawSideView();
   clearSimStateSession();
 }
 
@@ -491,3 +866,4 @@ updateSimPanelVisibility();
 updateSimStatBar();
 updateSimLogUI();
 initProfile();
+setView('catcher');
