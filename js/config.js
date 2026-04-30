@@ -147,3 +147,29 @@ const SITUATION_MODIFIERS={
     label:'BEHIND'
   }
 };
+
+// Umpire quality settings
+const UMPIRE_SETTINGS={
+  GOOD:{
+    label:'GOOD',
+    edgeStrikeProb:0.80,
+    edgeBallProb:0.20,
+    cornerStrikeProb:0.60,
+    cornerBallProb:0.40,
+    chaseStrikeProb:0.00,
+    inconsistencyRate:0.02
+  },
+  BAD:{
+    label:'BAD',
+    edgeStrikeProb:0.55,
+    edgeBallProb:0.45,
+    cornerStrikeProb:0.35,
+    cornerBallProb:0.65,
+    chaseStrikeProb:0.12,
+    inconsistencyRate:0.08
+  }
+};
+
+// Zone key classification for umpire calls
+const EDGE_ZONE_KEYS=['LFT-EDG','RGT-EDG','TOP-EDG','BOT-EDG'];
+const CORNER_ZONE_KEYS=['TL-CRN','TR-CRN','BL-CRN','BR-CRN'];
