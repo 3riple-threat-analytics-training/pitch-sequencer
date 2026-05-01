@@ -19,6 +19,12 @@ let simInningLogPending=false;
 let simClearTimer=null;
 let pitchCount='0-0';
 let atBatOver=false;
+// Baserunner state — true means runner on that base
+let runners={first:false, second:false, third:false};
+let totalScore=0;
+let inningHits=0;
+let scoreboardData=[]; // array of {inning, hits, score} per completed inning
+let pendingRunnerUpdate=null; // suggested runner state after a hit
 
 const WEAK_CONTACT_TABLE=[
   {outcome:'FOUL',weight:40},
@@ -86,8 +92,17 @@ function toggleSimMode(){
   if(bt) bt.value='GENERIC';
   setGameSituation('NEUTRAL');
   setUmpireQuality('GOOD');
-  if(!simMode) unlockThrowButton();
+  if(!simMode){
+    unlockThrowButton();
+    runners={first:false,second:false,third:false};
+    totalScore=0;
+    inningHits=0;
+    scoreboardData=[];
+    pendingRunnerUpdate=null;
+    closeDiamondModal();
+  }
   updateSimPanelVisibility();
+  updateSimStatBar();
   saveSimState();
 }
 
@@ -103,6 +118,8 @@ function updateSimPanelVisibility(){
   if(sw) sw.style.display=simMode?'block':'none';
   const uw=document.getElementById('umpirewrap');
   if(uw) uw.style.display=simMode?'block':'none';
+  const di=document.getElementById('diamondicon');
+  if(di) di.style.display=simMode?'inline-flex':'none';
   if(!simMode) document.getElementById('simnewbatterbtn').style.display='none';
 }
 
@@ -162,6 +179,7 @@ function onSimAdvanceClick(){handleNewBatter();}
 
 function handleNewInning(){
   simInningBreak=false;
+  resetRunners();
   outCount=0;
   inningNumber++;
   simHalfTop=!simHalfTop;
@@ -262,6 +280,87 @@ function updateSimStatBar(){
     const el=document.getElementById('simdot'+i);
     if(el) el.classList.toggle('filled',i<o);
   }
+  const scoreEl=document.getElementById('simscore');
+  if(scoreEl) scoreEl.textContent=totalScore;
+  updateDiamondIcon();
+}
+
+function updateDiamondIcon(){
+  const f=document.getElementById('runfirst');
+  const s=document.getElementById('runsecond');
+  const t=document.getElementById('runthird');
+  if(f) f.classList.toggle('occupied',runners.first);
+  if(s) s.classList.toggle('occupied',runners.second);
+  if(t) t.classList.toggle('occupied',runners.third);
+}
+
+function suggestRunnerAdvancement(hitType){
+  let newRunners={first:false, second:false, third:false};
+  let runsScored=0;
+
+  if(hitType==='HOME RUN'){
+    runsScored=(runners.first?1:0)+(runners.second?1:0)+(runners.third?1:0)+1;
+    newRunners={first:false, second:false, third:false};
+  } else if(hitType==='TRIPLE'){
+    runsScored=(runners.first?1:0)+(runners.second?1:0)+(runners.third?1:0);
+    newRunners={first:false, second:false, third:true};
+  } else if(hitType==='DOUBLE'){
+    runsScored=(runners.second?1:0)+(runners.third?1:0);
+    newRunners={first:false, second:true, third:runners.first};
+  } else if(hitType==='SINGLE'){
+    runsScored=(runners.third?1:0);
+    newRunners={
+      first:true,
+      second:runners.first,
+      third:runners.second
+    };
+  }
+
+  return {newRunners, runsScored};
+}
+
+function applyHitToRunners(hitType){
+  const {newRunners, runsScored}=suggestRunnerAdvancement(hitType);
+  pendingRunnerUpdate={newRunners, runsScored, hitType};
+  runners=newRunners;
+  totalScore+=runsScored;
+  inningHits++;
+  updateSimStatBar();
+  openDiamondModal();
+}
+
+function applyWalkToRunners(){
+  let runsScored=0;
+  let newRunners={first:false, second:false, third:false};
+
+  if(runners.first && runners.second && runners.third){
+    runsScored=1;
+    newRunners={first:true, second:true, third:true};
+  } else if(runners.first && runners.second){
+    newRunners={first:true, second:true, third:true};
+  } else if(runners.first){
+    newRunners={first:true, second:true, third:false};
+  } else {
+    newRunners={first:true, second:runners.second, third:runners.third};
+  }
+
+  pendingRunnerUpdate={newRunners, runsScored, hitType:'WALK'};
+  runners=newRunners;
+  totalScore+=runsScored;
+  updateSimStatBar();
+  openDiamondModal();
+}
+
+function resetRunners(){
+  scoreboardData.push({
+    inning:inningNumber,
+    hits:inningHits,
+    score:totalScore
+  });
+  runners={first:false,second:false,third:false};
+  inningHits=0;
+  updateSimStatBar();
+  updateDiamondUI();
 }
 
 function cancelSimScheduledClear(){if(simClearTimer){clearTimeout(simClearTimer);simClearTimer=null;}}
@@ -554,12 +653,112 @@ function applySimCountOutcome(outcome,strikesAtStart){
   else if(outcome==='STRIKE'||outcome==='SWING & MISS'||outcome==='CALLED STRIKE') strikeCount=Math.min(3,strikeCount+1);
   else if(outcome==='FOUL'&&strikesAtStart<2) strikeCount=Math.min(2,strikeCount+1);
   renderCount();
-  if(ballCount>=4){display='WALK';if(simMode) lockThrowButton();showSimAdvanceButton();saveSimState();return display;}
+  if(ballCount>=4){
+    display='WALK';
+    if(simMode) applyWalkToRunners();
+    if(simMode) lockThrowButton();
+    showSimAdvanceButton();
+    saveSimState();
+    return display;
+  }
   if(strikeCount>=3&&(outcome==='STRIKE'||outcome==='SWING & MISS'||outcome==='CALLED STRIKE')){display='STRIKEOUT';addSimOutCore();if(simMode) lockThrowButton();showSimAdvanceButton();saveSimState();return display;}
   if(outcome==='GROUND OUT'||outcome==='POP FLY'){ballCount=0;strikeCount=0;renderCount();addSimOutCore();if(simMode) lockThrowButton();showSimAdvanceButton();saveSimState();return outcome;}
-  if(outcome==='SINGLE'||outcome==='DOUBLE'||outcome==='TRIPLE'||outcome==='HOME RUN'){ballCount=0;strikeCount=0;renderCount();if(simMode) lockThrowButton();showSimAdvanceButton();scheduleSimSequenceClear(2000);saveSimState();return outcome;}
+  if(outcome==='SINGLE'||outcome==='DOUBLE'||outcome==='TRIPLE'||outcome==='HOME RUN'){
+    ballCount=0;strikeCount=0;renderCount();
+    if(simMode) applyHitToRunners(outcome);
+    if(simMode) lockThrowButton();
+    showSimAdvanceButton();
+    scheduleSimSequenceClear(2000);
+    saveSimState();
+    return outcome;
+  }
   saveSimState();
   return display;
+}
+
+function openDiamondModal(){
+  updateDiamondUI();
+  const badge=document.getElementById('diamond-outcome-badge');
+  if(badge&&pendingRunnerUpdate){
+    const colors={
+      'SINGLE':  {bg:'#1a0c04',border:'#f97316',text:'#f97316'},
+      'DOUBLE':  {bg:'#0f172a',border:'#60a5fa',text:'#60a5fa'},
+      'TRIPLE':  {bg:'#0a1a10',border:'#4ade80',text:'#4ade80'},
+      'HOME RUN':{bg:'#1e1033',border:'#c084fc',text:'#c084fc'},
+      'WALK':    {bg:'#0a1a10',border:'#4ade80',text:'#4ade80'},
+    };
+    const c=colors[pendingRunnerUpdate.hitType]||{bg:'#0d1520',border:'#7ec8e3',text:'#7ec8e3'};
+    badge.textContent=pendingRunnerUpdate.hitType;
+    badge.style.display='block';
+    badge.style.background=c.bg;
+    badge.style.border='0.5px solid '+c.border;
+    badge.style.color=c.text;
+  } else if(badge){
+    badge.style.display='none';
+  }
+  const modal=document.getElementById('diamondmodal');
+  if(modal) modal.style.display='flex';
+}
+
+function closeDiamondModal(){
+  const modal=document.getElementById('diamondmodal');
+  if(modal) modal.style.display='none';
+  updateSimStatBar();
+  saveSimState();
+}
+
+function updateDiamondUI(){
+  ['first','second','third'].forEach(base=>{
+    const btn=document.getElementById('base-'+base);
+    if(btn) btn.classList.toggle('occupied',runners[base]);
+  });
+  const ms=document.getElementById('modal-score');
+  if(ms) ms.textContent='SCORE: '+totalScore;
+  const rr=document.getElementById('runs-result');
+  if(rr&&pendingRunnerUpdate){
+    let msg='';
+    if(pendingRunnerUpdate.hitType==='WALK'){
+      msg=pendingRunnerUpdate.runsScored>0?
+        'Bases loaded walk - run scores':'Batter advances to 1st - forced runners advance';
+    } else if(pendingRunnerUpdate.hitType==='HOME RUN'){
+      const total=(pendingRunnerUpdate.runsScored);
+      msg=total+' run'+(total>1?'s':'')+' score - bases clear';
+    } else if(pendingRunnerUpdate.hitType==='TRIPLE'){
+      msg=pendingRunnerUpdate.runsScored>0?
+        pendingRunnerUpdate.runsScored+' run'+(pendingRunnerUpdate.runsScored>1?'s':'')+' score - batter on 3rd':
+        'Batter on 3rd - bases clear';
+    } else if(pendingRunnerUpdate.hitType==='DOUBLE'){
+      msg=pendingRunnerUpdate.runsScored>0?
+        pendingRunnerUpdate.runsScored+' run'+(pendingRunnerUpdate.runsScored>1?'s':'')+' score - batter on 2nd':
+        'Batter on 2nd - adjust runners as needed';
+    } else if(pendingRunnerUpdate.hitType==='SINGLE'){
+      msg=pendingRunnerUpdate.runsScored>0?
+        '1 run scores - batter on 1st':
+        'Batter on 1st - adjust runners as needed';
+    }
+    rr.textContent=msg;
+    rr.style.color=pendingRunnerUpdate.runsScored>0?'#4ade80':'#7ec8e3';
+  }else if(rr){
+    rr.textContent='Tap bases to adjust runner positions';
+    rr.style.color='#5a8aaa';
+  }
+}
+
+function toggleBase(base){
+  runners[base]=!runners[base];
+  updateDiamondUI();
+}
+
+function addRun(){
+  totalScore++;
+  updateDiamondUI();
+  updateSimStatBar();
+}
+
+function removeRun(){
+  totalScore=Math.max(0,totalScore-1);
+  updateDiamondUI();
+  updateSimStatBar();
 }
 
 function installSimThrowGuard(){
@@ -601,6 +800,11 @@ saveSimState=function(){
     d.gameSituation=gameSituation||'NEUTRAL';
     d.umpireQuality=umpireQuality||'GOOD';
     d.lastPitchSpeed=lastPitchSpeed||0;
+    d.runners={first:!!runners.first,second:!!runners.second,third:!!runners.third};
+    d.totalScore=totalScore||0;
+    d.inningHits=inningHits||0;
+    d.scoreboardData=Array.isArray(scoreboardData)?scoreboardData:[];
+    d.pendingRunnerUpdate=pendingRunnerUpdate||null;
     sessionStorage.setItem(SIM_SESSION_KEY,JSON.stringify(d));
   }catch(e){}
 };
@@ -616,6 +820,15 @@ restoreSimState=function(){
     gameSituation=(typeof d.gameSituation==='string'&&SITUATION_MODIFIERS[d.gameSituation])?d.gameSituation:'NEUTRAL';
     umpireQuality=(typeof d.umpireQuality==='string'&&UMPIRE_SETTINGS[d.umpireQuality])?d.umpireQuality:'GOOD';
     lastPitchSpeed=Math.max(0,parseInt(d.lastPitchSpeed,10)||0);
+    runners={
+      first:!!(d.runners&&d.runners.first),
+      second:!!(d.runners&&d.runners.second),
+      third:!!(d.runners&&d.runners.third)
+    };
+    totalScore=Math.max(0,parseInt(d.totalScore,10)||0);
+    inningHits=Math.max(0,parseInt(d.inningHits,10)||0);
+    scoreboardData=Array.isArray(d.scoreboardData)?d.scoreboardData:[];
+    pendingRunnerUpdate=d.pendingRunnerUpdate&&typeof d.pendingRunnerUpdate==='object'?d.pendingRunnerUpdate:null;
     const bl=document.getElementById('batterlevel');
     if(bl) bl.value=batterLevel;
     ['NEUTRAL','AHEAD','BEHIND'].forEach(key=>{
@@ -626,10 +839,17 @@ restoreSimState=function(){
       const btn=document.getElementById('ump'+key);
       if(btn) btn.classList.toggle('active',key===umpireQuality);
     });
+    updateDiamondUI();
+    updateSimStatBar();
   }catch(e){
     batterLevel='rec12';
     gameSituation='NEUTRAL';
     umpireQuality='GOOD';
     lastPitchSpeed=0;
+    runners={first:false,second:false,third:false};
+    totalScore=0;
+    inningHits=0;
+    scoreboardData=[];
+    pendingRunnerUpdate=null;
   }
 };

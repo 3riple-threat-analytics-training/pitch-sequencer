@@ -109,6 +109,15 @@ body{background:#1b3322;display:flex;justify-content:center;min-height:100vh;pad
 .simstatbar strong{color:#8aabb8;font-weight:500;}
 .simstat-inn{font-size:9px;}
 .simstat-outs{display:flex;align-items:flex-end;gap:10px;flex-wrap:wrap;}
+.simdot{display:inline-block;margin-right:2px;}
+#simstatbar{
+  display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  font-size:9px;font-family:'DM Mono',monospace;color:#5a8aaa;
+  padding:4px 0;
+}
+#diamondicon{display:none;align-items:center;}
+#diamondicon svg circle.occupied{fill:#eab308;}
+#diamondmodal circle.occupied{fill:#eab308;stroke:#eab308;}
 .sim-out-slot{display:flex;flex-direction:column;align-items:center;gap:3px;}
 .sim-out-lbl{font-size:7px;letter-spacing:1px;color:#3a5a7a;text-transform:uppercase;}
 .sim-out-dot{width:8px;height:8px;border-radius:50%;border:1px solid #3a5a7a;background:transparent;box-sizing:border-box;}
