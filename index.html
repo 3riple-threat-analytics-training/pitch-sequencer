@@ -6,6 +6,11 @@
 <title>Pitch Sequencer v37</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/styles.css">
+<link rel="manifest" href="./manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PitchSeq">
+<link rel="apple-touch-icon" href="./icons/icon-180.png">
 <style>
 .sitrow{display:flex;gap:4px;}
 .sitbtn{
@@ -391,5 +396,14 @@
 <script src="js/storage.js"></script>
 <script src="js/sim.js"></script>
 <script src="js/app.js"></script>
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg=>console.log('Service worker registered:',reg.scope))
+      .catch(err=>console.log('Service worker failed:',err));
+  });
+}
+</script>
 </body>
 </html>
