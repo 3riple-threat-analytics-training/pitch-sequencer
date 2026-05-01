@@ -1,4 +1,5 @@
 const PROFILE_KEY='pitchseq-pitcher-profile';
+const OPPONENTS_KEY='pitchseq-opponents';
 
 function getProfile(){
   try{
@@ -21,11 +22,43 @@ function getSavedPlans(){
   try{
     const raw=localStorage.getItem(PLAN_STORAGE_KEY);
     const parsed=raw?JSON.parse(raw):[];
-    return Array.isArray(parsed)?parsed:[];
+    if(!Array.isArray(parsed)) return [];
+    return parsed.map(p=>({
+      ...p,
+      opponent:p&&typeof p.opponent==='string'?p.opponent:'',
+      outcome:p&&typeof p.outcome==='string'?p.outcome:'UNTESTED',
+      batterNotes:p&&typeof p.batterNotes==='string'?p.batterNotes:'',
+      gameNotes:p&&typeof p.gameNotes==='string'?p.gameNotes:''
+    }));
   }catch(e){return [];}
 }
 
 function setSavedPlans(plans){localStorage.setItem(PLAN_STORAGE_KEY,JSON.stringify(plans));}
+
+function getOpponents(){
+  try{
+    const raw=localStorage.getItem(OPPONENTS_KEY);
+    return raw?JSON.parse(raw):[];
+  }catch(e){return [];}
+}
+
+function addOpponent(name){
+  if(!name)return;
+  const opps=getOpponents();
+  if(!opps.includes(name)){
+    opps.push(name);
+    opps.sort();
+    localStorage.setItem(OPPONENTS_KEY,JSON.stringify(opps));
+  }
+}
+
+function updatePlanField(planId,fields){
+  const plans=getSavedPlans();
+  const idx=plans.findIndex(p=>p.id===planId);
+  if(idx===-1)return;
+  Object.assign(plans[idx],fields);
+  setSavedPlans(plans);
+}
 
 function toStorableSeq(items){
   return items.map(s=>({
@@ -43,26 +76,58 @@ function fromStoredSeq(items){
 
 function refreshPlanDropdown(selectedId){
   const sel=document.getElementById('planselect');
+  const oppFilter=document.getElementById('oppfilter');
   const exportBtn=document.getElementById('exportpdfbtn');
+  const notesBtn=document.getElementById('notesbtn');
   const plans=getSavedPlans();
+
+  if(!sel)return;
+
+  if(oppFilter){
+    const currentOpp=oppFilter.value;
+    oppFilter.innerHTML='<option value="">ALL OPPONENTS</option>';
+    const opps=[...new Set(plans.map(p=>p.opponent||'').filter(Boolean))].sort();
+    opps.forEach(o=>{
+      const opt=document.createElement('option');
+      opt.value=o;
+      opt.textContent=o;
+      oppFilter.appendChild(opt);
+    });
+    if(currentOpp) oppFilter.value=currentOpp;
+  }
+
   if(exportBtn) exportBtn.disabled=!plans.length;
+
+  const filterOpp=oppFilter?oppFilter.value:'';
+  const filtered=filterOpp?plans.filter(p=>(p.opponent||'')===filterOpp):plans;
+
   sel.innerHTML='';
-  if(!plans.length){
+  if(!filtered.length){
     const opt=document.createElement('option');
     opt.value='';
     opt.textContent='No saved plans';
     sel.appendChild(opt);
     sel.disabled=true;
+    if(notesBtn) notesBtn.style.display='none';
     return;
   }
+
   sel.disabled=false;
-  plans.forEach((p,i)=>{
+  filtered.forEach((p,i)=>{
     const opt=document.createElement('option');
     opt.value=p.id;
-    opt.textContent=p.name||('Plan '+(i+1));
+    const outcomeIcon=p.outcome==='WORKED'?'✓':p.outcome==="DIDN'T WORK"?'✗':p.outcome==='NEEDS ADJUSTMENT'?'△':'';
+    opt.textContent=(outcomeIcon?outcomeIcon+' ':'')+(p.name||('Plan '+(i+1)))+(p.opponent?' · '+p.opponent:'');
     sel.appendChild(opt);
   });
-  if(selectedId&&plans.some(p=>p.id===selectedId)) sel.value=selectedId;
+
+  if(selectedId&&filtered.some(p=>p.id===selectedId)) sel.value=selectedId;
+
+  if(notesBtn){
+    const loadedPlanId=window.loadedPlanId;
+    const visible=!!loadedPlanId&&filtered.some(p=>p.id===loadedPlanId);
+    notesBtn.style.display=visible?'block':'none';
+  }
 }
 
 function savePlan(){
@@ -79,12 +144,20 @@ function savePlan(){
     name:planName,
     batter:batterHand,
     batterHand:batterHand,
+    opponent:(document.getElementById('planopp')?document.getElementById('planopp').value.trim():''),
+    outcome:'UNTESTED',
+    batterNotes:'',
+    gameNotes:'',
     savedAt:new Date().toISOString(),
     sequence:toStorableSeq(seq)
   });
   setSavedPlans(plans);
+  const oppName=(document.getElementById('planopp')?document.getElementById('planopp').value.trim():'');
+  if(oppName) addOpponent(oppName);
   refreshPlanDropdown(id);
   nameInput.value='';
+  const oppEl=document.getElementById('planopp');
+  if(oppEl) oppEl.value='';
 }
 
 function loadPlan(){
@@ -98,11 +171,16 @@ function loadPlan(){
   updateSeqUI();
   rebuildPaths();
   refreshGhost();
+  const notesBtn=document.getElementById('notesbtn');
+  if(notesBtn) notesBtn.style.display='block';
+  window.loadedPlanId=plan.id;
+  if(typeof openNotesModal==='function') openNotesModal();
 }
 
 function deletePlan(){
   const sel=document.getElementById('planselect');
   if(!sel||!sel.value)return;
+  if(window.loadedPlanId===sel.value) window.loadedPlanId=null;
   const plans=getSavedPlans().filter(p=>p.id!==sel.value);
   setSavedPlans(plans);
   refreshPlanDropdown(plans[0]?plans[0].id:'');

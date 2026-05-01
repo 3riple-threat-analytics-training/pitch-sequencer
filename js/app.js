@@ -845,6 +845,94 @@ function updateSeqUI(){
   if(ew) ew.style.display=simMode?'none':'block';
 }
 
+let currentNotesOutcome='UNTESTED';
+
+function showOpponentSuggestions(){
+  const opps=getOpponents();
+  renderOpponentSuggestions(opps);
+}
+
+function filterOpponentSuggestions(){
+  const input=document.getElementById('planopp');
+  if(!input)return;
+  const val=input.value.toLowerCase();
+  const opps=getOpponents().filter(o=>o.toLowerCase().includes(val));
+  renderOpponentSuggestions(opps);
+}
+
+function renderOpponentSuggestions(opps){
+  const box=document.getElementById('oppsuggest');
+  if(!box)return;
+  if(!opps.length){box.style.display='none';return;}
+  box.innerHTML='';
+  opps.forEach(o=>{
+    const d=document.createElement('div');
+    d.textContent=o;
+    d.style.cssText='padding:5px 8px;font-size:9px;color:#8aabb8;cursor:pointer;font-family:DM Mono,monospace;';
+    d.onmousedown=()=>{
+      const input=document.getElementById('planopp');
+      if(input) input.value=o;
+      box.style.display='none';
+    };
+    d.onmouseover=()=>{d.style.background='#111e2e';};
+    d.onmouseout=()=>{d.style.background='';};
+    box.appendChild(d);
+  });
+  box.style.display='block';
+}
+
+function hideOpponentSuggestions(){
+  setTimeout(()=>{
+    const box=document.getElementById('oppsuggest');
+    if(box) box.style.display='none';
+  },200);
+}
+
+function filterPlansByOpponent(){
+  refreshPlanDropdown();
+}
+
+function openNotesModal(){
+  const planId=window.loadedPlanId;
+  if(!planId)return;
+  const plan=getSavedPlans().find(p=>p.id===planId);
+  if(!plan)return;
+  document.getElementById('notesplanname').textContent=(plan.name||'')+(plan.opponent?' · '+plan.opponent:'');
+  document.getElementById('notesbaatter').value=plan.batterNotes||'';
+  document.getElementById('notesgame').value=plan.gameNotes||'';
+  currentNotesOutcome=plan.outcome||'UNTESTED';
+  updateOutcomeBtns();
+  document.getElementById('notesoverlay').style.display='flex';
+}
+
+function closeNotesModal(){
+  const overlay=document.getElementById('notesoverlay');
+  if(overlay) overlay.style.display='none';
+}
+
+function setOutcome(o){
+  currentNotesOutcome=o;
+  updateOutcomeBtns();
+}
+
+function updateOutcomeBtns(){
+  document.querySelectorAll('.outcomebtn').forEach(b=>{
+    b.classList.toggle('active',b.dataset.outcome===currentNotesOutcome);
+  });
+}
+
+function saveNotes(){
+  const planId=window.loadedPlanId;
+  if(!planId)return;
+  updatePlanField(planId,{
+    batterNotes:document.getElementById('notesbaatter').value,
+    gameNotes:document.getElementById('notesgame').value,
+    outcome:currentNotesOutcome
+  });
+  closeNotesModal();
+  refreshPlanDropdown(planId);
+}
+
 if(typeof toggleSimMode==='function'){
   const __origToggleSimMode=toggleSimMode;
   toggleSimMode=function(){

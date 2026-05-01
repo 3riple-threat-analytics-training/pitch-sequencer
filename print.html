@@ -139,6 +139,41 @@ html, body {
   color:#555;
   font-family:'DM Mono',monospace;
 }
+.slot-notes-label{
+  font-size:7px;
+  color:#888;
+  text-transform:uppercase;
+  letter-spacing:1px;
+  margin-top:4px;
+  margin-bottom:1px;
+  font-family:'DM Mono',monospace;
+}
+.slot-notes-text{
+  font-size:8px;
+  color:#444;
+  font-family:'DM Mono',monospace;
+  line-height:1.4;
+  white-space:pre-wrap;
+  word-wrap:break-word;
+}
+.slot-game-notes{
+  border-top:0.5px solid #eee;
+  padding-top:6px;
+  margin-top:6px;
+}
+.slot-outcome{
+  font-size:7px;
+  padding:1px 4px;
+  border-radius:3px;
+  margin-left:4px;
+  font-family:'DM Mono',monospace;
+}
+.slot-opponent{
+  font-size:9px;
+  color:#555;
+  font-family:'DM Mono',monospace;
+  margin-top:2px;
+}
 .slot-diagram {
   flex: 3;
   min-height: 0;
@@ -204,6 +239,9 @@ html, body {
 <div id="controlbar">
   <label for="planfilter">FILTER PLANS</label>
   <select id="planfilter" aria-label="Filter plans to print"></select>
+  <select id="oppfilterprint" onchange="filterByOpponent()">
+    <option value="">ALL OPPONENTS</option>
+  </select>
   <button type="button" id="printbtn">PRINT</button>
 </div>
 <div id="pages"></div>
@@ -441,35 +479,38 @@ html, body {
   }
 
   function slotHeaderHtml(plan) {
-    var name = escHtml(plan.name || 'Untitled plan');
-    var batterHand=getBatterHand(plan);
+    var name = escHtml(plan.name || 'Unnamed Plan');
+    var batterLabel=getBatterHand(plan);
     var pitcherHand=pitcherProfile?(pitcherProfile.hand==='R'?'RHP':(pitcherProfile.hand==='L'?'LHP':'')):'';
-    var slotMatchup='';
-    if(batterHand&&pitcherHand) slotMatchup=batterHand+' vs '+pitcherHand;
-    else if(pitcherHand) slotMatchup='vs '+pitcherHand;
-    else if(batterHand) slotMatchup=batterHand;
-    slotMatchup=String(slotMatchup||'').trim();
-    var arsenalLine = '';
-    if (pitcherProfile && Array.isArray(pitcherProfile.arsenal) && pitcherProfile.arsenal.length) {
-      var arsenalNames = pitcherProfile.arsenal.map(function (k) {
-        return PITCH_NAMES[k] || k;
-      }).join(' · ');
-      arsenalLine = '<div class="slot-arsenal">Arsenal: ' + escHtml(arsenalNames) + '</div>';
-    }
+    var matchup=batterLabel&&pitcherHand?batterLabel+' vs '+pitcherHand:(pitcherHand||batterLabel||'');
+    var outcomeColor=plan.outcome==='WORKED'?'#4ade80':
+      plan.outcome==="DIDN\'T WORK"?'#f87171':
+      plan.outcome==='NEEDS ADJUSTMENT'?'#eab308':'#6a8aaa';
+    var outcomeLabel=escHtml(plan.outcome||'UNTESTED');
+    var opponent=String(plan.opponent||'').trim();
+    var batterNotes=String(plan.batterNotes||'').trim();
+    var opponentLine=opponent
+      ?'<div class="slot-opponent">vs '+escHtml(opponent)+' <span class="slot-outcome" style="color:'+outcomeColor+';border:0.5px solid '+outcomeColor+';">'+outcomeLabel+'</span></div>'
+      :'<div><span class="slot-outcome" style="color:'+outcomeColor+';border:0.5px solid '+outcomeColor+';">'+outcomeLabel+'</span></div>';
+    var batterNotesLine=batterNotes?'<div class="slot-notes-label">BATTER NOTES</div><div class="slot-notes-text">'+escHtml(batterNotes)+'</div>':'';
     return ''
       + '<div class="slot-header">'
-      + '<div class="plan-name">' + name + '</div>'
-      + '<div class="meta slot-matchup">' + slotMatchup + '</div>'
-      + arsenalLine
+      + '<div class="slot-title">' + name + '</div>'
+      + '<div class="slot-matchup">' + escHtml(matchup) + '</div>'
+      + opponentLine
+      + batterNotesLine
       + '</div>';
   }
 
   function buildFilledSlot(plan) {
+    var gameNotes=String(plan.gameNotes||'').trim();
+    var gameNotesHtml=gameNotes?'<div class="slot-game-notes"><div class="slot-notes-label">GAME NOTES</div><div class="slot-notes-text">'+escHtml(gameNotes)+'</div></div>':'';
     return ''
       + '<section class="slot">'
       + slotHeaderHtml(plan)
       + '<div class="slot-diagram">' + buildDiagramSvg(plan) + '</div>'
       + '<div class="slot-table-wrap">' + buildTable(plan) + '</div>'
+      + gameNotesHtml
       + '</section>';
   }
 
@@ -530,9 +571,32 @@ html, body {
     sel.value = hasPrev ? prev : '';
   }
 
+  function populateOpponentFilter(plans){
+    var sel=document.getElementById('oppfilterprint');
+    if(!sel)return;
+    var prev=sel.value;
+    sel.innerHTML='<option value="">ALL OPPONENTS</option>';
+    var seen={};
+    plans.forEach(function(p){
+      var opp=(p&&p.opponent)?String(p.opponent).trim():'';
+      if(!opp||seen[opp]) return;
+      seen[opp]=true;
+    });
+    Object.keys(seen).sort().forEach(function(o){
+      var opt=document.createElement('option');
+      opt.value=o;
+      opt.textContent=o;
+      sel.appendChild(opt);
+    });
+    sel.value=seen[prev]?prev:'';
+  }
+
   function render() {
     var plans = getSavedPlans();
-    populatePlanFilter(plans);
+    populateOpponentFilter(plans);
+    var oppFilter=document.getElementById('oppfilterprint').value;
+    var visiblePlans=oppFilter?plans.filter(function(p){return (p.opponent||'')===oppFilter;}):plans;
+    populatePlanFilter(visiblePlans);
     var filterId = document.getElementById('planfilter').value;
     var dateStr = 'Generated: ' + new Date().toLocaleDateString(undefined, {
       year: 'numeric',
@@ -542,24 +606,31 @@ html, body {
     var html = '';
     if (filterId) {
       var one = null;
-      for (var j = 0; j < plans.length; j++) {
-        if (plans[j].id === filterId) { one = plans[j]; break; }
+      for (var j = 0; j < visiblePlans.length; j++) {
+        if (visiblePlans[j].id === filterId) { one = visiblePlans[j]; break; }
       }
       html += buildPage(dateStr, one, null);
     } else {
-      var nPages = Math.max(1, Math.ceil(plans.length / 2));
+      var nPages = Math.max(1, Math.ceil(visiblePlans.length / 2));
       for (var pi = 0; pi < nPages; pi++) {
-        var a = plans[pi * 2] || null;
-        var b = plans[pi * 2 + 1] || null;
+        var a = visiblePlans[pi * 2] || null;
+        var b = visiblePlans[pi * 2 + 1] || null;
         html += buildPage(dateStr, a, b);
       }
     }
     document.getElementById('pages').innerHTML = html;
   }
 
+  window.filterByOpponent=function(){
+    render();
+  };
+
   window.addEventListener('load', function () {
     render();
     document.getElementById('planfilter').addEventListener('change', function () {
+      render();
+    });
+    document.getElementById('oppfilterprint').addEventListener('change', function () {
       render();
     });
     document.getElementById('printbtn').addEventListener('click', function () {
