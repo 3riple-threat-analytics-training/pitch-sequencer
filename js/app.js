@@ -215,11 +215,10 @@ function initProfile(){
 }
 
 function buildBatterSilhouette(add,isRHB){
-  const xOff=isRHB?-0.42:0.42;
+  const xOff=isRHB?-0.52:0.52;
   const zOff=0.15;
-  const gnd=0.41;
-
-  const S=0.72;
+  const gnd=-0.273;
+  const S=2.21;
 
   const mat=(color,opacity)=>new THREE.MeshBasicMaterial({
     color,transparent:true,opacity,depthWrite:false
@@ -227,18 +226,114 @@ function buildBatterSilhouette(add,isRHB){
 
   const armDir=isRHB?1:-1;
 
+  // Build bottom-up. Foot top = gnd+0.21*S, work upward continuously.
+  // feet
+  const footMat=mat(0xeeeeee,0.65);
+  const frontLegX=isRHB?-0.030*S:0.030*S;
+  const backLegX=isRHB?0.030*S:-0.030*S;
+
+  const footFront=new THREE.Mesh(
+    new THREE.BoxGeometry(0.048*S,0.025*S,0.082*S),footMat
+  );
+  footFront.position.set(xOff+frontLegX,gnd+0.200*S,zOff+0.028*S);
+  add(footFront);
+
+  const footBack=new THREE.Mesh(
+    new THREE.BoxGeometry(0.048*S,0.025*S,0.082*S),footMat
+  );
+  footBack.position.set(xOff+backLegX,gnd+0.200*S,zOff-0.022*S);
+  add(footBack);
+
+  // lower legs — base at gnd+0.213*S, height 0.160*S, top at gnd+0.373*S
+  const legMat=mat(0x111111,0.58);
+
+  const lowerLegFront=new THREE.Mesh(
+    new THREE.CylinderGeometry(0.020*S,0.018*S,0.160*S,8),legMat
+  );
+  lowerLegFront.position.set(xOff+frontLegX,gnd+0.293*S,zOff+0.020*S);
+  lowerLegFront.rotation.x=-0.05;
+  add(lowerLegFront);
+
+  const lowerLegBack=new THREE.Mesh(
+    new THREE.CylinderGeometry(0.020*S,0.018*S,0.160*S,8),legMat
+  );
+  lowerLegBack.position.set(xOff+backLegX,gnd+0.293*S,zOff-0.020*S);
+  add(lowerLegBack);
+
+  // upper legs — base at gnd+0.373*S, height 0.180*S, top at gnd+0.553*S
+  const upperLegFront=new THREE.Mesh(
+    new THREE.CylinderGeometry(0.025*S,0.023*S,0.180*S,8),legMat
+  );
+  upperLegFront.position.set(xOff+frontLegX,gnd+0.463*S,zOff+0.025*S);
+  upperLegFront.rotation.x=-0.10;
+  add(upperLegFront);
+
+  const upperLegBack=new THREE.Mesh(
+    new THREE.CylinderGeometry(0.025*S,0.023*S,0.180*S,8),legMat
+  );
+  upperLegBack.position.set(xOff+backLegX,gnd+0.463*S,zOff-0.025*S);
+  upperLegBack.rotation.x=0.08;
+  add(upperLegBack);
+
+  // hips — center at gnd+0.553*S, height 0.065*S, top at gnd+0.585*S
+  const hips=new THREE.Mesh(
+    new THREE.BoxGeometry(0.105*S,0.065*S,0.075*S),
+    mat(0x111111,0.58)
+  );
+  hips.position.set(xOff,gnd+0.553*S,zOff);
+  add(hips);
+
+  const belt=new THREE.Mesh(
+    new THREE.BoxGeometry(0.108*S,0.012*S,0.076*S),
+    mat(0x222222,0.68)
+  );
+  belt.position.set(xOff,gnd+0.588*S,zOff);
+  add(belt);
+
+  // abdomen — center at gnd+0.630*S, height 0.085*S, top at gnd+0.673*S
+  const abdomen=new THREE.Mesh(
+    new THREE.BoxGeometry(0.095*S,0.085*S,0.072*S),
+    mat(0x2563eb,0.55)
+  );
+  abdomen.position.set(xOff,gnd+0.630*S,zOff);
+  add(abdomen);
+
+  // chest — center at gnd+0.743*S, height 0.14*S, top at gnd+0.813*S
+  const chest=new THREE.Mesh(
+    new THREE.BoxGeometry(0.10*S,0.14*S,0.075*S),
+    mat(0x2563eb,0.55)
+  );
+  chest.position.set(xOff,gnd+0.743*S,zOff);
+  add(chest);
+
+  const numPatch=new THREE.Mesh(
+    new THREE.BoxGeometry(0.030*S,0.038*S,0.002),
+    mat(0xffffff,0.75)
+  );
+  numPatch.position.set(xOff,gnd+0.750*S,zOff-0.040*S);
+  add(numPatch);
+
+  // neck — base at gnd+0.813*S, height 0.048*S, top at gnd+0.861*S
+  const neck=new THREE.Mesh(
+    new THREE.CylinderGeometry(0.016*S,0.020*S,0.048*S,8),
+    mat(0xc68642,0.55)
+  );
+  neck.position.set(xOff,gnd+0.837*S,zOff);
+  add(neck);
+
+  // head — center at gnd+0.900*S
   const head=new THREE.Mesh(
     new THREE.SphereGeometry(0.042*S,12,12),
     mat(0xc68642,0.55)
   );
-  head.position.set(xOff,gnd+0.92*S,zOff);
+  head.position.set(xOff,gnd+0.900*S,zOff);
   add(head);
 
   const helmet=new THREE.Mesh(
     new THREE.SphereGeometry(0.050*S,12,8),
     mat(0x6eb5e4,0.65)
   );
-  helmet.position.set(xOff,gnd+0.94*S,zOff-0.005);
+  helmet.position.set(xOff,gnd+0.918*S,zOff-0.005);
   helmet.scale.set(1,1.08,1);
   add(helmet);
 
@@ -246,104 +341,18 @@ function buildBatterSilhouette(add,isRHB){
     new THREE.CylinderGeometry(0.048*S,0.048*S,0.008,12),
     mat(0x6eb5e4,0.65)
   );
-  brim.position.set(xOff,gnd+0.908*S,zOff+0.040*S);
+  brim.position.set(xOff,gnd+0.880*S,zOff+0.040*S);
   brim.rotation.x=Math.PI/2;
   add(brim);
 
-  const neck=new THREE.Mesh(
-    new THREE.CylinderGeometry(0.016*S,0.020*S,0.048*S,8),
-    mat(0xc68642,0.55)
-  );
-  neck.position.set(xOff,gnd+0.862*S,zOff);
-  add(neck);
-
-  const chest=new THREE.Mesh(
-    new THREE.BoxGeometry(0.10*S,0.14*S,0.075*S),
-    mat(0x2563eb,0.55)
-  );
-  chest.position.set(xOff,gnd+0.768*S,zOff);
-  add(chest);
-
-  const numPatch=new THREE.Mesh(
-    new THREE.BoxGeometry(0.030*S,0.038*S,0.002),
-    mat(0xffffff,0.75)
-  );
-  numPatch.position.set(xOff,gnd+0.775*S,zOff-0.040*S);
-  add(numPatch);
-
-  const abdomen=new THREE.Mesh(
-    new THREE.BoxGeometry(0.095*S,0.085*S,0.072*S),
-    mat(0x2563eb,0.55)
-  );
-  abdomen.position.set(xOff,gnd+0.665*S,zOff);
-  add(abdomen);
-
-  const hips=new THREE.Mesh(
-    new THREE.BoxGeometry(0.105*S,0.065*S,0.075*S),
-    mat(0x111111,0.58)
-  );
-  hips.position.set(xOff,gnd+0.598*S,zOff);
-  add(hips);
-
-  const belt=new THREE.Mesh(
-    new THREE.BoxGeometry(0.108*S,0.012*S,0.076*S),
-    mat(0x222222,0.68)
-  );
-  belt.position.set(xOff,gnd+0.635*S,zOff);
-  add(belt);
-
-  const legMat=mat(0x111111,0.58);
-  const footMat=mat(0xeeeeee,0.65);
-
-  const frontLegX=isRHB?-0.030*S:0.030*S;
-  const backLegX=isRHB?0.030*S:-0.030*S;
-
-  const upperLegFront=new THREE.Mesh(
-    new THREE.CylinderGeometry(0.025*S,0.023*S,0.158*S,8),legMat
-  );
-  upperLegFront.position.set(xOff+frontLegX,gnd+0.462*S,zOff+0.025*S);
-  upperLegFront.rotation.x=-0.10;
-  add(upperLegFront);
-
-  const upperLegBack=new THREE.Mesh(
-    new THREE.CylinderGeometry(0.025*S,0.023*S,0.158*S,8),legMat
-  );
-  upperLegBack.position.set(xOff+backLegX,gnd+0.462*S,zOff-0.025*S);
-  upperLegBack.rotation.x=0.08;
-  add(upperLegBack);
-
-  const lowerLegFront=new THREE.Mesh(
-    new THREE.CylinderGeometry(0.020*S,0.018*S,0.148*S,8),legMat
-  );
-  lowerLegFront.position.set(xOff+frontLegX,gnd+0.290*S,zOff+0.020*S);
-  lowerLegFront.rotation.x=-0.05;
-  add(lowerLegFront);
-
-  const lowerLegBack=new THREE.Mesh(
-    new THREE.CylinderGeometry(0.020*S,0.018*S,0.148*S,8),legMat
-  );
-  lowerLegBack.position.set(xOff+backLegX,gnd+0.290*S,zOff-0.020*S);
-  add(lowerLegBack);
-
-  const footFront=new THREE.Mesh(
-    new THREE.BoxGeometry(0.048*S,0.025*S,0.082*S),footMat
-  );
-  footFront.position.set(xOff+frontLegX,gnd+0.198*S,zOff+0.028*S);
-  add(footFront);
-
-  const footBack=new THREE.Mesh(
-    new THREE.BoxGeometry(0.048*S,0.025*S,0.082*S),footMat
-  );
-  footBack.position.set(xOff+backLegX,gnd+0.198*S,zOff-0.022*S);
-  add(footBack);
-
+  // arms — positioned at chest/shoulder level
   const armMat=mat(0x2563eb,0.42);
   const gloveMat=mat(0x222222,0.65);
 
   const armBack=new THREE.Mesh(
     new THREE.CylinderGeometry(0.016*S,0.014*S,0.115*S,8),armMat
   );
-  armBack.position.set(xOff+armDir*0.055*S,gnd+0.800*S,zOff-0.030*S);
+  armBack.position.set(xOff+armDir*0.055*S,gnd+0.775*S,zOff-0.030*S);
   armBack.rotation.z=armDir*0.45;
   armBack.rotation.x=0.20;
   add(armBack);
@@ -351,7 +360,7 @@ function buildBatterSilhouette(add,isRHB){
   const armFront=new THREE.Mesh(
     new THREE.CylinderGeometry(0.016*S,0.014*S,0.100*S,8),armMat
   );
-  armFront.position.set(xOff+armDir*0.050*S,gnd+0.818*S,zOff-0.022*S);
+  armFront.position.set(xOff+armDir*0.050*S,gnd+0.793*S,zOff-0.022*S);
   armFront.rotation.z=armDir*0.38;
   armFront.rotation.x=0.15;
   add(armFront);
@@ -359,15 +368,16 @@ function buildBatterSilhouette(add,isRHB){
   const glove1=new THREE.Mesh(
     new THREE.SphereGeometry(0.020*S,8,8),gloveMat
   );
-  glove1.position.set(xOff+armDir*0.100*S,gnd+0.845*S,zOff-0.048*S);
+  glove1.position.set(xOff+armDir*0.100*S,gnd+0.820*S,zOff-0.048*S);
   add(glove1);
 
   const glove2=new THREE.Mesh(
     new THREE.SphereGeometry(0.020*S,8,8),gloveMat
   );
-  glove2.position.set(xOff+armDir*0.105*S,gnd+0.860*S,zOff-0.042*S);
+  glove2.position.set(xOff+armDir*0.105*S,gnd+0.835*S,zOff-0.042*S);
   add(glove2);
 
+  // bat
   const batMat=mat(0x1a1a1a,0.75);
   const pineTarMat=mat(0x6b3a1f,0.75);
 
@@ -376,7 +386,7 @@ function buildBatterSilhouette(add,isRHB){
   );
   batBarrel.position.set(
     xOff+armDir*0.132*S,
-    gnd+0.938*S,
+    gnd+0.915*S,
     zOff-0.058*S
   );
   batBarrel.rotation.z=armDir*0.42;
@@ -388,7 +398,7 @@ function buildBatterSilhouette(add,isRHB){
   );
   batHandle.position.set(
     xOff+armDir*0.108*S,
-    gnd+0.862*S,
+    gnd+0.837*S,
     zOff-0.042*S
   );
   batHandle.rotation.z=armDir*0.42;
@@ -400,11 +410,12 @@ function buildBatterSilhouette(add,isRHB){
   );
   batKnob.position.set(
     xOff+armDir*0.100*S,
-    gnd+0.838*S,
+    gnd+0.813*S,
     zOff-0.032*S
   );
   add(batKnob);
 
+  // batter's box outline
   const boxW=0.48,boxD=0.78,boxY=gnd+0.01;
   const bxPts=[
     new THREE.Vector3(xOff-boxW/2,boxY,zOff-boxD*0.42),
