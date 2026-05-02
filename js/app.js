@@ -215,7 +215,7 @@ function initProfile(){
 }
 
 function buildBatterSilhouette(add,isRHB){
-  const xOff=isRHB?0.42:-0.42;
+  const xOff=isRHB?-0.42:0.42;
   const zOff=0.15;
   const gnd=0.41;
 
