@@ -215,41 +215,208 @@ function initProfile(){
 }
 
 function buildBatterSilhouette(add,isRHB){
-  const xOff=isRHB?0.40:-0.40;
-  const zOff=-0.45;
-  const mat=new THREE.MeshBasicMaterial({color:0xe8f4fd,transparent:true,opacity:0.18,depthWrite:false});
-  const chalkLineMat=new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:0.72});
+  const xOff=isRHB?0.42:-0.42;
+  const zOff=0.15;
   const gnd=0.41;
-  const p=(geo,x,y,z)=>{
-    const m=new THREE.Mesh(geo,mat);
-    m.position.set(xOff+x,gnd+y,zOff+z);
-    add(m);
-    const edge=new THREE.LineSegments(new THREE.EdgesGeometry(geo),chalkLineMat);
-    edge.position.copy(m.position);
-    edge.rotation.copy(m.rotation);
-    add(edge);
-  };
-  p(new THREE.SphereGeometry(0.048,8,8),0,1.02,0);
-  p(new THREE.BoxGeometry(0.09,0.18,0.08),0,0.86,0);
-  p(new THREE.BoxGeometry(0.10,0.08,0.08),0,0.70,0);
-  p(new THREE.BoxGeometry(0.045,0.15,0.055),-0.03,0.54,0);
-  p(new THREE.BoxGeometry(0.045,0.15,0.055),0.03,0.54,0);
-  p(new THREE.BoxGeometry(0.040,0.14,0.05),-0.04,0.36,0.02);
-  p(new THREE.BoxGeometry(0.040,0.14,0.05),0.04,0.36,0.02);
-  const ad=isRHB?1:-1;
-  p(new THREE.BoxGeometry(0.035,0.12,0.035),ad*0.06,0.88,-0.02);
-  const bat=new THREE.Mesh(new THREE.CylinderGeometry(0.009,0.014,0.32,6),mat);
-  bat.position.set(xOff+ad*0.11,gnd+0.92,zOff-0.02);
-  bat.rotation.z=ad*-0.45;bat.rotation.x=-0.18;add(bat);
-  const batEdge=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.CylinderGeometry(0.009,0.014,0.32,6)),chalkLineMat);
-  batEdge.position.copy(bat.position);
-  batEdge.rotation.copy(bat.rotation);
-  add(batEdge);
-  const bxY=gnd+0.01,bW=0.52,bD=0.85;
-  add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([
-    new THREE.Vector3(xOff-bW/2,bxY,zOff-bD*0.50),new THREE.Vector3(xOff+bW/2,bxY,zOff-bD*0.50),
-    new THREE.Vector3(xOff+bW/2,bxY,zOff+bD*0.50),new THREE.Vector3(xOff-bW/2,bxY,zOff+bD*0.50),
-    new THREE.Vector3(xOff-bW/2,bxY,zOff-bD*0.50)]),new THREE.LineBasicMaterial({color:0xffffff,opacity:0.62,transparent:true})));
+
+  const S=0.72;
+
+  const mat=(color,opacity)=>new THREE.MeshBasicMaterial({
+    color,transparent:true,opacity,depthWrite:false
+  });
+
+  const armDir=isRHB?1:-1;
+
+  const head=new THREE.Mesh(
+    new THREE.SphereGeometry(0.042*S,12,12),
+    mat(0xc68642,0.55)
+  );
+  head.position.set(xOff,gnd+0.92*S,zOff);
+  add(head);
+
+  const helmet=new THREE.Mesh(
+    new THREE.SphereGeometry(0.050*S,12,8),
+    mat(0x6eb5e4,0.65)
+  );
+  helmet.position.set(xOff,gnd+0.94*S,zOff-0.005);
+  helmet.scale.set(1,1.08,1);
+  add(helmet);
+
+  const brim=new THREE.Mesh(
+    new THREE.CylinderGeometry(0.048*S,0.048*S,0.008,12),
+    mat(0x6eb5e4,0.65)
+  );
+  brim.position.set(xOff,gnd+0.908*S,zOff+0.040*S);
+  brim.rotation.x=Math.PI/2;
+  add(brim);
+
+  const neck=new THREE.Mesh(
+    new THREE.CylinderGeometry(0.016*S,0.020*S,0.048*S,8),
+    mat(0xc68642,0.55)
+  );
+  neck.position.set(xOff,gnd+0.862*S,zOff);
+  add(neck);
+
+  const chest=new THREE.Mesh(
+    new THREE.BoxGeometry(0.10*S,0.14*S,0.075*S),
+    mat(0x2563eb,0.55)
+  );
+  chest.position.set(xOff,gnd+0.768*S,zOff);
+  add(chest);
+
+  const numPatch=new THREE.Mesh(
+    new THREE.BoxGeometry(0.030*S,0.038*S,0.002),
+    mat(0xffffff,0.75)
+  );
+  numPatch.position.set(xOff,gnd+0.775*S,zOff-0.040*S);
+  add(numPatch);
+
+  const abdomen=new THREE.Mesh(
+    new THREE.BoxGeometry(0.095*S,0.085*S,0.072*S),
+    mat(0x2563eb,0.55)
+  );
+  abdomen.position.set(xOff,gnd+0.665*S,zOff);
+  add(abdomen);
+
+  const hips=new THREE.Mesh(
+    new THREE.BoxGeometry(0.105*S,0.065*S,0.075*S),
+    mat(0x111111,0.58)
+  );
+  hips.position.set(xOff,gnd+0.598*S,zOff);
+  add(hips);
+
+  const belt=new THREE.Mesh(
+    new THREE.BoxGeometry(0.108*S,0.012*S,0.076*S),
+    mat(0x222222,0.68)
+  );
+  belt.position.set(xOff,gnd+0.635*S,zOff);
+  add(belt);
+
+  const legMat=mat(0x111111,0.58);
+  const footMat=mat(0xeeeeee,0.65);
+
+  const frontLegX=isRHB?-0.030*S:0.030*S;
+  const backLegX=isRHB?0.030*S:-0.030*S;
+
+  const upperLegFront=new THREE.Mesh(
+    new THREE.CylinderGeometry(0.025*S,0.023*S,0.158*S,8),legMat
+  );
+  upperLegFront.position.set(xOff+frontLegX,gnd+0.462*S,zOff+0.025*S);
+  upperLegFront.rotation.x=-0.10;
+  add(upperLegFront);
+
+  const upperLegBack=new THREE.Mesh(
+    new THREE.CylinderGeometry(0.025*S,0.023*S,0.158*S,8),legMat
+  );
+  upperLegBack.position.set(xOff+backLegX,gnd+0.462*S,zOff-0.025*S);
+  upperLegBack.rotation.x=0.08;
+  add(upperLegBack);
+
+  const lowerLegFront=new THREE.Mesh(
+    new THREE.CylinderGeometry(0.020*S,0.018*S,0.148*S,8),legMat
+  );
+  lowerLegFront.position.set(xOff+frontLegX,gnd+0.290*S,zOff+0.020*S);
+  lowerLegFront.rotation.x=-0.05;
+  add(lowerLegFront);
+
+  const lowerLegBack=new THREE.Mesh(
+    new THREE.CylinderGeometry(0.020*S,0.018*S,0.148*S,8),legMat
+  );
+  lowerLegBack.position.set(xOff+backLegX,gnd+0.290*S,zOff-0.020*S);
+  add(lowerLegBack);
+
+  const footFront=new THREE.Mesh(
+    new THREE.BoxGeometry(0.048*S,0.025*S,0.082*S),footMat
+  );
+  footFront.position.set(xOff+frontLegX,gnd+0.198*S,zOff+0.028*S);
+  add(footFront);
+
+  const footBack=new THREE.Mesh(
+    new THREE.BoxGeometry(0.048*S,0.025*S,0.082*S),footMat
+  );
+  footBack.position.set(xOff+backLegX,gnd+0.198*S,zOff-0.022*S);
+  add(footBack);
+
+  const armMat=mat(0x2563eb,0.42);
+  const gloveMat=mat(0x222222,0.65);
+
+  const armBack=new THREE.Mesh(
+    new THREE.CylinderGeometry(0.016*S,0.014*S,0.115*S,8),armMat
+  );
+  armBack.position.set(xOff+armDir*0.055*S,gnd+0.800*S,zOff-0.030*S);
+  armBack.rotation.z=armDir*0.45;
+  armBack.rotation.x=0.20;
+  add(armBack);
+
+  const armFront=new THREE.Mesh(
+    new THREE.CylinderGeometry(0.016*S,0.014*S,0.100*S,8),armMat
+  );
+  armFront.position.set(xOff+armDir*0.050*S,gnd+0.818*S,zOff-0.022*S);
+  armFront.rotation.z=armDir*0.38;
+  armFront.rotation.x=0.15;
+  add(armFront);
+
+  const glove1=new THREE.Mesh(
+    new THREE.SphereGeometry(0.020*S,8,8),gloveMat
+  );
+  glove1.position.set(xOff+armDir*0.100*S,gnd+0.845*S,zOff-0.048*S);
+  add(glove1);
+
+  const glove2=new THREE.Mesh(
+    new THREE.SphereGeometry(0.020*S,8,8),gloveMat
+  );
+  glove2.position.set(xOff+armDir*0.105*S,gnd+0.860*S,zOff-0.042*S);
+  add(glove2);
+
+  const batMat=mat(0x1a1a1a,0.75);
+  const pineTarMat=mat(0x6b3a1f,0.75);
+
+  const batBarrel=new THREE.Mesh(
+    new THREE.CylinderGeometry(0.011*S,0.018*S,0.195*S,8),batMat
+  );
+  batBarrel.position.set(
+    xOff+armDir*0.132*S,
+    gnd+0.938*S,
+    zOff-0.058*S
+  );
+  batBarrel.rotation.z=armDir*0.42;
+  batBarrel.rotation.x=0.28;
+  add(batBarrel);
+
+  const batHandle=new THREE.Mesh(
+    new THREE.CylinderGeometry(0.009*S,0.011*S,0.105*S,8),pineTarMat
+  );
+  batHandle.position.set(
+    xOff+armDir*0.108*S,
+    gnd+0.862*S,
+    zOff-0.042*S
+  );
+  batHandle.rotation.z=armDir*0.42;
+  batHandle.rotation.x=0.28;
+  add(batHandle);
+
+  const batKnob=new THREE.Mesh(
+    new THREE.SphereGeometry(0.012*S,8,8),batMat
+  );
+  batKnob.position.set(
+    xOff+armDir*0.100*S,
+    gnd+0.838*S,
+    zOff-0.032*S
+  );
+  add(batKnob);
+
+  const boxW=0.48,boxD=0.78,boxY=gnd+0.01;
+  const bxPts=[
+    new THREE.Vector3(xOff-boxW/2,boxY,zOff-boxD*0.42),
+    new THREE.Vector3(xOff+boxW/2,boxY,zOff-boxD*0.42),
+    new THREE.Vector3(xOff+boxW/2,boxY,zOff+boxD*0.58),
+    new THREE.Vector3(xOff-boxW/2,boxY,zOff+boxD*0.58),
+    new THREE.Vector3(xOff-boxW/2,boxY,zOff-boxD*0.42),
+  ];
+  add(new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints(bxPts),
+    new THREE.LineBasicMaterial({color:0xaabbcc,opacity:0.22,transparent:true})
+  ));
 }
 
 function buildStatic(){
@@ -264,17 +431,16 @@ function buildStatic(){
   const rp=getRP();
   const rdot=new THREE.Mesh(new THREE.SphereGeometry(0.06,10,10),new THREE.MeshBasicMaterial({color:hand==='R'?0xc084fc:0x7ec8e3}));
   rdot.position.set(rp.x,rp.y,rp.z);add(rdot);
-  const pY=CLO_Y-0.08;
-  add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-ZW/2,pY,0),new THREE.Vector3(ZW/2,pY,0),new THREE.Vector3(ZW/2,pY,0.21),new THREE.Vector3(0,pY,0.35),new THREE.Vector3(-ZW/2,pY,0.21),new THREE.Vector3(-ZW/2,pY,0)]),new THREE.LineBasicMaterial({color:0xffffff,opacity:0.95,transparent:true})));
-  const plateInset=0.012,plateLift=0.002;
-  add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([
-    new THREE.Vector3(-ZW/2+plateInset,pY+plateLift,0.01),
-    new THREE.Vector3(ZW/2-plateInset,pY+plateLift,0.01),
-    new THREE.Vector3(ZW/2-plateInset,pY+plateLift,0.20),
-    new THREE.Vector3(0,pY+plateLift,0.33),
-    new THREE.Vector3(-ZW/2+plateInset,pY+plateLift,0.20),
-    new THREE.Vector3(-ZW/2+plateInset,pY+plateLift,0.01)
-  ]),new THREE.LineBasicMaterial({color:0xffffff,opacity:0.85,transparent:true})));
+  const plateY=CLO_Y-0.08;
+  const pp=[
+    new THREE.Vector3(-ZW/2, plateY,  0.18),
+    new THREE.Vector3( ZW/2, plateY,  0.18),
+    new THREE.Vector3( ZW/2, plateY,  0.05),
+    new THREE.Vector3(     0, plateY, -0.15),
+    new THREE.Vector3(-ZW/2, plateY,  0.05),
+    new THREE.Vector3(-ZW/2, plateY,  0.18),
+  ];
+  add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pp),new THREE.LineBasicMaterial({color:0xffffff,opacity:0.85,transparent:true})));
   add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-ZW/2,ZLO,0),new THREE.Vector3(ZW/2,ZLO,0),new THREE.Vector3(ZW/2,ZLO,0),new THREE.Vector3(ZW/2,ZHI,0),new THREE.Vector3(ZW/2,ZHI,0),new THREE.Vector3(-ZW/2,ZHI,0),new THREE.Vector3(-ZW/2,ZHI,0),new THREE.Vector3(-ZW/2,ZLO,0)]),new THREE.LineBasicMaterial({color:0xffffff,linewidth:2})));
   add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-ZW/6,ZLO,0),new THREE.Vector3(-ZW/6,ZHI,0),new THREE.Vector3(ZW/6,ZLO,0),new THREE.Vector3(ZW/6,ZHI,0),new THREE.Vector3(-ZW/2,ZLO+ZH/3,0),new THREE.Vector3(ZW/2,ZLO+ZH/3,0),new THREE.Vector3(-ZW/2,ZLO+ZH*2/3,0),new THREE.Vector3(ZW/2,ZLO+ZH*2/3,0)]),new THREE.LineBasicMaterial({color:0x4a7aaa,opacity:0.4,transparent:true})));
   [[-ZW/2,ZLO],[ZW/2,ZLO],[-ZW/2,ZHI],[ZW/2,ZHI]].forEach(([cx,cy])=>{const m=new THREE.Mesh(new THREE.SphereGeometry(0.022,6,6),new THREE.MeshBasicMaterial({color:0xffdd77}));m.position.set(cx,cy,0.01);add(m);});
