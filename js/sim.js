@@ -151,7 +151,39 @@ function unlockThrowButton(){
   btn.textContent='THROW';
 }
 
+function showBatterHandednessNotification(handedness){
+  dismissBatterHandednessNotification();
+  const toast=document.createElement('div');
+  toast.id='batter-handedness-toast';
+  toast.style.cssText=`
+    position:fixed;
+    top:70px;
+    left:50%;
+    transform:translateX(-50%);
+    background:#1a1a2e;
+    border:1.5px solid ${handedness==='RHB'?'#4ade80':'#f87171'};
+    color:${handedness==='RHB'?'#4ade80':'#f87171'};
+    padding:12px 32px;
+    border-radius:8px;
+    font-size:13px;
+    font-weight:600;
+    letter-spacing:0.08em;
+    z-index:9999;
+    pointer-events:none;
+    box-shadow:0 2px 16px rgba(0,0,0,0.5);
+  `;
+  const displayHand=handedness==='RHB'?'LHB':'RHB';
+  toast.textContent='CHANGE BATTER TO '+displayHand;
+  document.body.appendChild(toast);
+}
+
+function dismissBatterHandednessNotification(){
+  const existing=document.getElementById('batter-handedness-toast');
+  if(existing) existing.remove();
+}
+
 function handleNewBatter(){
+  dismissBatterHandednessNotification();
   unlockThrowButton();
   cancelSimScheduledClear();
   let startedNewInning=false;
@@ -161,8 +193,14 @@ function handleNewBatter(){
   lastPitchSpeed=0;
   batterRevealed=false;
   if(batterType==='RANDOM'){
-    const pool=['GENERIC','FREE_SWINGER','PATIENT','LOW_BALL','HIGH_BALL','PULL_RHB'];
+    const pool=['GENERIC','FREE_SWINGER','PATIENT','LOW_BALL','HIGH_BALL','PULL'];
     secretBatterType=pool[Math.floor(Math.random()*pool.length)];
+    const randomHand=Math.random()<0.5?'RHB':'LHB';
+    const currentHand=(typeof batter!=='undefined'&&batter==='LHB')?'LHB':'RHB';
+    console.log('DEBUG batter=',batter,'currentHand=',currentHand,'randomHand=',randomHand);
+    if(randomHand!==currentHand){
+      showBatterHandednessNotification(randomHand);
+    }
   }else{
     secretBatterType='';
   }
@@ -393,7 +431,7 @@ function adjCount(type,delta){
 function isEdgeOrCornerZone(zk){return EDGE8_ZONE_KEYS.includes(zk);}
 function getEffectiveBatterType(){if(batterType==='RANDOM') return secretBatterType||'GENERIC'; return batterType;}
 function getBatterSimLogLabel(){
-  const m={GENERIC:'GENERIC',FREE_SWINGER:'FREE SWINGER',PATIENT:'PATIENT',LOW_BALL:'LOW BALL HITTER',HIGH_BALL:'HIGH BALL HITTER',PULL_RHB:'PULL HITTER'};
+  const m={GENERIC:'GENERIC',FREE_SWINGER:'FREE SWINGER',PATIENT:'PATIENT',LOW_BALL:'LOW BALL HITTER',HIGH_BALL:'HIGH BALL HITTER',PULL:'PULL HITTER'};
   return m[getEffectiveBatterType()]||'GENERIC';
 }
 
@@ -443,7 +481,7 @@ function getBatterSwingMultiplier(zk,strikes){
   if(effType==='PATIENT') return strikes===0?0.55:strikes===1?0.65:0.88;
   if(effType==='LOW_BALL'){if(['BOT-EDG','BL-CRN','BR-CRN'].includes(zk)) return 1.8;if(['TOP-EDG','TL-CRN','TR-CRN'].includes(zk)) return 0.5;return 1;}
   if(effType==='HIGH_BALL'){if(['TOP-EDG','TL-CRN','TR-CRN'].includes(zk)) return 1.8;if(['BOT-EDG','BL-CRN','BR-CRN'].includes(zk)) return 0.5;return 1;}
-  if(effType==='PULL_RHB'){
+  if(effType==='PULL'){
     const pullR=['LFT-EDG','BL-CRN','TL-CRN'],oppR=['RGT-EDG','BR-CRN','TR-CRN'];
     const pullL=['RGT-EDG','BR-CRN','TR-CRN'],oppL=['LFT-EDG','BL-CRN','TL-CRN'];
     if(batter==='RHB'){if(pullR.includes(zk)) return 1.9;if(oppR.includes(zk)) return 0.4;return 1;}
