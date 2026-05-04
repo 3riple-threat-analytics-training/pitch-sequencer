@@ -567,6 +567,73 @@ function getContactSubOutcome(raw){
   return raw;
 }
 
+function getLocationRepetitionPenalty(zk,pitchKey){
+  const nopenalty={strongMult:1.0,weakMult:1.0,swingMissMult:1.0};
+  if(typeof seq==='undefined'||!seq||!seq.length) return nopenalty;
+
+  // Level scaling factor
+  const levelScale={
+    rec10:0.25,rec12:0.25,
+    club10:0.40,club12:0.40,
+    comp13:0.55,
+    hsjv:0.65,
+    hsvar:0.80,
+    college:0.90,
+    pro:1.00
+  };
+  const scale=levelScale[batterLevel]||0.55;
+
+  // Breaking ball recognition reduction
+  const lvl=getBatterLevelConfig();
+  const isBreakingBall=typeof BREAKING_BALL_KEYS!=='undefined'&&BREAKING_BALL_KEYS.includes(pitchKey);
+  const bbReduction=isBreakingBall?(1-lvl.breakingBallRecognition):1.0;
+
+  // Effective scale combines level scale and breaking ball recognition
+  const effectiveScale=scale*bbReduction;
+
+  const prev=seq[seq.length-1];
+  const prev2=seq.length>=2?seq[seq.length-2]:null;
+  const prev3=seq.length>=3?seq[seq.length-3]:null;
+
+  // Three consecutive pitches to same zone — severe penalty
+  if(prev3&&prev3.zk===zk&&prev2&&prev2.zk===zk&&prev&&prev.zk===zk){
+    return{
+      strongMult:1.0+(3.0-1.0)*effectiveScale,
+      weakMult:1.0+(2.0-1.0)*effectiveScale,
+      swingMissMult:1.0-(1.0-0.40)*effectiveScale
+    };
+  }
+
+  // Two consecutive pitches to same zone — significant penalty
+  if(prev2&&prev2.zk===zk&&prev&&prev.zk===zk){
+    return{
+      strongMult:1.0+(2.0-1.0)*effectiveScale,
+      weakMult:1.0+(1.5-1.0)*effectiveScale,
+      swingMissMult:1.0-(1.0-0.60)*effectiveScale
+    };
+  }
+
+  // Last pitch same zone, same pitch type — moderate penalty
+  if(prev&&prev.zk===zk&&prev.pk===pitchKey){
+    return{
+      strongMult:1.0+(1.5-1.0)*effectiveScale,
+      weakMult:1.0+(1.3-1.0)*effectiveScale,
+      swingMissMult:1.0-(1.0-0.75)*effectiveScale
+    };
+  }
+
+  // Last pitch same zone, different pitch type — small penalty
+  if(prev&&prev.zk===zk&&prev.pk!==pitchKey){
+    return{
+      strongMult:1.0+(1.3-1.0)*effectiveScale,
+      weakMult:1.0+(1.2-1.0)*effectiveScale,
+      swingMissMult:1.0-(1.0-0.85)*effectiveScale
+    };
+  }
+
+  return nopenalty;
+}
+
 function buildSimWeights(zk,rl,bd,ct,speed,pitchKey){
   const inStrike=STRIKE_ZONE_KEYS.includes(zk);
   const lvl=getBatterLevelConfig();
@@ -644,6 +711,14 @@ function buildSimWeights(zk,rl,bd,ct,speed,pitchKey){
   if(pitchKey){
     const bbMod=getBreakingBallModifier(pitchKey);
     w['SWING & MISS']=Math.max(1,w['SWING & MISS']+(bbMod.swingMissBonus*100));
+  }
+
+  // Location repetition penalty — multiplier based
+  if(simMode){
+    const rep=getLocationRepetitionPenalty(zk,pitchKey);
+    w['STRONG CONTACT']=Math.max(1,(w['STRONG CONTACT']||1)*rep.strongMult);
+    w['WEAK CONTACT']=Math.max(1,(w['WEAK CONTACT']||1)*rep.weakMult);
+    w['SWING & MISS']=Math.max(1,(w['SWING & MISS']||1)*rep.swingMissMult);
   }
 
   if(inStrike) delete w.BALL;
