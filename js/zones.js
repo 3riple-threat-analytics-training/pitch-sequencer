@@ -21,16 +21,18 @@ function mk(t,c){const e=document.createElement(t);e.className=c;return e;}
 function buildZoneDiagram(){
   const el=document.getElementById('zonediagram');el.innerHTML='';
   const upRow=mk('div','zd-chase-row');
-  [['CUR','Up L'],['CUM','Up M'],['CUL','Up R']].forEach(([k,l])=>{const d=mk('div','cc'+(zone===k?' sel':''));d.textContent=l;d.onclick=()=>selZone(k);upRow.appendChild(d);});
+  [['CUR','Up R'],['CUM','Up M'],['CUL','Up L']].forEach(([k,l])=>{const d=mk('div','cc'+(zone===k?' sel':''));d.textContent=l;d.onclick=()=>selZone(k);upRow.appendChild(d);});
   el.appendChild(upRow);
   const mid=mk('div','zd-mid');
   const inD=mk('div','cc-side'+(zone==='COUT'?' sel':''));inD.textContent='In';inD.onclick=()=>selZone('COUT');
   const grid=mk('div','zd-grid');
-  ZKC.forEach(row=>{const rw=mk('div','zd-grid-row');row.forEach(k=>{const d=mk('div','zc'+(zone===k?' sel':''));d.textContent=k;d.onclick=()=>selZone(k);rw.appendChild(d);});grid.appendChild(rw);});
+  const ZONE_LABELS={'TL':'TL','TM':'TM','TR':'TR','ML':'ML','MM':'MM','MR':'MR','BL':'BL','BM':'BM','BR':'BR'};
+  const ZONE_DISPLAY={'TR':'TL','TL':'TR','MR':'ML','ML':'MR','BR':'BL','BL':'BR','TM':'TM','MM':'MM','BM':'BM'};
+  ZKC.forEach(row=>{const rw=mk('div','zd-grid-row');row.forEach(k=>{const d=mk('div','zc'+(zone===k?' sel':''));d.textContent=ZONE_DISPLAY[k]||k;d.onclick=()=>selZone(k);rw.appendChild(d);});grid.appendChild(rw);});
   const outD=mk('div','cc-side'+(zone==='CIN'?' sel':''));outD.textContent='Out';outD.onclick=()=>selZone('CIN');
   mid.appendChild(inD);mid.appendChild(grid);mid.appendChild(outD);el.appendChild(mid);
   const loRow=mk('div','zd-chase-row');
-  [['CLO-R','Lo L'],['CLO-M','Lo M'],['CLO-L','Lo R']].forEach(([k,l])=>{const d=mk('div','cc'+(zone===k?' sel':''));d.textContent=l;d.onclick=()=>selZone(k);loRow.appendChild(d);});
+  [['CLO-R','Lo R'],['CLO-M','Lo M'],['CLO-L','Lo L']].forEach(([k,l])=>{const d=mk('div','cc'+(zone===k?' sel':''));d.textContent=l;d.onclick=()=>selZone(k);loRow.appendChild(d);});
   el.appendChild(loRow);
 }
 
