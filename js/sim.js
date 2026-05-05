@@ -727,6 +727,52 @@ function buildSimWeights(zk,rl,bd,ct,speed,pitchKey){
 }
 
 function getSimOutcome(zk,rl,bd,ct,speed,pitchKey){return pickWeightedRecord(buildSimWeights(zk,rl,bd,ct,speed,pitchKey));}
+function getVelocityFloor(pitchKey,level){
+  const isFastball=['4FB','2FB','SK','CT'].includes(pitchKey);
+  const isPowerBreaking=['SL','SWP','SLV'].includes(pitchKey);
+  const isKnuckleball=pitchKey==='KN';
+
+  if(isKnuckleball) return 0; // Knuckleball exempt from floor
+
+  const fastballFloors={
+    rec10:25,rec12:30,club10:28,club12:35,
+    comp13:40,hsjv:50,hsvar:60,college:72,pro:80
+  };
+  const powerBreakingFloors={
+    rec10:20,rec12:25,club10:25,club12:30,
+    comp13:35,hsjv:42,hsvar:52,college:62,pro:68
+  };
+  const softBreakingFloors={
+    rec10:15,rec12:20,club10:20,club12:25,
+    comp13:28,hsjv:35,hsvar:42,college:52,pro:58
+  };
+
+  if(isFastball) return fastballFloors[level]||40;
+  if(isPowerBreaking) return powerBreakingFloors[level]||35;
+  return softBreakingFloors[level]||30;
+}
+
+function isBelowVelocityFloor(speed,pitchKey){
+  if(!speed||!pitchKey) return false;
+  const floor=getVelocityFloor(pitchKey,batterLevel);
+  return speed<floor;
+}
+
+function getBelowFloorContactBonus(speed,pitchKey){
+  const floor=getVelocityFloor(pitchKey,batterLevel);
+  if(floor===0||speed>=floor) return {strongMult:1.0,weakMult:1.0};
+  const deficit=floor-speed;
+  const levelScale={
+    rec10:0.25,rec12:0.25,club10:0.35,club12:0.40,
+    comp13:0.50,hsjv:0.65,hsvar:0.80,college:0.90,pro:1.00
+  };
+  const scale=levelScale[batterLevel]||0.55;
+  // More deficit = bigger bonus, capped at 4x strong contact at pro level
+  const strongMult=1.0+Math.min(3.0,deficit*0.08)*scale;
+  const weakMult=1.0+Math.min(1.5,deficit*0.04)*scale;
+  return {strongMult,weakMult};
+}
+
 function simulateOutcome(zk,rl,bd,ct,speed,pitchKey){
   if(simMode&&atBatOver) return 'BALL';
   const effSpeed=typeof speed==='number'?speed:parseInt((document.getElementById('spd')||{}).value,10)||0;
@@ -745,6 +791,23 @@ function simulateOutcome(zk,rl,bd,ct,speed,pitchKey){
     if(effSpeed) lastPitchSpeed=effSpeed;
     return 'BALL';
   }
+  // Below velocity floor — batter always swings at in-zone pitches
+  if(isBelowVelocityFloor(effSpeed,effPitchKey) && STRIKE_ZONE_KEYS.includes(zk)){
+    const w=buildSimWeights(zk,rl,bd,ct,effSpeed,effPitchKey);
+    // Force swing — remove called strike possibility
+    delete w.STRIKE;
+    delete w.BALL;
+    // Apply below-floor contact bonus
+    const bonus=getBelowFloorContactBonus(effSpeed,effPitchKey);
+    w['STRONG CONTACT']=Math.max(1,(w['STRONG CONTACT']||1)*bonus.strongMult);
+    w['WEAK CONTACT']=Math.max(1,(w['WEAK CONTACT']||1)*bonus.weakMult);
+    // Reduce swing and miss — batter can time this pitch
+    w['SWING & MISS']=Math.max(1,(w['SWING & MISS']||1)*0.25);
+    Object.keys(w).forEach(k=>{w[k]=Math.max(1,w[k]);});
+    if(effSpeed) lastPitchSpeed=effSpeed;
+    return pickWeightedRecord(w);
+  }
+
   const result=getSimOutcome(zk,rl,bd,ct,effSpeed,effPitchKey);
   if(result==='STRIKE'){
     // Bad umpire occasionally calls in-zone pitch a ball
