@@ -1205,6 +1205,11 @@ function simulateOutcome(zk,rl,bd,ct,speed,pitchKey){
   if(simMode&&atBatOver) return 'BALL';
   const effSpeed=typeof speed==='number'?speed:parseInt((document.getElementById('spd')||{}).value,10)||0;
   const effPitchKey=pitchKey||pitch;
+
+  // Set count-location modifier at the start of every outcome calculation
+  if(simMode){
+    window.__lastCountLocMod=getCountLocationModifier(zk,effPitchKey);
+  }
   if(CHASE_ZONE_KEYS.includes(zk)){
     const pSwing=getChaseZoneSwingProbability(strikeCount);
     if(Math.random()<pSwing){

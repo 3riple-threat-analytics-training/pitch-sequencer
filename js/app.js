@@ -1024,8 +1024,12 @@ function throwPitch(){
     const clm=window.__lastCountLocMod;
     console.log('COURAGE DEBUG end of throwPitch: clm=',clm,'outcome=',outcome,'count=',ctBefore);
     if(clm){
-      if(clm.isCourage&&['SWING & MISS','STRIKEOUT','CALLED STRIKE'].includes(outcome)){
-        addSimLogEntry('COURAGE PITCH — unexpected location paid off',outcome,false);
+      if(clm.isCourage){
+        if(['SWING & MISS','STRIKEOUT','CALLED STRIKE','FOUL'].includes(outcome)){
+          addSimLogEntry('COURAGE PITCH — unexpected location paid off',outcome,false);
+        } else if(outcome==='WALK'){
+          addSimLogEntry('COURAGE PITCH — brave call, work on command',outcome,false);
+        }
       }
       if(clm.isDanger&&['SINGLE','DOUBLE','TRIPLE','HOME RUN','GROUND OUT','POP FLY'].includes(outcome)){
         addSimLogEntry('DANGER ZONE — batter was sitting on that location',outcome,false);
