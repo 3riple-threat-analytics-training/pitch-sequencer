@@ -213,6 +213,22 @@
     </div>
     <div id="panel">
       <div>
+        <div class="plbl">target zone</div>
+        <div id="ze-toggle" class="zone-toggle">
+          <button class="zebtn active" id="zezone" type="button" onclick="setTargetMode('ZONE')">ZONE</button>
+          <button class="zebtn" id="zeedge" type="button" onclick="setTargetMode('EDGE')">EDGE</button>
+        </div>
+        <div id="zonediagram"></div>
+      </div>
+      <div>
+        <div class="plbl">options</div>
+        <div class="crow"><input type="checkbox" id="ckbd" onchange="refreshGhost()"><label for="ckbd">Backdoor / back-foot strike</label></div>
+      </div>
+      <div class="actbtns">
+        <button class="actbtn" id="throwbtn" onclick="throwPitch()">THROW</button>
+        <button class="actbtn" id="replaybtn" onclick="replaySeq()">REPLAY</button>
+      </div>
+      <div>
         <div class="plbl">pitch type</div>
         <button class="pbtn sel" id="p4FB" onclick="selPitch('4FB')"><span class="dot dot-4fb"></span>4-seam FB</button>
         <button class="pbtn" id="p2FB" onclick="selPitch('2FB')"><span class="dot dot-2fb"></span>2-seam FB</button>
@@ -262,18 +278,6 @@
         </div>
       </div>
       <div>
-        <div class="plbl">target zone</div>
-        <div id="ze-toggle" class="zone-toggle">
-          <button class="zebtn active" id="zezone" type="button" onclick="setTargetMode('ZONE')">ZONE</button>
-          <button class="zebtn" id="zeedge" type="button" onclick="setTargetMode('EDGE')">EDGE</button>
-        </div>
-        <div id="zonediagram"></div>
-      </div>
-      <div>
-        <div class="plbl">options</div>
-        <div class="crow"><input type="checkbox" id="ckbd" onchange="refreshGhost()"><label for="ckbd">Backdoor / back-foot strike</label></div>
-      </div>
-      <div>
         <div class="plbl">tunnel visualization</div>
         <button id="tunnelbtn" onclick="toggleTunnel()">⬡ TUNNEL OFF</button>
       </div>
@@ -282,10 +286,6 @@
         <div id="rwrap" onclick="setRubber(event)"><div id="rbar"></div><div id="rdot"></div></div>
         <div class="rlbls"><span>1B side</span><span>center</span><span>3B side</span></div>
         <div id="tip">Click rubber to set pitcher position.</div>
-      </div>
-      <div class="actbtns">
-        <button class="actbtn" id="throwbtn" onclick="throwPitch()">THROW</button>
-        <button class="actbtn" id="replaybtn" onclick="replaySeq()">REPLAY</button>
       </div>
       <div>
         <div class="plbl">sequence <span id="seqn" class="seqn-color">0</span><span id="seqlimit">/6</span></div>
