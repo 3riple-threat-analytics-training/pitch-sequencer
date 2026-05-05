@@ -611,6 +611,10 @@ function getLocationRepetitionPenalty(zk,pitchKey){
   const nopenalty={strongMult:1.0,weakMult:1.0,swingMissMult:1.0};
   if(typeof seq==='undefined'||!seq||!seq.length) return nopenalty;
 
+  // Knuckleball exempt from location repetition penalty
+  // because the ball never goes to exactly the same spot twice due to movement
+  if(pitchKey==='KN') return nopenalty;
+
   // Level scaling factor
   const levelScale={
     rec10:0.25,rec12:0.25,
@@ -672,6 +676,62 @@ function getLocationRepetitionPenalty(zk,pitchKey){
   }
 
   return nopenalty;
+}
+
+function getKnuckleballModifier(speed){
+  if(!speed) return {swingMissMult:1.0,strongMult:1.0,weakMult:1.0};
+
+  const sweetSpot={
+    rec10:{min:38,max:48},
+    rec12:{min:40,max:50},
+    club10:{min:42,max:52},
+    club12:{min:44,max:54},
+    comp13:{min:46,max:56},
+    hsjv:{min:50,max:60},
+    hsvar:{min:53,max:63},
+    college:{min:57,max:67},
+    pro:{min:63,max:72}
+  };
+
+  const range=sweetSpot[batterLevel]||sweetSpot.rec12;
+  const levelScale={
+    rec10:0.25,rec12:0.25,club10:0.35,club12:0.40,
+    comp13:0.50,hsjv:0.65,hsvar:0.80,college:0.90,pro:1.00
+  };
+  const scale=levelScale[batterLevel]||0.55;
+
+  // In sweet spot — maximum movement, swing and miss bonus
+  if(speed>=range.min&&speed<=range.max){
+    return{
+      swingMissMult:1.0+(0.45*scale),  // up to +45% swing and miss at pro
+      strongMult:1.0-(0.30*scale),      // up to -30% strong contact at pro
+      weakMult:1.0-(0.15*scale)         // up to -15% weak contact at pro
+    };
+  }
+
+  // Too fast — reduced movement, acts like slow fastball
+  if(speed>range.max){
+    const excess=speed-range.max;
+    const penalty=Math.min(0.40,excess*0.025)*scale;
+    return{
+      swingMissMult:Math.max(0.5,1.0-penalty*2),
+      strongMult:1.0+(penalty*1.5),
+      weakMult:1.0+(penalty*1.0)
+    };
+  }
+
+  // Too slow — floats in predictably, batter times it up
+  if(speed<range.min){
+    const deficit=range.min-speed;
+    const penalty=Math.min(0.60,deficit*0.035)*scale;
+    return{
+      swingMissMult:Math.max(0.3,1.0-penalty*2),
+      strongMult:1.0+(penalty*2.5),
+      weakMult:1.0+(penalty*1.5)
+    };
+  }
+
+  return {swingMissMult:1.0,strongMult:1.0,weakMult:1.0};
 }
 
 function buildSimWeights(zk,rl,bd,ct,speed,pitchKey){
@@ -749,8 +809,16 @@ function buildSimWeights(zk,rl,bd,ct,speed,pitchKey){
   }
 
   if(pitchKey){
-    const bbMod=getBreakingBallModifier(pitchKey);
-    w['SWING & MISS']=Math.max(1,w['SWING & MISS']+(bbMod.swingMissBonus*100));
+    if(pitchKey==='KN'){
+      // Knuckleball uses sweet spot model instead of breaking ball recognition
+      const knMod=getKnuckleballModifier(speed);
+      w['SWING & MISS']=Math.max(1,(w['SWING & MISS']||1)*knMod.swingMissMult);
+      w['STRONG CONTACT']=Math.max(1,(w['STRONG CONTACT']||1)*knMod.strongMult);
+      w['WEAK CONTACT']=Math.max(1,(w['WEAK CONTACT']||1)*knMod.weakMult);
+    }else{
+      const bbMod=getBreakingBallModifier(pitchKey);
+      w['SWING & MISS']=Math.max(1,w['SWING & MISS']+(bbMod.swingMissBonus*100));
+    }
   }
 
   // Location repetition penalty — multiplier based
@@ -863,6 +931,12 @@ function simulateOutcome(zk,rl,bd,ct,speed,pitchKey){
   return result;
 }
 
+function getAnimationDelay(){
+  if(typeof PITCHES==='undefined'||typeof pitch==='undefined') return 1200;
+  const ms=PITCHES[pitch]&&PITCHES[pitch].ms?PITCHES[pitch].ms:1000;
+  return ms+300; // ball flight + small buffer
+}
+
 function applySimCountOutcome(outcome,strikesAtStart){
   let display=outcome;
   if(outcome==='BALL'||outcome==='CALLED BALL') ballCount=Math.min(4,ballCount+1);
@@ -871,9 +945,16 @@ function applySimCountOutcome(outcome,strikesAtStart){
   renderCount();
   if(ballCount>=4){
     display='WALK';
-    if(simMode) applyWalkToRunners();
-    if(simMode) lockThrowButton();
-    showSimAdvanceButton();
+    if(simMode){
+      const delay=getAnimationDelay();
+      setTimeout(()=>{
+        applyWalkToRunners();
+        lockThrowButton();
+        showSimAdvanceButton();
+      },delay);
+    } else {
+      showSimAdvanceButton();
+    }
     saveSimState();
     return display;
   }
@@ -881,10 +962,18 @@ function applySimCountOutcome(outcome,strikesAtStart){
   if(outcome==='GROUND OUT'||outcome==='POP FLY'){ballCount=0;strikeCount=0;renderCount();addSimOutCore();if(simMode) lockThrowButton();showSimAdvanceButton();saveSimState();return outcome;}
   if(outcome==='SINGLE'||outcome==='DOUBLE'||outcome==='TRIPLE'||outcome==='HOME RUN'){
     ballCount=0;strikeCount=0;renderCount();
-    if(simMode) applyHitToRunners(outcome);
-    if(simMode) lockThrowButton();
-    showSimAdvanceButton();
-    scheduleSimSequenceClear(2000);
+    if(simMode){
+      const delay=getAnimationDelay();
+      setTimeout(()=>{
+        applyHitToRunners(outcome);
+        lockThrowButton();
+        showSimAdvanceButton();
+      },delay);
+      scheduleSimSequenceClear(delay+2000);
+    } else {
+      showSimAdvanceButton();
+      scheduleSimSequenceClear(2000);
+    }
     saveSimState();
     return outcome;
   }
