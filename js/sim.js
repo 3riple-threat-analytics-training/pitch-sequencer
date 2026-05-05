@@ -679,7 +679,7 @@ function getLocationRepetitionPenalty(zk,pitchKey){
 }
 
 function getKnuckleballModifier(speed){
-  if(!speed) return {swingMissMult:1.0,strongMult:1.0,weakMult:1.0};
+  if(!speed) return {swingMissMult:1.0, strongMult:1.0, weakMult:1.0};
 
   const sweetSpot={
     rec10:{min:38,max:48},
@@ -700,38 +700,45 @@ function getKnuckleballModifier(speed){
   };
   const scale=levelScale[batterLevel]||0.55;
 
-  // In sweet spot — maximum movement, swing and miss bonus
+  // Extra penalty for aggressive batter types who swing at everything
+  // Free swingers get punished more by knuckleball movement
+  const effType=getEffectiveBatterType();
+  const aggressiveTypeMult=effType==='FREE_SWINGER'?1.4:effType==='PULL'?1.2:1.0;
+
   if(speed>=range.min&&speed<=range.max){
-    return{
-      swingMissMult:1.0+(0.45*scale),  // up to +45% swing and miss at pro
-      strongMult:1.0-(0.30*scale),      // up to -30% strong contact at pro
-      weakMult:1.0-(0.15*scale)         // up to -15% weak contact at pro
-    };
+    // Sweet spot — maximum movement, genuine difficulty for all batter types
+    const swingMissMult=1.0+(1.8*scale*aggressiveTypeMult); // up to 2.52x at pro FREE_SWINGER
+    const strongMult=Math.max(0.15,1.0-(0.75*scale));       // down to 0.25x at pro
+    const weakMult=Math.max(0.40,1.0-(0.45*scale));         // down to 0.55x at pro
+    console.log('KN DEBUG: SWEET SPOT speed=',speed,'range=',range,'scale=',scale,'swingMissMult=',swingMissMult,'strongMult=',strongMult,'batterLevel=',batterLevel,'batterType=',effType);
+    return {swingMissMult, strongMult, weakMult};
   }
 
-  // Too fast — reduced movement, acts like slow fastball
   if(speed>range.max){
     const excess=speed-range.max;
-    const penalty=Math.min(0.40,excess*0.025)*scale;
-    return{
-      swingMissMult:Math.max(0.5,1.0-penalty*2),
-      strongMult:1.0+(penalty*1.5),
-      weakMult:1.0+(penalty*1.0)
+    const penalty=Math.min(0.50,excess*0.030)*scale;
+    const mod={
+      swingMissMult:Math.max(0.4,1.0-penalty*2),
+      strongMult:1.0+(penalty*2.0),
+      weakMult:1.0+(penalty*1.2)
     };
+    console.log('KN DEBUG: TOO FAST speed=',speed,'range=',range,'penalty=',penalty,'mod=',mod,'batterLevel=',batterLevel,'batterType=',effType);
+    return mod;
   }
 
-  // Too slow — floats in predictably, batter times it up
   if(speed<range.min){
     const deficit=range.min-speed;
-    const penalty=Math.min(0.60,deficit*0.035)*scale;
-    return{
-      swingMissMult:Math.max(0.3,1.0-penalty*2),
-      strongMult:1.0+(penalty*2.5),
-      weakMult:1.0+(penalty*1.5)
+    const penalty=Math.min(0.70,deficit*0.040)*scale;
+    const mod={
+      swingMissMult:Math.max(0.2,1.0-penalty*2),
+      strongMult:1.0+(penalty*3.0),
+      weakMult:1.0+(penalty*2.0)
     };
+    console.log('KN DEBUG: TOO SLOW speed=',speed,'range=',range,'penalty=',penalty,'mod=',mod,'batterLevel=',batterLevel,'batterType=',effType);
+    return mod;
   }
 
-  return {swingMissMult:1.0,strongMult:1.0,weakMult:1.0};
+  return {swingMissMult:1.0, strongMult:1.0, weakMult:1.0};
 }
 
 function buildSimWeights(zk,rl,bd,ct,speed,pitchKey){

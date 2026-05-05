@@ -3,6 +3,7 @@ let tunnelOn=false,role='SETUP',batter='RHB';
 let targetMode='ZONE';
 let extendedAtBat=false;
 let currentView='catcher';
+let knuckleballZoneDisabled=false;
 let seq=[],pathObjs=[],landObjs=[],ghostLines=[],tunnelObjs=[];
 let statics=[];
 const ALL_PITCHES_LIST=[
@@ -50,7 +51,30 @@ function setCamera(){cam.fov=52;cam.position.set(0,1.06,-1.2);cam.lookAt(0,1.06,
 
 function setHand(h){hand=h;document.getElementById('brhp').classList.toggle('active',h==='R');document.getElementById('blhp').classList.toggle('active',h==='L');buildStatic();rebuildPaths();refreshGhost();}
 function setBatter(b){batter=b;['LHB','OFF','RHB'].forEach(x=>document.getElementById('b'+x.toLowerCase()).classList.toggle('active',x===b));buildStatic();rebuildPaths();refreshGhost();if(typeof dismissBatterHandednessNotification==='function') dismissBatterHandednessNotification();}
-function selPitch(p){pitch=p;document.querySelectorAll('.pbtn').forEach(b=>b.classList.remove('sel'));document.getElementById('p'+p).classList.add('sel');refreshGhost();}
+function selPitch(p){
+  pitch=p;
+  document.querySelectorAll('.pbtn').forEach(b=>b.classList.remove('sel'));
+  document.getElementById('p'+p).classList.add('sel');
+  if(p==='KN'){
+    // Knuckleball — force MM, disable zone controls
+    zone='MM';
+    if(targetMode!=='ZONE') setTargetMode('ZONE');
+    const zeedge=document.getElementById('zeedge');
+    if(zeedge) zeedge.classList.add('zebtn-disabled');
+    const zezone=document.getElementById('zezone');
+    if(zezone) zezone.classList.add('zebtn-disabled');
+    knuckleballZoneDisabled=true;
+  } else {
+    // Any other pitch — re-enable zone controls
+    const zeedge=document.getElementById('zeedge');
+    if(zeedge) zeedge.classList.remove('zebtn-disabled');
+    const zezone=document.getElementById('zezone');
+    if(zezone) zezone.classList.remove('zebtn-disabled');
+    knuckleballZoneDisabled=false;
+  }
+  rebuildTargetDiagram();
+  refreshGhost();
+}
 function selRole(r){role=r;document.querySelectorAll('.rpill').forEach(b=>b.classList.toggle('active',b.dataset.role===r));}
 function setRubber(e){
   const rect=document.getElementById('rwrap').getBoundingClientRect();

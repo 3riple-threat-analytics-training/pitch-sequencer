@@ -273,3 +273,7 @@ body{background:#1b3322;display:flex;justify-content:center;min-height:100vh;pad
   #seqlist{max-height:190px;}
   .simnewbatterbtn{font-size:13px;min-height:44px;padding:10px;}
 }
+
+.zc-disabled{opacity:0.25;pointer-events:none;cursor:not-allowed;}
+.cc-disabled{opacity:0.25;pointer-events:none;cursor:not-allowed;}
+.zebtn-disabled{opacity:0.25;pointer-events:none;cursor:not-allowed;}

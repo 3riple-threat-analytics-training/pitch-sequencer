@@ -21,18 +21,18 @@ function mk(t,c){const e=document.createElement(t);e.className=c;return e;}
 function buildZoneDiagram(){
   const el=document.getElementById('zonediagram');el.innerHTML='';
   const upRow=mk('div','zd-chase-row');
-  [['CUR','Up R'],['CUM','Up M'],['CUL','Up L']].forEach(([k,l])=>{const d=mk('div','cc'+(zone===k?' sel':''));d.textContent=l;d.onclick=()=>selZone(k);upRow.appendChild(d);});
+  [['CUR','Up R'],['CUM','Up M'],['CUL','Up L']].forEach(([k,l])=>{const isDisabled=typeof knuckleballZoneDisabled!=='undefined'&&knuckleballZoneDisabled;const d=mk('div','cc'+(zone===k?' sel':'')+(isDisabled?' cc-disabled':''));d.textContent=l;if(!isDisabled) d.onclick=()=>selZone(k);upRow.appendChild(d);});
   el.appendChild(upRow);
   const mid=mk('div','zd-mid');
-  const inD=mk('div','cc-side'+(zone==='COUT'?' sel':''));inD.textContent='In';inD.onclick=()=>selZone('COUT');
+  const inDisabled=typeof knuckleballZoneDisabled!=='undefined'&&knuckleballZoneDisabled;const inD=mk('div','cc-side'+(zone==='COUT'?' sel':'')+(inDisabled?' cc-disabled':''));inD.textContent='In';if(!inDisabled) inD.onclick=()=>selZone('COUT');
   const grid=mk('div','zd-grid');
   const ZONE_LABELS={'TL':'TL','TM':'TM','TR':'TR','ML':'ML','MM':'MM','MR':'MR','BL':'BL','BM':'BM','BR':'BR'};
   const ZONE_DISPLAY={'TR':'TL','TL':'TR','MR':'ML','ML':'MR','BR':'BL','BL':'BR','TM':'TM','MM':'MM','BM':'BM'};
-  ZKC.forEach(row=>{const rw=mk('div','zd-grid-row');row.forEach(k=>{const d=mk('div','zc'+(zone===k?' sel':''));d.textContent=ZONE_DISPLAY[k]||k;d.onclick=()=>selZone(k);rw.appendChild(d);});grid.appendChild(rw);});
-  const outD=mk('div','cc-side'+(zone==='CIN'?' sel':''));outD.textContent='Out';outD.onclick=()=>selZone('CIN');
+  ZKC.forEach(row=>{const rw=mk('div','zd-grid-row');row.forEach(k=>{const isDisabled=typeof knuckleballZoneDisabled!=='undefined'&&knuckleballZoneDisabled&&k!=='MM';const d=mk('div','zc'+(zone===k?' sel':'')+(isDisabled?' zc-disabled':''));d.textContent=ZONE_DISPLAY[k]||k;if(!isDisabled) d.onclick=()=>selZone(k);rw.appendChild(d);});grid.appendChild(rw);});
+  const outD=mk('div','cc-side'+(zone==='CIN'?' sel':'')+(inDisabled?' cc-disabled':''));outD.textContent='Out';if(!inDisabled) outD.onclick=()=>selZone('CIN');
   mid.appendChild(inD);mid.appendChild(grid);mid.appendChild(outD);el.appendChild(mid);
   const loRow=mk('div','zd-chase-row');
-  [['CLO-R','Lo R'],['CLO-M','Lo M'],['CLO-L','Lo L']].forEach(([k,l])=>{const d=mk('div','cc'+(zone===k?' sel':''));d.textContent=l;d.onclick=()=>selZone(k);loRow.appendChild(d);});
+  [['CLO-R','Lo R'],['CLO-M','Lo M'],['CLO-L','Lo L']].forEach(([k,l])=>{const isDisabled=typeof knuckleballZoneDisabled!=='undefined'&&knuckleballZoneDisabled;const d=mk('div','cc'+(zone===k?' sel':'')+(isDisabled?' cc-disabled':''));d.textContent=l;if(!isDisabled) d.onclick=()=>selZone(k);loRow.appendChild(d);});
   el.appendChild(loRow);
 }
 
