@@ -513,9 +513,25 @@ function getChaseZoneSwingProbability(strikes){
 }
 
 function getChaseZoneOutcome(zoneKey,strikesNow,roleVal,bdVal,countVal,strikesAtStart,speed,pitchKey){
-  const pSwing=getChaseZoneSwingProbability(strikesNow);
   const effSpeed=typeof speed==='number'?speed:parseInt((document.getElementById('spd')||{}).value,10)||0;
   const effPitchKey=pitchKey||pitch;
+
+  // Below velocity floor — higher level batters recognize slow pitch and lay off chase zones
+  let pSwing=getChaseZoneSwingProbability(strikesNow);
+  if(isBelowVelocityFloor(effSpeed,effPitchKey)){
+    const chaseReduction={
+      rec10:1.0,rec12:1.0,    // young batters still chase regardless
+      club10:0.90,club12:0.85,
+      comp13:0.75,
+      hsjv:0.60,
+      hsvar:0.45,
+      college:0.25,
+      pro:0.10                  // pro batters almost never chase a slow pitch off plate
+    };
+    const reduction=chaseReduction[batterLevel]||0.75;
+    pSwing=pSwing*reduction;
+  }
+
   if(Math.random()<pSwing){
     const w=buildSimWeights(zoneKey,roleVal,bdVal,countVal,effSpeed,effPitchKey);
     delete w.BALL;
@@ -533,15 +549,39 @@ function getEdgeZoneOutcome(zoneKey,strikesNow,roleVal,bdVal,countVal,strikesAtS
   const sitMod=getSituationModifier();
   const baseSwing=(strikesNow===0?0.15:strikesNow===1?0.30:0.70)*sitMod.edgeSwingMult;
   const edgeTypeMult=getBatterSwingMultiplier(zoneKey,strikesNow);
-  const pSwing=Math.min(0.95,baseSwing*edgeTypeMult);
   const effSpeed=typeof speed==='number'?speed:parseInt((document.getElementById('spd')||{}).value,10)||0;
   const effPitchKey=pitchKey||pitch;
+
+  // Below velocity floor — higher level batters sit on slow edge pitches and drive them
+  // Lower level batters still struggle with edge pitches regardless of speed
+  let swingMissMult=1.25;
+  let weakContactMult=1.12;
+  let strongContactMult=0.7;
+
+  if(isBelowVelocityFloor(effSpeed,effPitchKey)){
+    const edgeContactScale={
+      rec10:1.0,rec12:1.0,
+      club10:1.1,club12:1.2,
+      comp13:1.3,
+      hsjv:1.5,
+      hsvar:1.8,
+      college:2.2,
+      pro:2.8
+    };
+    const contactScale=edgeContactScale[batterLevel]||1.3;
+    // Below floor — batter times it up, more contact, less swing and miss
+    swingMissMult=Math.max(0.3,1.25/contactScale);
+    weakContactMult=1.12*contactScale;
+    strongContactMult=0.7*contactScale;
+  }
+
+  const pSwing=Math.min(0.95,baseSwing*edgeTypeMult);
   let outcome='';
   if(Math.random()<pSwing){
     const w=buildSimWeights(zoneKey,roleVal,bdVal,countVal,effSpeed,effPitchKey);
-    w['SWING & MISS']=Math.max(1,w['SWING & MISS']*1.25);
-    w['WEAK CONTACT']=Math.max(1,w['WEAK CONTACT']*1.12);
-    w['STRONG CONTACT']=Math.max(1,w['STRONG CONTACT']*0.7);
+    w['SWING & MISS']=Math.max(1,w['SWING & MISS']*swingMissMult);
+    w['WEAK CONTACT']=Math.max(1,w['WEAK CONTACT']*weakContactMult);
+    w['STRONG CONTACT']=Math.max(1,w['STRONG CONTACT']*strongContactMult);
     let raw=pickWeightedRecord(w);
     raw=getContactSubOutcome(raw);
     outcome=applySimCountOutcome(raw,strikesAtStart);
