@@ -442,10 +442,35 @@ function getBatterLevelConfig(){
 function getSpeedDiffModifier(currentSpeed){
   if(lastPitchSpeed===0) return 0;
   const diff=Math.abs(lastPitchSpeed-currentSpeed);
+  if(diff===0) return 0;
+
+  // Get base bonus from table
+  let baseBonus=0;
   for(let i=SPEED_DIFF_MODIFIERS.length-1;i>=0;i--){
-    if(diff>=SPEED_DIFF_MODIFIERS[i].minDiff) return SPEED_DIFF_MODIFIERS[i].swingMissBonus;
+    if(diff>=SPEED_DIFF_MODIFIERS[i].minDiff){
+      baseBonus=SPEED_DIFF_MODIFIERS[i].swingMissBonus;
+      break;
+    }
   }
-  return 0;
+
+  // Apply level scaling
+  const lvlScale=(typeof SPEED_DIFF_LEVEL_SCALE!=='undefined'&&SPEED_DIFF_LEVEL_SCALE[batterLevel])||0.50;
+
+  // Apply direction multiplier
+  // lastPitchSpeed > currentSpeed means we went fast → slow (fastball to breaking ball)
+  // lastPitchSpeed < currentSpeed means we went slow → fast (breaking ball to fastball)
+  let dirMult=1.0;
+  if(typeof SPEED_DIFF_DIRECTION!=='undefined'){
+    dirMult=lastPitchSpeed>currentSpeed?
+      SPEED_DIFF_DIRECTION.fastToBraking:
+      SPEED_DIFF_DIRECTION.breakingToFast;
+  }
+
+  const finalBonus=baseBonus*lvlScale*dirMult;
+
+  console.log('SPEED DIFF DEBUG: last=',lastPitchSpeed,'current=',currentSpeed,'diff=',diff,'baseBonus=',baseBonus,'lvlScale=',lvlScale,'dirMult=',dirMult,'finalBonus=',finalBonus,'level=',batterLevel);
+
+  return finalBonus;
 }
 
 function getVelocityModifiers(speed,pitchKey){

@@ -112,13 +112,36 @@ const BATTER_LEVELS={
 };
 
 // Speed differential swing and miss modifiers
+// Base speed differential thresholds — scaled by batter level in getSpeedDiffModifier
 const SPEED_DIFF_MODIFIERS=[
-  {minDiff:0,maxDiff:4,swingMissBonus:0},
-  {minDiff:5,maxDiff:9,swingMissBonus:0.05},
-  {minDiff:10,maxDiff:14,swingMissBonus:0.10},
-  {minDiff:15,maxDiff:19,swingMissBonus:0.15},
-  {minDiff:20,maxDiff:999,swingMissBonus:0.20}
+  {minDiff:0,  swingMissBonus:0},
+  {minDiff:5,  swingMissBonus:0.05},
+  {minDiff:10, swingMissBonus:0.12},
+  {minDiff:15, swingMissBonus:0.20},
+  {minDiff:20, swingMissBonus:0.30},
+  {minDiff:25, swingMissBonus:0.42},
+  {minDiff:30, swingMissBonus:0.55}
 ];
+
+// Level scaling for speed differential effect
+// Higher levels are more affected by speed changes because their timing is more precise
+const SPEED_DIFF_LEVEL_SCALE={
+  rec10:0.20,  // young batters barely notice speed changes
+  rec12:0.25,
+  club10:0.30,
+  club12:0.38,
+  comp13:0.48,
+  hsjv:0.60,
+  hsvar:0.75,
+  college:0.90,
+  pro:1.00     // pro batters are maximally affected by speed differential
+};
+
+// Direction multipliers — fastball to breaking ball is more effective than vice versa
+const SPEED_DIFF_DIRECTION={
+  fastToBraking:1.30,  // pitcher throws hard then slow — batter out in front
+  breakingToFast:1.00  // pitcher throws slow then hard — batter late but less fooled
+};
 
 // Breaking ball pitch keys — these are affected by recognition rate
 const BREAKING_BALL_KEYS=['CB','SL','CT','SCR','SLV','SWP','FK','KC'];
