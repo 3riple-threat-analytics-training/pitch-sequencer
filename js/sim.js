@@ -541,6 +541,12 @@ function getChaseZoneOutcome(zoneKey,strikesNow,roleVal,bdVal,countVal,strikesAt
   const effSpeed=typeof speed==='number'?speed:parseInt((document.getElementById('spd')||{}).value,10)||0;
   const effPitchKey=pitchKey||pitch;
 
+  // Store count-location modifier for chase zones — courage pitch applies here too
+  if(simMode){
+    const clm=getCountLocationModifier(zoneKey,effPitchKey);
+    window.__lastCountLocMod=clm;
+  }
+
   // Below velocity floor — higher level batters recognize slow pitch and lay off chase zones
   let pSwing=getChaseZoneSwingProbability(strikesNow);
   if(isBelowVelocityFloor(effSpeed,effPitchKey)){
@@ -576,6 +582,12 @@ function getEdgeZoneOutcome(zoneKey,strikesNow,roleVal,bdVal,countVal,strikesAtS
   const edgeTypeMult=getBatterSwingMultiplier(zoneKey,strikesNow);
   const effSpeed=typeof speed==='number'?speed:parseInt((document.getElementById('spd')||{}).value,10)||0;
   const effPitchKey=pitchKey||pitch;
+
+  // Store count-location modifier for edge zones
+  if(simMode){
+    const clm=getCountLocationModifier(zoneKey,effPitchKey);
+    window.__lastCountLocMod=clm;
+  }
 
   // Below velocity floor — higher level batters sit on slow edge pitches and drive them
   // Lower level batters still struggle with edge pitches regardless of speed
@@ -846,6 +858,179 @@ function getTunnelReward(pitchKey,speed){
   return {swingMissMult,strongMult,weakMult,overridesRepetition};
 }
 
+function getCountLocationModifier(zk,pitchKey){
+  const noMod={
+    strongMult:1.0,weakMult:1.0,swingMissMult:1.0,
+    isCourage:false,isDanger:false,isTake:false
+  };
+
+  const ct=pitchCount;
+  const effType=getEffectiveBatterType();
+
+  // Level scaling — count leverage matters more at higher levels
+  const levelScale={
+    rec10:0.20,rec12:0.25,
+    club10:0.32,club12:0.40,
+    comp13:0.50,
+    hsjv:0.62,
+    hsvar:0.75,
+    college:0.88,
+    pro:1.00
+  };
+  const scale=levelScale[batterLevel]||0.55;
+
+  // Get danger zones for this batter type and count
+  // Handle PULL hitter handedness
+  let typeKey=effType;
+  if(effType==='PULL'){
+    const currentHand=(typeof batter!=='undefined')?batter:'RHB';
+    typeKey=currentHand==='LHB'?'PULL_LHB':'PULL_RHB';
+  }
+
+  const dangerTable=typeof DANGER_ZONES!=='undefined'?DANGER_ZONES:null;
+
+  // HITTER'S COUNTS — danger zone logic
+  if(HITTER_COUNTS.includes(ct)&&dangerTable){
+    const zones=dangerTable[typeKey]&&dangerTable[typeKey][ct]?
+      dangerTable[typeKey][ct]:
+      (dangerTable['GENERIC'][ct]||[]);
+
+    // 3-0 special case — check take probability
+    if(ct==='3-0'){
+      const takeProb=typeof TAKE_30_PROBABILITY!=='undefined'?
+        (TAKE_30_PROBABILITY[effType]||0.55):0.55;
+      if(Math.random()<takeProb){
+        // Batter takes the pitch — treat as called strike/ball based on zone
+        return {...noMod,isTake:true};
+      }
+    }
+
+    const inDanger=zones.includes(zk);
+    const neutralMult=ct==='2-0'?0.50:1.0; // 2-0 is 50% of full effect
+
+    if(inDanger){
+      // Pitcher threw into danger zone — batter sitting on this
+      const dangerStrong=ct==='3-1'?
+        1.0+(1.20*scale*neutralMult):  // 3-1 biggest danger
+        1.0+(0.70*scale*neutralMult);  // 2-0 moderate danger
+      const dangerWeak=ct==='3-1'?
+        1.0+(0.60*scale*neutralMult):
+        1.0+(0.35*scale*neutralMult);
+      const dangerSwingMiss=ct==='3-1'?
+        Math.max(0.30,1.0-(0.55*scale*neutralMult)):
+        Math.max(0.50,1.0-(0.35*scale*neutralMult));
+
+      console.log('COUNT-LOC DEBUG: DANGER ZONE ct=',ct,'zk=',zk,'type=',effType,'dangerStrong=',dangerStrong,'level=',batterLevel);
+
+      return {
+        strongMult:dangerStrong,
+        weakMult:dangerWeak,
+        swingMissMult:dangerSwingMiss,
+        isCourage:false,
+        isDanger:true,
+        isTake:false
+      };
+    }else{
+      // Pitcher threw OUTSIDE danger zone — courage pitch
+      // Bigger bonus for chase zones, moderate for edges, small for opposite side
+      let courageSwingMiss=1.0;
+      let courageStrong=1.0;
+
+      if(CHASE_ZONE_KEYS.includes(zk)){
+        courageSwingMiss=1.0+(0.45*scale*neutralMult);
+        courageStrong=Math.max(0.40,1.0-(0.40*scale*neutralMult));
+      }else if(EDGE8_ZONE_KEYS.includes(zk)){
+        courageSwingMiss=1.0+(0.28*scale*neutralMult);
+        courageStrong=Math.max(0.55,1.0-(0.28*scale*neutralMult));
+      }else{
+        // Opposite side of zone from danger
+        courageSwingMiss=1.0+(0.18*scale*neutralMult);
+        courageStrong=Math.max(0.70,1.0-(0.18*scale*neutralMult));
+      }
+
+      console.log('COUNT-LOC DEBUG: COURAGE PITCH ct=',ct,'zk=',zk,'type=',effType,'courageSwingMiss=',courageSwingMiss,'level=',batterLevel);
+
+      return {
+        strongMult:courageStrong,
+        weakMult:Math.max(0.75,1.0-(0.15*scale*neutralMult)),
+        swingMissMult:courageSwingMiss,
+        isCourage:true,
+        isDanger:false,
+        isTake:false
+      };
+    }
+  }
+
+  // PITCHER'S COUNTS — reward sweet spot and chase zones
+  if(PITCHER_COUNTS.includes(ct)){
+    const inSweetSpot=typeof PITCHER_COUNT_SWEET_SPOTS!=='undefined'&&
+      PITCHER_COUNT_SWEET_SPOTS.includes(zk);
+    const inChaseBonus=typeof PITCHER_COUNT_CHASE_BONUS!=='undefined'&&
+      PITCHER_COUNT_CHASE_BONUS.includes(zk);
+    const inStrikeZone=STRIKE9_ZONE_KEYS.includes(zk);
+
+    if(inSweetSpot){
+      return {
+        strongMult:Math.max(0.50,1.0-(0.35*scale)),
+        weakMult:Math.max(0.65,1.0-(0.22*scale)),
+        swingMissMult:1.0+(0.40*scale),
+        isCourage:false,isDanger:false,isTake:false
+      };
+    }
+
+    if(inChaseBonus){
+      return {
+        strongMult:Math.max(0.60,1.0-(0.25*scale)),
+        weakMult:Math.max(0.75,1.0-(0.15*scale)),
+        swingMissMult:1.0+(0.30*scale),
+        isCourage:false,isDanger:false,isTake:false
+      };
+    }
+
+    if(inStrikeZone){
+      // Batter protecting — more likely to make contact on strike zone pitches
+      return {
+        strongMult:1.0+(0.20*scale),
+        weakMult:1.0+(0.15*scale),
+        swingMissMult:Math.max(0.70,1.0-(0.20*scale)),
+        isCourage:false,isDanger:false,isTake:false
+      };
+    }
+  }
+
+  // NEUTRAL COUNTS — 50% of hitter's count effect
+  const neutralCounts=['0-0','1-0','1-1','2-1'];
+  if(neutralCounts.includes(ct)&&dangerTable){
+    const zones=dangerTable[typeKey]&&dangerTable[typeKey]['2-0']?
+      dangerTable[typeKey]['2-0']:
+      (dangerTable['GENERIC']['2-0']||[]);
+    const inDanger=zones.includes(zk);
+
+    if(inDanger){
+      return {
+        strongMult:1.0+(0.35*scale*0.50),
+        weakMult:1.0+(0.18*scale*0.50),
+        swingMissMult:Math.max(0.75,1.0-(0.18*scale*0.50)),
+        isCourage:false, isDanger:true, isTake:false
+      };
+    } else {
+      // Courage pitch in neutral count — smaller bonus than hitter's count
+      const isChasezone=typeof CHASE_ZONE_KEYS!=='undefined'&&CHASE_ZONE_KEYS.includes(zk);
+      const isEdgezone=typeof EDGE8_ZONE_KEYS!=='undefined'&&EDGE8_ZONE_KEYS.includes(zk);
+      if(isChasezone||isEdgezone){
+        return {
+          strongMult:Math.max(0.80,1.0-(0.12*scale*0.50)),
+          weakMult:Math.max(0.88,1.0-(0.08*scale*0.50)),
+          swingMissMult:1.0+(0.15*scale*0.50),
+          isCourage:true, isDanger:false, isTake:false
+        };
+      }
+    }
+  }
+
+  return noMod;
+}
+
 function buildSimWeights(zk,rl,bd,ct,speed,pitchKey){
   const inStrike=STRIKE_ZONE_KEYS.includes(zk);
   const lvl=getBatterLevelConfig();
@@ -933,10 +1118,14 @@ function buildSimWeights(zk,rl,bd,ct,speed,pitchKey){
     }
   }
 
-  // Location repetition penalty and tunnel reward interaction
+  // Location repetition penalty, tunnel reward, and count-location interaction
   if(simMode){
     const rep=getLocationRepetitionPenalty(zk,pitchKey);
     const tun=getTunnelReward(pitchKey,speed);
+    const countLoc=getCountLocationModifier(zk,pitchKey);
+
+    // Store count-location result for sim log — accessible in throwPitch
+    window.__lastCountLocMod=countLoc;
 
     // Tunnel reward can override repetition penalty based on tunnel quality
     const repScale=1.0-tun.overridesRepetition;
@@ -953,6 +1142,11 @@ function buildSimWeights(zk,rl,bd,ct,speed,pitchKey){
     w['STRONG CONTACT']=Math.max(1,(w['STRONG CONTACT']||1)*tun.strongMult);
     w['WEAK CONTACT']=Math.max(1,(w['WEAK CONTACT']||1)*tun.weakMult);
     w['SWING & MISS']=Math.max(1,(w['SWING & MISS']||1)*tun.swingMissMult);
+
+    // Apply count-location modifier on top
+    w['STRONG CONTACT']=Math.max(1,(w['STRONG CONTACT']||1)*countLoc.strongMult);
+    w['WEAK CONTACT']=Math.max(1,(w['WEAK CONTACT']||1)*countLoc.weakMult);
+    w['SWING & MISS']=Math.max(1,(w['SWING & MISS']||1)*countLoc.swingMissMult);
   }
 
   if(inStrike) delete w.BALL;
@@ -1216,6 +1410,18 @@ function handleSimOutcome(pitchName,outcome,speed,pitchKey){
   const showLbl=(batterType!=='RANDOM')||batterRevealed;
   const takePrefix=(outcome==='CALLED STRIKE'||outcome==='CALLED BALL')?'TAKE: ':'';
   addSimLogEntry((showLbl?'['+getBatterSimLogLabel()+'] ':'')+pitchName+' → '+takePrefix+outcome,outcome,prominent);
+
+  // Add courage pitch or danger zone log entry
+  const clm=window.__lastCountLocMod;
+  if(clm){
+    if(clm.isCourage&&['SWING & MISS','STRIKEOUT','CALLED STRIKE'].includes(outcome)){
+      addSimLogEntry('COURAGE PITCH — unexpected location paid off',outcome,false);
+    }
+    if(clm.isDanger&&['SINGLE','DOUBLE','TRIPLE','HOME RUN','GROUND OUT','POP FLY'].includes(outcome)){
+      addSimLogEntry('DANGER ZONE — batter was sitting on that location',outcome,false);
+    }
+    window.__lastCountLocMod=null;
+  }
 }
 
 const __baseSaveSimState=(typeof saveSimState==='function')?saveSimState:null;

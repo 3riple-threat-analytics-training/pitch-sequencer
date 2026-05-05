@@ -1018,6 +1018,21 @@ function throwPitch(){
     if(simInningLogPending){simInningLogPending=false;pushSimInningOver();}
   }
   commitPitch(makeCurve(pitch,zone,bd).getPoints(90).map(v=>v.clone()),pitch,zone,spd,bd,role,ctBefore,outcome);
+
+  // Courage pitch and danger zone log — runs after every pitch
+  if(simMode){
+    const clm=window.__lastCountLocMod;
+    console.log('COURAGE DEBUG end of throwPitch: clm=',clm,'outcome=',outcome,'count=',ctBefore);
+    if(clm){
+      if(clm.isCourage&&['SWING & MISS','STRIKEOUT','CALLED STRIKE'].includes(outcome)){
+        addSimLogEntry('COURAGE PITCH — unexpected location paid off',outcome,false);
+      }
+      if(clm.isDanger&&['SINGLE','DOUBLE','TRIPLE','HOME RUN','GROUND OUT','POP FLY'].includes(outcome)){
+        addSimLogEntry('DANGER ZONE — batter was sitting on that location',outcome,false);
+      }
+      window.__lastCountLocMod=null;
+    }
+  }
 }
 
 function replaySeq(){

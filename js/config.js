@@ -7,6 +7,73 @@ const ORB_R=0.025,FRAME_EDGE=0.70,BD_BORDER=ZW/2,TUBE_R=0.035;
 const TUNNEL_THRESH=0.22,TUNNEL_START=0.15,TUNNEL_END=0.72;
 const PITCHER_COUNTS=['0-2','1-2','2-2'];
 const HITTER_COUNTS=['2-0','3-0','3-1'];
+
+// Count-location danger zones by batter type and count
+// These are the zones batters are sitting on in hitter's counts
+const DANGER_ZONES={
+  GENERIC:{
+    '3-0':['MM'],
+    '2-0':['MM','TM','BM','ML','MR'],
+    '3-1':['MM','TM','BM','ML','MR','TOP-EDG','BOT-EDG','LFT-EDG','RGT-EDG']
+  },
+  FREE_SWINGER:{
+    '3-0':['MM'],
+    '2-0':['TM','MM','BM','ML','MR','TOP-EDG','BOT-EDG'],
+    '3-1':['TL','TM','TR','ML','MM','MR','BL','BM','BR','TOP-EDG','BOT-EDG','LFT-EDG','RGT-EDG','TL-CRN','TR-CRN','BL-CRN','BR-CRN']
+  },
+  PATIENT:{
+    '3-0':['MM'],
+    '2-0':['MM','TM','BM'],
+    '3-1':['MM']
+  },
+  HIGH_BALL:{
+    '3-0':['TM'],
+    '2-0':['TL','TM','TR','TOP-EDG'],
+    '3-1':['TL','TM','TR','TOP-EDG','TL-CRN','TR-CRN']
+  },
+  LOW_BALL:{
+    '3-0':['BM'],
+    '2-0':['BL','BM','BR','BOT-EDG'],
+    '3-1':['BL','BM','BR','BOT-EDG','BL-CRN','BR-CRN']
+  },
+  PULL_RHB:{
+    '3-0':['ML'],
+    '2-0':['TL','ML','BL','LFT-EDG'],
+    '3-1':['TL','ML','BL','LFT-EDG','TL-CRN','BL-CRN']
+  },
+  PULL_LHB:{
+    '3-0':['MR'],
+    '2-0':['TR','MR','BR','RGT-EDG'],
+    '3-1':['TR','MR','BR','RGT-EDG','TR-CRN','BR-CRN']
+  },
+  PULL:{
+    '3-0':['ML'],
+    '2-0':['TL','ML','BL','LFT-EDG'],
+    '3-1':['TL','ML','BL','LFT-EDG','TL-CRN','BL-CRN']
+  }
+};
+
+// Pitcher's count sweet spot zones — reward throwing here when ahead in count
+const PITCHER_COUNT_SWEET_SPOTS=[
+  'TOP-EDG','BOT-EDG','LFT-EDG','RGT-EDG',
+  'TL-CRN','TR-CRN','BL-CRN','BR-CRN'
+];
+
+// Chase zones that get extra reward in pitcher's counts
+const PITCHER_COUNT_CHASE_BONUS=[
+  'CUR','CUM','CUL','CLO-L','CLO-M','CLO-R','CIN','COUT'
+];
+
+// 3-0 take probability by batter type
+// Reflects coaching reality — some batters are told to take on 3-0
+const TAKE_30_PROBABILITY={
+  GENERIC:0.55,
+  FREE_SWINGER:0.25,
+  PATIENT:0.90,
+  HIGH_BALL:0.60,
+  LOW_BALL:0.60,
+  PULL:0.50
+};
 const TIPS={left:'1B side: wider angle to RHB.',center:'Center: neutral angle.',right:'3B side: wider angle to LHB.'};
 
 const PLAN_STORAGE_KEY='pitchSequencerSavedPlansV1';
