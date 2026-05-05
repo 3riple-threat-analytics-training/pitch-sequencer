@@ -766,6 +766,86 @@ function getKnuckleballModifier(speed){
   return {swingMissMult:1.0, strongMult:1.0, weakMult:1.0};
 }
 
+function getTunnelReward(pitchKey,speed){
+  const noReward={swingMissMult:1.0,strongMult:1.0,weakMult:1.0,overridesRepetition:0};
+  if(typeof seq==='undefined'||!seq||seq.length<2) return noReward;
+
+  const current=seq[seq.length-1];
+  if(!current||!current.tunnelData||!current.tunnelData.detected) return noReward;
+
+  const td=current.tunnelData;
+
+  // No reward for same pitch type tunneling
+  if(td.prevPk===pitchKey) return noReward;
+
+  // Level scaling — tunneling reward scales with batter level
+  // Higher level batters are more fooled by tunneling because their timing is more precise
+  const levelScale={
+    rec10:0.30,rec12:0.30,
+    club10:0.40,club12:0.48,
+    comp13:0.58,
+    hsjv:0.70,
+    hsvar:0.82,
+    college:0.92,
+    pro:1.00
+  };
+  const scale=levelScale[batterLevel]||0.55;
+
+  // Base reward from tunnel length
+  let swingMissMult=1.0;
+  let strongMult=1.0;
+  let weakMult=1.0;
+  let overridesRepetition=0;
+
+  if(td.length>=0.80){
+    // Elite tunnel
+    swingMissMult=1.0+(0.80*scale);
+    strongMult=Math.max(0.30,1.0-(0.50*scale));
+    weakMult=Math.max(0.60,1.0-(0.25*scale));
+    overridesRepetition=1.0; // fully overrides repetition penalty
+  }else if(td.length>=0.60){
+    // Strong tunnel
+    swingMissMult=1.0+(0.50*scale);
+    strongMult=Math.max(0.40,1.0-(0.35*scale));
+    weakMult=Math.max(0.70,1.0-(0.18*scale));
+    overridesRepetition=0.60;
+  }else if(td.length>=0.30){
+    // Moderate tunnel
+    swingMissMult=1.0+(0.30*scale);
+    strongMult=Math.max(0.55,1.0-(0.22*scale));
+    weakMult=Math.max(0.80,1.0-(0.12*scale));
+    overridesRepetition=0.30;
+  }else{
+    // Weak tunnel
+    swingMissMult=1.0+(0.15*scale);
+    strongMult=Math.max(0.75,1.0-(0.12*scale));
+    weakMult=Math.max(0.88,1.0-(0.06*scale));
+    overridesRepetition=0;
+  }
+
+  // Speed differential bonus — different speed amplifies tunnel deception
+  const speedDiff=Math.abs(speed-(td.prevSpd||0));
+  if(speedDiff>=8){
+    const speedBonus=Math.min(0.25,speedDiff*0.008)*scale;
+    swingMissMult+=speedBonus;
+    strongMult=Math.max(0.20,strongMult-speedBonus*0.5);
+  }
+
+  // Hesitation bonus — if previous pitch was a tunneled breaking ball
+  // and current pitch is a fastball, batter hesitates
+  const FAST_KEYS=['4FB','2FB','SK','CT'];
+  const BREAKING_KEYS=['CB','SL','CH','SP','SCR','EPH','SLV','SWP','FK','KC'];
+  if(FAST_KEYS.includes(pitchKey)&&BREAKING_KEYS.includes(td.prevPk)){
+    const hesitationBonus=0.25*scale;
+    swingMissMult+=hesitationBonus;
+    strongMult=Math.max(0.20,strongMult-0.10*scale);
+  }
+
+  console.log('TUNNEL DEBUG: length=',td.length,'prevPk=',td.prevPk,'currentPk=',pitchKey,'speedDiff=',speedDiff,'swingMissMult=',swingMissMult,'strongMult=',strongMult,'overridesRepetition=',overridesRepetition,'level=',batterLevel);
+
+  return {swingMissMult,strongMult,weakMult,overridesRepetition};
+}
+
 function buildSimWeights(zk,rl,bd,ct,speed,pitchKey){
   const inStrike=STRIKE_ZONE_KEYS.includes(zk);
   const lvl=getBatterLevelConfig();
@@ -853,12 +933,26 @@ function buildSimWeights(zk,rl,bd,ct,speed,pitchKey){
     }
   }
 
-  // Location repetition penalty — multiplier based
+  // Location repetition penalty and tunnel reward interaction
   if(simMode){
     const rep=getLocationRepetitionPenalty(zk,pitchKey);
-    w['STRONG CONTACT']=Math.max(1,(w['STRONG CONTACT']||1)*rep.strongMult);
-    w['WEAK CONTACT']=Math.max(1,(w['WEAK CONTACT']||1)*rep.weakMult);
-    w['SWING & MISS']=Math.max(1,(w['SWING & MISS']||1)*rep.swingMissMult);
+    const tun=getTunnelReward(pitchKey,speed);
+
+    // Tunnel reward can override repetition penalty based on tunnel quality
+    const repScale=1.0-tun.overridesRepetition;
+    const effectiveStrongMult=1.0+((rep.strongMult-1.0)*repScale);
+    const effectiveWeakMult=1.0+((rep.weakMult-1.0)*repScale);
+    const effectiveSwingMissMult=1.0+((rep.swingMissMult-1.0)*repScale);
+
+    // Apply repetition penalty (scaled by tunnel override)
+    w['STRONG CONTACT']=Math.max(1,(w['STRONG CONTACT']||1)*effectiveStrongMult);
+    w['WEAK CONTACT']=Math.max(1,(w['WEAK CONTACT']||1)*effectiveWeakMult);
+    w['SWING & MISS']=Math.max(1,(w['SWING & MISS']||1)*effectiveSwingMissMult);
+
+    // Apply tunnel reward on top
+    w['STRONG CONTACT']=Math.max(1,(w['STRONG CONTACT']||1)*tun.strongMult);
+    w['WEAK CONTACT']=Math.max(1,(w['WEAK CONTACT']||1)*tun.weakMult);
+    w['SWING & MISS']=Math.max(1,(w['SWING & MISS']||1)*tun.swingMissMult);
   }
 
   if(inStrike) delete w.BALL;

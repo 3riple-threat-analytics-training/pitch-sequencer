@@ -945,7 +945,37 @@ function commitPitch(pts3d,pk,zk,spd,bd,rl,ct,outcome){
   const col=PITCHES[pk].color;
   pathObjs.push(line3D(pts3d,col,0.88,3));
   animBall(pts3d,col,PITCHES[pk].ms,()=>addLanding(pts3d[pts3d.length-1],col,spd,outcome));
-  seq.push({pk,zk,spd,bd,role:rl,count:ct,outcome:outcome||'',pts3d:pts3d.map(v=>v.clone())});
+  // Detect tunnel against all previous pitches and store best tunnel found
+  let tunnelData={detected:false,length:0,prevIndex:-1,prevPk:'',prevSpd:0};
+  if(seq.length>0){
+    const n=pts3d.length;
+    const s0=Math.floor(n*TUNNEL_START);
+    const s1=Math.floor(n*TUNNEL_END);
+    const windowSize=s1-s0;
+    let bestTunnel={detected:false,length:0,prevIndex:-1,prevPk:'',prevSpd:0};
+    for(let si=seq.length-1;si>=Math.max(0,seq.length-3);si--){
+      const prev=seq[si];
+      if(!prev.pts3d||!prev.pts3d.length) continue;
+      let tunnelPoints=0;
+      for(let i=s0;i<s1;i++){
+        const pA=pts3d[i];
+        const pB=prev.pts3d[Math.min(i,prev.pts3d.length-1)];
+        if(pA&&pB&&pA.distanceTo(pB)<=TUNNEL_THRESH) tunnelPoints++;
+      }
+      const tunnelLength=windowSize>0?tunnelPoints/windowSize:0;
+      if(tunnelLength>0.10&&tunnelLength>bestTunnel.length){
+        bestTunnel={
+          detected:true,
+          length:tunnelLength,
+          prevIndex:si,
+          prevPk:prev.pk,
+          prevSpd:prev.spd
+        };
+      }
+    }
+    tunnelData=bestTunnel;
+  }
+  seq.push({pk,zk,spd,bd,role:rl,count:ct,outcome:outcome||'',pts3d:pts3d.map(v=>v.clone()),tunnelData});
   updateSeqUI();buildTunnels();
   if(currentView==='side') drawSideView();
   saveSimState();
