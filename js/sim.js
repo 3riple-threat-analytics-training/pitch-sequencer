@@ -541,11 +541,6 @@ function getChaseZoneOutcome(zoneKey,strikesNow,roleVal,bdVal,countVal,strikesAt
   const effSpeed=typeof speed==='number'?speed:parseInt((document.getElementById('spd')||{}).value,10)||0;
   const effPitchKey=pitchKey||pitch;
 
-  // Store count-location modifier for chase zones — courage pitch applies here too
-  if(simMode){
-    const clm=getCountLocationModifier(zoneKey,effPitchKey);
-    window.__lastCountLocMod=clm;
-  }
 
   // Below velocity floor — higher level batters recognize slow pitch and lay off chase zones
   let pSwing=getChaseZoneSwingProbability(strikesNow);
@@ -583,11 +578,6 @@ function getEdgeZoneOutcome(zoneKey,strikesNow,roleVal,bdVal,countVal,strikesAtS
   const effSpeed=typeof speed==='number'?speed:parseInt((document.getElementById('spd')||{}).value,10)||0;
   const effPitchKey=pitchKey||pitch;
 
-  // Store count-location modifier for edge zones
-  if(simMode){
-    const clm=getCountLocationModifier(zoneKey,effPitchKey);
-    window.__lastCountLocMod=clm;
-  }
 
   // Below velocity floor — higher level batters sit on slow edge pitches and drive them
   // Lower level batters still struggle with edge pitches regardless of speed
