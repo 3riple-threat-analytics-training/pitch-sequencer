@@ -42,9 +42,41 @@
 }
 #extendbtn:hover{border-color:#7ec8e3;color:#7ec8e3;}
 #extendbtn.active{border-color:#eab308;color:#eab308;background:#1a1500;}
+
+/* Theme overrides for modal inline styles */
+#notesoverlay,
+#diamondmodal{background:var(--bg-overlay) !important;}
+#notesoverlay > div,
+#diamondmodal > div{
+  background:var(--bg-card) !important;
+  border-color:var(--border-panel) !important;
+}
+#notesoverlay [style*="color:#e8f4fd"],
+#diamondmodal [style*="color:#e8f4fd"]{color:var(--text-primary) !important;}
+#notesoverlay [style*="color:#3a5a7a"],
+#diamondmodal [style*="color:#3a5a7a"]{color:var(--text-muted) !important;}
+#notesoverlay textarea[style*="background:#0d1520"],
+#notesoverlay input[style*="background:#0d1520"],
+#diamondmodal button[style*="background:#0d1520"]{
+  background:var(--bg-input) !important;
+  border-color:var(--border-panel) !important;
+  color:var(--text-primary) !important;
+}
+#notesoverlay button[style*="background:#1a3a5c"],
+#diamondmodal button[style*="background:#1a3a5c"]{
+  background:var(--bg-savebtn) !important;
+  border-color:var(--border-accent) !important;
+  color:var(--text-savebtn) !important;
+}
+#notesoverlay button[style*="background:transparent"],
+#diamondmodal button[style*="background:transparent"]{
+  background:transparent !important;
+  border-color:var(--border-panel) !important;
+  color:var(--text-muted) !important;
+}
 </style>
 </head>
-<body>
+<body data-theme="light">
 <div id="profileoverlay">
   <div id="profilecard">
     <div id="profiletitle">PITCHER PROFILE</div>
@@ -198,7 +230,7 @@
         <button class="tbtn" id="vside" onclick="setView('side')">SIDE VIEW</button>
       </div>
       <button id="simbtn" onclick="toggleSimMode()">SIM MODE OFF</button>
-      <button id="gearbtn" onclick="openProfileOverlay()" title="Edit Profile">⚙</button>
+      <button id="gearbtn" onclick="openSettingsModal()" title="Settings">⚙</button>
     </div>
   </div>
   <div id="main">
@@ -389,6 +421,20 @@
     </div>
   </div>
 </div>
+<div id="settingsoverlay">
+  <div id="settingscard">
+    <div id="settingstitle">SETTINGS</div>
+    <div class="setting-row">
+      <span class="setting-label">🌙 Dark Mode</span>
+      <label class="theme-switch">
+        <input type="checkbox" id="themetoggle" onchange="toggleTheme(this.checked)">
+        <span class="theme-slider"></span>
+      </label>
+    </div>
+    <button class="settings-editprofile" onclick="openProfileFromSettings()">✏ EDIT PITCHER PROFILE</button>
+    <button class="settings-close" onclick="closeSettingsModal()">CLOSE</button>
+  </div>
+</div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script src="js/config.js"></script>
 <script src="js/pitches.js"></script>
@@ -397,6 +443,35 @@
 <script src="js/sim.js"></script>
 <script src="js/app.js"></script>
 <script>
+// ── Theme ──
+function applyTheme(dark){
+  document.body.setAttribute('data-theme', dark ? 'dark' : 'light');
+  document.getElementById('themetoggle').checked = dark;
+  localStorage.setItem('pitchseq-theme', dark ? 'dark' : 'light');
+}
+function toggleTheme(dark){ applyTheme(dark); }
+
+// ── Settings Modal ──
+function openSettingsModal(){
+  const saved = localStorage.getItem('pitchseq-theme');
+  const isDark = saved === 'dark';
+  document.getElementById('themetoggle').checked = isDark;
+  document.getElementById('settingsoverlay').classList.add('visible');
+}
+function closeSettingsModal(){
+  document.getElementById('settingsoverlay').classList.remove('visible');
+}
+function openProfileFromSettings(){
+  closeSettingsModal();
+  openProfileOverlay();
+}
+
+// ── Apply saved theme on load (light is default) ──
+(function(){
+  const saved = localStorage.getItem('pitchseq-theme');
+  applyTheme(saved === 'dark');
+})();
+
 if('serviceWorker' in navigator){
   window.addEventListener('load',()=>{
     navigator.serviceWorker.register('./sw.js')

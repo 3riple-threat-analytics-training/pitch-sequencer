@@ -247,15 +247,23 @@ function pickWeightedRecord(obj){
 }
 
 function simSpritePalette(tag){
-  if(['STRIKE','SWING & MISS','STRIKEOUT','GROUND OUT','POP FLY','CALLED STRIKE'].includes(tag)) return {bg:'#12321f',bd:'#4ade80',fg:'#86efac'};
-  if(['BALL','WALK','CALLED BALL'].includes(tag)) return {bg:'#2a1010',bd:'#f87171',fg:'#fecaca'};
-  if(tag==='BATTER REVEALED') return {bg:'#3a2f08',bd:'#fde047',fg:'#fde68a'};
-  if(tag==='FOUL') return {bg:'#2a2208',bd:'#facc15',fg:'#fef08a'};
-  if(tag==='SINGLE') return {bg:'#2b1808',bd:'#fb923c',fg:'#ffedd5'};
-  if(['DOUBLE','TRIPLE'].includes(tag)) return {bg:'#0f172a',bd:'#60a5fa',fg:'#dbeafe'};
-  if(tag==='HOME RUN') return {bg:'#1e1033',bd:'#c084fc',fg:'#f3e8ff'};
-  if(tag==='INNING OVER') return {bg:'#1a1500',bd:'#eab308',fg:'#fef9c3'};
-  return {bg:'#12321f',bd:'#4ade80',fg:'#86efac'};
+  if(['STRIKE','SWING & MISS','STRIKEOUT','GROUND OUT','POP FLY','CALLED STRIKE'].includes(tag))
+    return {bg:'#12321f',bd:'#4ade80',fg:'#86efac',dark:'#14532d'};
+  if(['BALL','WALK','CALLED BALL'].includes(tag))
+    return {bg:'#2a1010',bd:'#f87171',fg:'#fecaca',dark:'#7f1d1d'};
+  if(tag==='BATTER REVEALED')
+    return {bg:'#3a2f08',bd:'#fde047',fg:'#fde68a',dark:'#451a03'};
+  if(tag==='FOUL')
+    return {bg:'#2a2208',bd:'#facc15',fg:'#fef08a',dark:'#422006'};
+  if(tag==='SINGLE')
+    return {bg:'#2b1808',bd:'#fb923c',fg:'#ffedd5',dark:'#431407'};
+  if(['DOUBLE','TRIPLE'].includes(tag))
+    return {bg:'#0f172a',bd:'#60a5fa',fg:'#dbeafe',dark:'#1e3a5f'};
+  if(tag==='HOME RUN')
+    return {bg:'#1e1033',bd:'#c084fc',fg:'#f3e8ff',dark:'#3b0764'};
+  if(tag==='INNING OVER')
+    return {bg:'#1a1500',bd:'#eab308',fg:'#fef9c3',dark:'#451a03'};
+  return {bg:'#12321f',bd:'#4ade80',fg:'#86efac',dark:'#14532d'};
 }
 
 function addSimLogEntry(line,tag,prominent){
@@ -301,7 +309,8 @@ function updateSimLogUI(){
     p0.textContent=(segs[0]||'')+' → ';
     const p1=document.createElement('span');
     const pal=simSpritePalette(item.tag);
-    p1.style.color=pal.fg;
+    const isLight=document.body.getAttribute('data-theme')==='light';
+    p1.style.color=isLight?pal.dark:pal.fg;
     p1.style.fontWeight='600';
     p1.textContent=segs[1]||item.tag;
     d.appendChild(p0);
