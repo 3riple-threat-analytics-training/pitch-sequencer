@@ -1,5 +1,8 @@
 const PROFILE_KEY='pitchseq-pitcher-profile';
 const OPPONENTS_KEY='pitchseq-opponents';
+const ROSTER_KEY='pitchseq-roster';
+const ACTIVE_PITCHER_KEY='pitchseq-active-pitcher-id';
+const MODE_KEY='pitchseq-mode';
 
 function getProfile(){
   try{
@@ -79,7 +82,10 @@ function refreshPlanDropdown(selectedId){
   const oppFilter=document.getElementById('oppfilter');
   const exportBtn=document.getElementById('exportpdfbtn');
   const notesBtn=document.getElementById('notesbtn');
-  const plans=getSavedPlans();
+  const mode=getAppMode();
+  const pitcherId=mode==='team'?getActivePitcherId():null;
+  let plans=getSavedPlans();
+  if(pitcherId) plans=plans.filter(p=>p.pitcherId===pitcherId);
 
   if(!sel)return;
 
@@ -137,10 +143,12 @@ function savePlan(){
   const planName=nm||('Plan '+new Date().toLocaleString());
   const plans=getSavedPlans();
   const id='plan-'+Date.now()+'-'+Math.floor(Math.random()*100000);
-  // Explicitly read batter toggle state at save time
   const batterHand=typeof batter!=='undefined'?batter:'';
+  const mode=getAppMode();
+  const pitcherId=mode==='team'?getActivePitcherId():null;
   plans.push({
     id,
+    pitcherId,
     name:planName,
     batter:batterHand,
     batterHand:batterHand,
@@ -257,4 +265,74 @@ function restoreSimState(){
   }catch(e){
     clearSimStateSession();
   }
+}
+
+// ── Mode ──
+function getAppMode(){
+  return localStorage.getItem(MODE_KEY)||null;
+}
+function setAppMode(mode){
+  localStorage.setItem(MODE_KEY,mode);
+}
+
+// ── Roster ──
+function getRoster(){
+  try{
+    const raw=localStorage.getItem(ROSTER_KEY);
+    const parsed=raw?JSON.parse(raw):[];
+    return Array.isArray(parsed)?parsed:[];
+  }catch(e){return [];}
+}
+function saveRoster(roster){
+  try{
+    localStorage.setItem(ROSTER_KEY,JSON.stringify(roster));
+  }catch(e){console.error('Roster save failed',e);}
+}
+function getActivePitcherId(){
+  return localStorage.getItem(ACTIVE_PITCHER_KEY)||null;
+}
+function setActivePitcherId(id){
+  localStorage.setItem(ACTIVE_PITCHER_KEY,id);
+}
+function getActivePitcher(){
+  const roster=getRoster();
+  const id=getActivePitcherId();
+  return roster.find(p=>p.id===id)||roster[0]||null;
+}
+function addPitcherToRoster(profile){
+  const roster=getRoster();
+  if(roster.length>=10) return null;
+  const id='pitcher-'+Date.now()+'-'+Math.floor(Math.random()*100000);
+  const pitcher={...profile,id};
+  roster.push(pitcher);
+  saveRoster(roster);
+  return id;
+}
+function updatePitcherInRoster(id,profile){
+  const roster=getRoster();
+  const idx=roster.findIndex(p=>p.id===id);
+  if(idx===-1) return;
+  roster[idx]={...roster[idx],...profile};
+  saveRoster(roster);
+}
+function deletePitcherFromRoster(id){
+  const roster=getRoster().filter(p=>p.id!==id);
+  saveRoster(roster);
+  if(getActivePitcherId()===id){
+    const next=roster[0]||null;
+    if(next) setActivePitcherId(next.id);
+    else localStorage.removeItem(ACTIVE_PITCHER_KEY);
+  }
+}
+
+// ── Pitcher-scoped plans ──
+function getSavedPlansForPitcher(pitcherId){
+  return getSavedPlans().filter(p=>p.pitcherId===pitcherId);
+}
+function savePlanForPitcher(pitcherId,planData){
+  const plans=getSavedPlans();
+  const id='plan-'+Date.now()+'-'+Math.floor(Math.random()*100000);
+  plans.push({...planData,id,pitcherId});
+  setSavedPlans(plans);
+  return id;
 }

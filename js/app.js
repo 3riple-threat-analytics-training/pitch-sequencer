@@ -153,17 +153,227 @@ function profAgeChanged(){
   return age;
 }
 
-function openProfileOverlay(){
+// ── Splash Screen ──
+function initSplash(){
+  const splash=document.getElementById('splashoverlay');
+  if(!splash) return;
+
+  // If profile already exists skip splash entirely
+  const existingProfile=getProfile();
+  const existingMode=getAppMode();
+  if(existingProfile||existingMode){
+    splash.classList.add('hidden');
+    if(existingMode==='team') initTeamMode();
+    return;
+  }
+
+  // Play splash animation
+  playSplashAnimation();
+}
+
+function playSplashAnimation(){
+  const s1=document.getElementById('splash-s1');
+  const s2=document.getElementById('splash-s2');
+  const s3=document.getElementById('splash-s3');
+
+  // Step 1: tagline fades in
+  setTimeout(()=>{s1.classList.add('visible');},200);
+  // Step 1: tagline fades out
+  setTimeout(()=>{s1.classList.remove('visible');},2200);
+  // Step 2: logo fades in
+  setTimeout(()=>{s2.classList.add('visible');},3000);
+  // Step 2: logo fades out
+  setTimeout(()=>{s2.classList.remove('visible');},5000);
+  // Step 3: app icon + mode selection fades in
+  setTimeout(()=>{s3.classList.add('visible');},5800);
+}
+
+function skipSplash(){
+  const s1=document.getElementById('splash-s1');
+  const s2=document.getElementById('splash-s2');
+  const s3=document.getElementById('splash-s3');
+  if(s1) s1.classList.remove('visible');
+  if(s2) s2.classList.remove('visible');
+  if(s3) s3.classList.add('visible');
+}
+
+function chooseSplashMode(mode){
+  setAppMode(mode);
+  document.getElementById('splashoverlay').classList.add('hidden');
+  if(mode==='team'){
+    initTeamMode();
+    openProfileOverlay(true);
+  } else {
+    openProfileOverlay(false);
+  }
+}
+
+// ── Team Mode ──
+function initTeamMode(){
+  const pill=document.getElementById('activepitcherpill');
+  const rosterSection=document.getElementById('rosterSection');
+  const editProfileBtn=document.getElementById('editProfileBtn');
+  if(pill) pill.classList.add('visible');
+  if(rosterSection) rosterSection.classList.add('visible');
+  if(editProfileBtn) editProfileBtn.style.display='none';
+  updateActivePitcherPill();
+}
+
+function updateActivePitcherPill(){
+  const pill=document.getElementById('activepitcherpill');
+  if(!pill) return;
+  const pitcher=getActivePitcher();
+  if(pitcher){
+    pill.textContent='⚾ '+pitcher.name.toUpperCase();
+  }
+}
+
+function openRosterFromPill(){
+  openSettingsModal();
+  renderRosterList();
+}
+
+function renderRosterList(){
+  const list=document.getElementById('rosterList');
+  const addBtn=document.getElementById('rosterAddBtn');
+  if(!list) return;
+  const roster=getRoster();
+  const activeId=getActivePitcherId();
+  list.innerHTML='';
+
+  if(!roster.length){
+    list.innerHTML='<div style="font-family:DM Mono,monospace;font-size:9px;color:var(--text-muted);padding:8px 0;">No pitchers added yet.</div>';
+  }
+
+  roster.forEach(pitcher=>{
+    const item=document.createElement('div');
+    item.className='roster-item'+(pitcher.id===activeId?' active':'');
+
+    const info=document.createElement('div');
+    info.style.flex='1';
+    info.style.cursor='pointer';
+    info.onclick=()=>switchToPitcher(pitcher.id);
+
+    const name=document.createElement('div');
+    name.className='roster-item-name';
+    name.textContent=pitcher.name;
+
+    const meta=document.createElement('div');
+    meta.className='roster-item-meta';
+    const hand=pitcher.hand==='R'?'RHP':'LHP';
+    const age=pitcher.ageGroup||'';
+    meta.textContent=hand+(age?' · '+age:'');
+
+    info.appendChild(name);
+    info.appendChild(meta);
+
+    const del=document.createElement('button');
+    del.className='roster-item-delete';
+    del.textContent='✕';
+    del.title='Remove pitcher';
+    del.onclick=(e)=>{
+      e.stopPropagation();
+      deletePitcherConfirm(pitcher.id,pitcher.name);
+    };
+
+    item.appendChild(info);
+    item.appendChild(del);
+    list.appendChild(item);
+  });
+
+  if(addBtn) addBtn.disabled=roster.length>=10;
+}
+
+function switchToPitcher(id){
+  const current=getActivePitcherId();
+  if(current===id){
+    closeSettingsModal();
+    return;
+  }
+  if(seq&&seq.length>0){
+    if(!confirm('Switch pitcher? The current sequence will be cleared.')) return;
+    clearAll();
+  }
+  setActivePitcherId(id);
+  const pitcher=getRoster().find(p=>p.id===id);
+  if(pitcher){
+    saveProfile(pitcher);
+    applyProfile(pitcher);
+  }
+  updateActivePitcherPill();
+  renderRosterList();
+  refreshPlanDropdown('');
+  closeSettingsModal();
+}
+
+function deletePitcherConfirm(id,name){
+  if(!confirm('Remove '+name+' from roster? Their saved plans will remain but will be unassigned.')) return;
+  deletePitcherFromRoster(id);
+  renderRosterList();
+  updateActivePitcherPill();
+}
+
+function openAddPitcherFromSettings(){
+  closeSettingsModal();
+  openProfileOverlay(true);
+}
+
+function saveAndAddAnotherPitcher(){
+  const name=(document.getElementById('prof-name').value||'').trim();
+  if(!name){
+    document.getElementById('profileerror').textContent='Please enter a pitcher name';
+    return;
+  }
+  if(profSelectedPitches.length<2){
+    document.getElementById('profileerror').textContent='Please select at least 2 pitches';
+    return;
+  }
+  if(profSelectedPitches.length>5){
+    document.getElementById('profileerror').textContent='Please select no more than 5 pitches';
+    return;
+  }
+  const ageGroup=document.getElementById('prof-age').value;
+  const profile={name,hand:profHand,ageGroup,arsenal:profSelectedPitches};
+  const roster=getRoster();
+  if(roster.length>=10){
+    document.getElementById('profileerror').textContent='Roster is full (10 pitchers maximum)';
+    return;
+  }
+  const newId=addPitcherToRoster(profile);
+  if(!getActivePitcherId()) setActivePitcherId(newId);
+  saveProfile(profile);
+  applyProfile(profile);
+
+  // Reset form for next pitcher
+  document.getElementById('prof-name').value='';
+  profHand='R';
+  profSetHand('R');
+  profSelectedPitches=['4FB','CH'];
+  document.getElementById('prof-age').value='youth';
+  document.getElementById('profileerror').textContent='';
+  buildArsenalGrid();
+  document.getElementById('profilesubtitle').textContent='Add another pitcher to your roster';
+}
+
+function openProfileOverlay(isTeamMode){
   const profile=getProfile();
   const overlay=document.getElementById('profileoverlay');
+  const addAnotherBtn=document.getElementById('profaddanotherbtn');
+  const cancelBtn=document.getElementById('profcancelbtn');
+  const mode=isTeamMode!=null?isTeamMode:(getAppMode()==='team');
+
   document.getElementById('profileerror').textContent='';
+
+  if(addAnotherBtn) addAnotherBtn.style.display=mode?'block':'none';
+  if(cancelBtn) cancelBtn.style.display=profile?'block':'none';
+
   if(profile){
     document.getElementById('prof-name').value=profile.name||'';
     profHand=profile.hand||'R';
     profSetHand(profHand);
     document.getElementById('prof-age').value=profile.ageGroup||'youth';
     profSelectedPitches=[...(profile.arsenal||['4FB','CH'])];
-    document.getElementById('profilesubtitle').textContent='Update your profile';
+    document.getElementById('profilesubtitle').textContent=mode?'Manage your roster':'Update your profile';
     document.getElementById('profsavebtn').textContent='SAVE PROFILE';
     document.getElementById('profileeditlbl').style.display='block';
   } else {
@@ -172,8 +382,8 @@ function openProfileOverlay(){
     profSelectedPitches=['4FB','CH'];
     document.getElementById('prof-name').value='';
     document.getElementById('prof-age').value='youth';
-    document.getElementById('profilesubtitle').textContent='Set up your profile to get started';
-    document.getElementById('profsavebtn').textContent='START PITCHING';
+    document.getElementById('profilesubtitle').textContent=mode?'Add your first pitcher':'Set up your profile to get started';
+    document.getElementById('profsavebtn').textContent=mode?'SAVE PITCHER':'START PITCHING';
     document.getElementById('profileeditlbl').style.display='none';
   }
   buildArsenalGrid();
@@ -200,9 +410,24 @@ function saveProfileAndStart(){
   }
   const ageGroup=document.getElementById('prof-age').value;
   const profile={name,hand:profHand,ageGroup,arsenal:profSelectedPitches};
+  const mode=getAppMode();
+
+  if(mode==='team'){
+    const roster=getRoster();
+    const activeId=getActivePitcherId();
+    if(activeId){
+      updatePitcherInRoster(activeId,profile);
+    } else {
+      const newId=addPitcherToRoster(profile);
+      setActivePitcherId(newId);
+    }
+    updateActivePitcherPill();
+  }
+
   saveProfile(profile);
   applyProfile(profile);
   closeProfileOverlay();
+  refreshPlanDropdown('');
 }
 
 function applyProfile(profile){
@@ -1194,14 +1419,17 @@ if(typeof toggleSimMode==='function'){
 
 (function loop(){requestAnimationFrame(loop);renderer.render(scene,cam);})();
 
-setCamera();
-buildStatic();
-buildZoneDiagram();
-refreshGhost();
-restoreSimState();
-refreshPlanDropdown();
-updateSimPanelVisibility();
-updateSimStatBar();
-updateSimLogUI();
-initProfile();
-setView('catcher');
+window.addEventListener('load',()=>{
+  initSplash();
+  setCamera();
+  buildStatic();
+  buildZoneDiagram();
+  refreshGhost();
+  restoreSimState();
+  refreshPlanDropdown();
+  updateSimPanelVisibility();
+  updateSimStatBar();
+  updateSimLogUI();
+  initProfile();
+  setView('catcher');
+});

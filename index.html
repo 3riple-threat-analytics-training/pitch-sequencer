@@ -77,6 +77,28 @@
 </style>
 </head>
 <body data-theme="light">
+<div id="splashoverlay">
+  <!-- Step 1: Tagline -->
+  <div class="splash-step" id="splash-s1">
+    <div id="splash-tagline">GET 1% BETTER</div>
+  </div>
+  <!-- Step 2: 3riplethreat logo + presents -->
+  <div class="splash-step" id="splash-s2">
+    <img id="splash-3rt-logo" src="assets/3riplethreat-logo.png" alt="3riplethreat">
+    <div id="splash-presents">PRESENTS</div>
+  </div>
+  <!-- Step 3: Pitch Sequencer icon + mode selection -->
+  <div class="splash-step" id="splash-s3">
+    <img id="splash-app-icon" src="icons/icon-512.png" alt="Pitch Sequencer">
+    <div id="splash-app-name">PITCH SEQUENCER</div>
+    <div id="splash-app-sub">SELECT YOUR MODE</div>
+    <div class="splash-mode-btns">
+      <button class="splash-mode-btn" id="splashMyPitcher" onclick="chooseSplashMode('individual')">MY PITCHER</button>
+      <button class="splash-mode-btn" id="splashMyTeam" onclick="chooseSplashMode('team')">MY TEAM</button>
+    </div>
+  </div>
+  <button class="splash-skip" onclick="skipSplash()">SKIP</button>
+</div>
 <div id="profileoverlay">
   <div id="profilecard">
     <div id="profiletitle">PITCHER PROFILE</div>
@@ -113,6 +135,7 @@
     <div id="profileerror"></div>
     <button id="profsavebtn" onclick="saveProfileAndStart()">START PITCHING</button>
     <div id="profileeditlbl" style="display:none">
+      <button id="profaddanotherbtn" style="display:none;width:100%;padding:7px;border-radius:6px;font-family:'DM Mono',monospace;font-size:9px;letter-spacing:2px;background:transparent;border:0.5px solid #cc1a1a;color:#cc1a1a;cursor:pointer;margin-top:4px;" onclick="saveAndAddAnotherPitcher()">+ ADD ANOTHER PITCHER</button>
       <button id="profcancelbtn" onclick="closeProfileOverlay()">CANCEL</button>
     </div>
   </div>
@@ -230,6 +253,7 @@
         <button class="tbtn" id="vside" onclick="setView('side')">SIDE VIEW</button>
       </div>
       <button id="simbtn" onclick="toggleSimMode()">SIM MODE OFF</button>
+      <button id="activepitcherpill" onclick="openRosterFromPill()"></button>
       <button id="gearbtn" onclick="openSettingsModal()" title="Settings">⚙</button>
     </div>
   </div>
@@ -431,7 +455,12 @@
         <span class="theme-slider"></span>
       </label>
     </div>
-    <button class="settings-editprofile" onclick="openProfileFromSettings()">✏ EDIT PITCHER PROFILE</button>
+    <div id="rosterSection">
+      <div class="settings-section-label">MY ROSTER</div>
+      <div class="roster-list" id="rosterList"></div>
+      <button class="roster-add-btn" id="rosterAddBtn" onclick="openAddPitcherFromSettings()">+ ADD PITCHER</button>
+    </div>
+    <button class="settings-editprofile" id="editProfileBtn" onclick="openProfileFromSettings()">✏ EDIT PITCHER PROFILE</button>
     <button class="settings-close" onclick="closeSettingsModal()">CLOSE</button>
   </div>
 </div>

@@ -512,3 +512,204 @@ body[data-theme="light"] .simitem-prominent {
 body[data-theme="light"] .simitem-prominent .simline-rest {
   color: #b8c8d8 !important;
 }
+
+/* ── Splash Screen ── */
+#splashoverlay{
+  position:fixed;top:0;left:0;width:100%;height:100%;
+  background:#ffffff;
+  z-index:2000;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex-direction:column;
+  gap:0;
+}
+#splashoverlay.hidden{display:none;}
+.splash-step{
+  position:absolute;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:16px;
+  opacity:0;
+  transition:opacity 0.8s ease;
+  text-align:center;
+  padding:24px;
+}
+.splash-step.visible{opacity:1;}
+.splash-step.fade{opacity:0;}
+#splash-tagline{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:52px;
+  letter-spacing:6px;
+  color:#cc1a1a;
+}
+#splash-presents{
+  font-family:'DM Mono',monospace;
+  font-size:11px;
+  letter-spacing:4px;
+  color:#888888;
+  text-transform:uppercase;
+  margin-top:8px;
+}
+#splash-3rt-logo{
+  width:280px;
+  max-width:80vw;
+}
+#splash-app-icon{
+  width:100px;
+  height:100px;
+  border-radius:22px;
+  box-shadow:0 4px 24px rgba(0,0,0,0.12);
+}
+#splash-app-name{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:32px;
+  letter-spacing:5px;
+  color:#1a1a1a;
+}
+#splash-app-sub{
+  font-family:'DM Mono',monospace;
+  font-size:10px;
+  letter-spacing:3px;
+  color:#888888;
+}
+.splash-mode-btns{
+  display:flex;
+  gap:16px;
+  margin-top:8px;
+  flex-wrap:wrap;
+  justify-content:center;
+}
+.splash-mode-btn{
+  padding:14px 32px;
+  border-radius:8px;
+  font-family:'Bebas Neue',sans-serif;
+  font-size:20px;
+  letter-spacing:3px;
+  cursor:pointer;
+  border:none;
+  transition:all 0.15s;
+  min-width:160px;
+}
+#splashMyPitcher{
+  background:#cc1a1a;
+  color:#ffffff;
+}
+#splashMyPitcher:hover{background:#aa1414;}
+#splashMyTeam{
+  background:#1a1a1a;
+  color:#ffffff;
+}
+#splashMyTeam:hover{background:#333333;}
+.splash-skip{
+  position:absolute;
+  bottom:24px;
+  right:24px;
+  font-family:'DM Mono',monospace;
+  font-size:9px;
+  letter-spacing:2px;
+  color:#bbbbbb;
+  background:transparent;
+  border:none;
+  cursor:pointer;
+  text-transform:uppercase;
+}
+.splash-skip:hover{color:#888888;}
+
+/* ── Active Pitcher Pill ── */
+#activepitcherpill{
+  display:none;
+  align-items:center;
+  gap:6px;
+  padding:4px 10px;
+  border-radius:999px;
+  background:#cc1a1a;
+  color:#ffffff;
+  font-family:'DM Mono',monospace;
+  font-size:9px;
+  letter-spacing:1px;
+  cursor:pointer;
+  border:none;
+  transition:all 0.15s;
+  white-space:nowrap;
+}
+#activepitcherpill:hover{background:#aa1414;}
+#activepitcherpill.visible{display:flex;}
+
+/* ── Roster Panel in Settings ── */
+#rosterSection{display:none;}
+#rosterSection.visible{display:block;}
+.roster-list{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  margin-top:8px;
+  max-height:240px;
+  overflow-y:auto;
+}
+.roster-item{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:8px 10px;
+  border-radius:6px;
+  border:1px solid var(--border-panel);
+  background:var(--bg-btn);
+  cursor:pointer;
+  transition:all 0.15s;
+}
+.roster-item:hover{border-color:#cc1a1a;}
+.roster-item.active{
+  border-color:#cc1a1a;
+  background:rgba(204,26,26,0.08);
+}
+.roster-item-name{
+  font-family:'DM Mono',monospace;
+  font-size:10px;
+  color:var(--text-primary);
+  font-weight:600;
+}
+.roster-item-meta{
+  font-family:'DM Mono',monospace;
+  font-size:8px;
+  color:var(--text-muted);
+  margin-top:2px;
+}
+.roster-item-delete{
+  background:transparent;
+  border:none;
+  color:var(--text-muted);
+  cursor:pointer;
+  font-size:14px;
+  padding:2px 6px;
+  border-radius:4px;
+  transition:all 0.15s;
+}
+.roster-item-delete:hover{color:#cc1a1a;}
+.roster-add-btn{
+  width:100%;
+  margin-top:8px;
+  padding:8px;
+  border-radius:6px;
+  border:1px dashed var(--border-panel);
+  background:transparent;
+  color:var(--text-muted);
+  font-family:'DM Mono',monospace;
+  font-size:9px;
+  letter-spacing:1px;
+  cursor:pointer;
+  transition:all 0.15s;
+}
+.roster-add-btn:hover{border-color:#cc1a1a;color:#cc1a1a;}
+.roster-add-btn:disabled{opacity:0.4;cursor:not-allowed;}
+.settings-section-label{
+  font-family:'DM Mono',monospace;
+  font-size:9px;
+  letter-spacing:2px;
+  color:var(--text-muted);
+  text-transform:uppercase;
+  margin-bottom:4px;
+  margin-top:4px;
+}
