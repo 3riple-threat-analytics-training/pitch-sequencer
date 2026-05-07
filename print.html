@@ -234,6 +234,8 @@ html, body {
   .slot { break-inside: avoid; }
 }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
 <div id="controlbar">
@@ -243,6 +245,7 @@ html, body {
     <option value="">ALL OPPONENTS</option>
   </select>
   <button type="button" id="printbtn">PRINT</button>
+  <button type="button" id="pdfbtn" style="padding:8px 16px;font-size:12px;font-weight:700;cursor:pointer;background:#cc1a1a;color:#fff;border:none;border-radius:4px;">DOWNLOAD PDF</button>
 </div>
 <div id="pages"></div>
 
@@ -635,6 +638,95 @@ html, body {
     });
     document.getElementById('printbtn').addEventListener('click', function () {
       window.print();
+    });
+
+    document.getElementById('pdfbtn').addEventListener('click', function () {
+      var btn = document.getElementById('pdfbtn');
+      var printBtn = document.getElementById('printbtn');
+      var controlbar = document.getElementById('controlbar');
+
+      // Disable buttons during generation
+      btn.textContent = 'GENERATING...';
+      btn.disabled = true;
+      printBtn.disabled = true;
+
+      // Hide control bar so it doesn't appear in PDF
+      controlbar.style.display = 'none';
+
+      var pages = document.querySelectorAll('.page');
+      if (!pages.length) {
+        controlbar.style.display = 'flex';
+        btn.textContent = 'DOWNLOAD PDF';
+        btn.disabled = false;
+        printBtn.disabled = false;
+        alert('No pages to export. Please make sure a plan is loaded.');
+        return;
+      }
+
+      var { jsPDF } = window.jspdf;
+      var pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'in',
+        format: 'letter'
+      });
+
+      var pageArray = Array.prototype.slice.call(pages);
+      var pageIndex = 0;
+
+      function processNextPage() {
+        if (pageIndex >= pageArray.length) {
+          // All pages done — save the PDF
+          var planFilter = document.getElementById('planfilter');
+          var selectedText = planFilter.options[planFilter.selectedIndex]
+            ? planFilter.options[planFilter.selectedIndex].textContent
+            : 'pitch-plan';
+          var safeName = selectedText.replace(/[^a-z0-9]/gi, '_').toLowerCase();
+          var filename = 'pitch_sequencer_' + safeName + '.pdf';
+          pdf.save(filename);
+
+          // Restore UI
+          controlbar.style.display = 'flex';
+          btn.textContent = 'DOWNLOAD PDF';
+          btn.disabled = false;
+          printBtn.disabled = false;
+          return;
+        }
+
+        var page = pageArray[pageIndex];
+
+        html2canvas(page, {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: '#ffffff',
+          scrollX: 0,
+          scrollY: 0,
+          windowWidth: page.scrollWidth,
+          windowHeight: page.scrollHeight
+        }).then(function (canvas) {
+          var imgData = canvas.toDataURL('image/jpeg', 0.95);
+
+          // Letter size in inches: 8.5 x 11
+          var pdfW = 8.5;
+          var pdfH = 11;
+
+          if (pageIndex > 0) {
+            pdf.addPage('letter', 'portrait');
+          }
+
+          pdf.addImage(imgData, 'JPEG', 0, 0, pdfW, pdfH);
+          pageIndex++;
+          processNextPage();
+        }).catch(function (err) {
+          console.error('PDF generation error:', err);
+          controlbar.style.display = 'flex';
+          btn.textContent = 'DOWNLOAD PDF';
+          btn.disabled = false;
+          printBtn.disabled = false;
+          alert('PDF generation failed. Please try again.');
+        });
+      }
+
+      processNextPage();
     });
   });
 })();
