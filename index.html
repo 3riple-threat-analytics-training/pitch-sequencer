@@ -251,6 +251,7 @@
       <div class="tgrp" id="viewtoggle">
         <button class="tbtn active" id="vcatcher" onclick="setView('catcher')">CATCHER</button>
         <button class="tbtn" id="vside" onclick="setView('side')">SIDE VIEW</button>
+        <button class="tbtn" id="vorbit" onclick="setView('orbit')">ORBIT</button>
       </div>
       <button id="simbtn" onclick="toggleSimMode()">SIM MODE OFF</button>
       <button id="activepitcherpill" onclick="openRosterFromPill()"></button>
@@ -264,6 +265,49 @@
         <svg id="sidesvg" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"></svg>
         <div id="sidereplaybtn" style="position:absolute;bottom:12px;right:12px;">
           <button onclick="replaySideView()" style="padding:6px 14px;border-radius:4px;border:0.5px solid #4a9a4a;background:#1a2a1a;color:#4a9a4a;font-family:DM Mono,monospace;font-size:11px;cursor:pointer;letter-spacing:1px;">REPLAY</button>
+        </div>
+      </div>
+      <div id="orbitview" style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;background:#0a0e1a;overflow:hidden;">
+        <canvas id="orbitcanvas" style="width:100%;height:100%;display:block;touch-action:none;"></canvas>
+        <!-- Tunnel zoom indicator -->
+        <div id="tunnelIndicator" style="display:none;position:absolute;top:12px;left:50%;transform:translateX(-50%);
+          background:rgba(10,14,26,0.85);border:0.5px solid #eab308;border-radius:6px;
+          padding:6px 16px;font-family:DM Mono,monospace;font-size:10px;letter-spacing:2px;
+          color:#eab308;pointer-events:none;">TUNNEL 1 of 1</div>
+        <!-- Top right controls -->
+        <div style="position:absolute;top:12px;right:12px;display:flex;flex-direction:column;gap:6px;">
+          <button id="tunnelZoomBtn" onclick="orbitTunnelZoom()" style="padding:6px 12px;border-radius:4px;
+            border:0.5px solid #eab308;background:rgba(10,14,26,0.85);color:#eab308;
+            font-family:DM Mono,monospace;font-size:9px;letter-spacing:1px;cursor:pointer;">⬡ TUNNEL ZOOM</button>
+          <button onclick="orbitResetCamera()" style="padding:6px 12px;border-radius:4px;
+            border:0.5px solid #4a7aaa;background:rgba(10,14,26,0.85);color:#7ec8e3;
+            font-family:DM Mono,monospace;font-size:9px;letter-spacing:1px;cursor:pointer;">⌖ RESET CAM</button>
+        </div>
+        <!-- Bottom playback toolbar -->
+        <div id="orbitToolbar" style="position:absolute;bottom:0;left:0;right:0;
+          background:rgba(8,12,20,0.92);border-top:0.5px solid #1e2a3a;
+          padding:10px 16px;display:flex;flex-direction:column;gap:8px;">
+          <!-- Pitch isolation row -->
+          <div id="orbitIsolationRow" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;
+            font-family:DM Mono,monospace;font-size:9px;color:#5a8aaa;letter-spacing:1px;">
+            <span style="color:#3a5a7a;font-size:8px;letter-spacing:2px;">SHOW:</span>
+          </div>
+          <!-- Scrubber row -->
+          <div style="display:flex;align-items:center;gap:10px;">
+            <button onclick="orbitPrevPitch()" style="padding:6px 10px;border-radius:4px;
+              border:0.5px solid #1e2a3a;background:#0d1520;color:#7ec8e3;
+              font-family:DM Mono,monospace;font-size:12px;cursor:pointer;min-width:36px;min-height:36px;">◀</button>
+            <div id="orbitScrubber" style="flex:1;display:flex;gap:4px;align-items:center;position:relative;height:36px;">
+              <!-- Chapter markers injected by JS -->
+            </div>
+            <button onclick="orbitNextPitch()" style="padding:6px 10px;border-radius:4px;
+              border:0.5px solid #1e2a3a;background:#0d1520;color:#7ec8e3;
+              font-family:DM Mono,monospace;font-size:12px;cursor:pointer;min-width:36px;min-height:36px;">▶</button>
+            <button id="orbitPlayBtn" onclick="orbitTogglePlay()" style="padding:6px 16px;border-radius:4px;
+              border:0.5px solid #4a9a4a;background:#1a2a1a;color:#4a9a4a;
+              font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:2px;
+              cursor:pointer;min-width:80px;min-height:36px;">PLAY</button>
+          </div>
         </div>
       </div>
     </div>
@@ -465,6 +509,7 @@
   </div>
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
 <script src="js/config.js"></script>
 <script src="js/pitches.js"></script>
 <script src="js/zones.js"></script>

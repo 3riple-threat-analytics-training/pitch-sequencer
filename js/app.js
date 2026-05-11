@@ -90,9 +90,12 @@ function setView(v){
   currentView=v;
   document.getElementById('vcatcher').classList.toggle('active',v==='catcher');
   document.getElementById('vside').classList.toggle('active',v==='side');
+  document.getElementById('vorbit').classList.toggle('active',v==='orbit');
   document.getElementById('c').style.display=v==='catcher'?'block':'none';
   document.getElementById('sideview').style.display=v==='side'?'block':'none';
+  document.getElementById('orbitview').style.display=v==='orbit'?'block':'none';
   if(v==='side') drawSideView();
+  if(v==='orbit') initOrbitView();
 }
 function toggleExtendAtBat(){
   extendedAtBat=!extendedAtBat;
@@ -1415,6 +1418,538 @@ if(typeof toggleSimMode==='function'){
     updateSeqUI();
     return result;
   };
+}
+
+// ── ORBIT VIEW ENGINE ──
+let orbitRenderer=null;
+let orbitScene=null;
+let orbitCamera=null;
+let orbitControls=null;
+let orbitAnimFrame=null;
+let orbitPitchIndex=-1;
+let orbitPlaying=false;
+let orbitPlayTimer=null;
+let orbitIsolation=[];
+let orbitTunnelClusters=[];
+let orbitTunnelClusterIndex=0;
+let orbitBallMesh=null;
+let orbitBallAnimTimer=null;
+
+function initOrbitView(){
+  const container=document.getElementById('orbitview');
+  const canvas=document.getElementById('orbitcanvas');
+  if(!container||!canvas) return;
+
+  // Size canvas to container
+  const W=container.clientWidth||760;
+  const H=container.clientHeight||560;
+
+  // Initialize renderer once
+  if(!orbitRenderer){
+    orbitRenderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false});
+    orbitRenderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+    orbitRenderer.setClearColor(0x0a0e1a,1);
+  }
+  orbitRenderer.setSize(W,H);
+
+  // Scene
+  orbitScene=new THREE.Scene();
+  orbitScene.background=new THREE.Color(0x0a0e1a);
+
+  // Camera — start from catcher perspective looking toward mound
+  orbitCamera=new THREE.PerspectiveCamera(52,W/H,0.01,100);
+  orbitCamera.position.set(0,1.06,-1.2);
+  orbitCamera.lookAt(0,1.06,10);
+
+  // OrbitControls
+  orbitControls=new THREE.OrbitControls(orbitCamera,canvas);
+  orbitControls.target.set(0,1.06,5);
+  orbitControls.enableDamping=true;
+  orbitControls.dampingFactor=0.08;
+  orbitControls.minDistance=0.5;
+  orbitControls.maxDistance=25;
+  orbitControls.enablePan=true;
+  orbitControls.panSpeed=0.8;
+  orbitControls.rotateSpeed=0.6;
+  orbitControls.zoomSpeed=1.0;
+  orbitControls.touches={
+    ONE:THREE.TOUCH.ROTATE,
+    TWO:THREE.TOUCH.DOLLY_PAN
+  };
+  orbitControls.update();
+
+  // Initialize isolation to all pitches visible
+  orbitIsolation=seq.map((_,i)=>i);
+  orbitPitchIndex=-1;
+
+  // Detect tunnel clusters (before scene so highlights can render)
+  detectOrbitTunnels();
+
+  // Build scene contents
+  buildOrbitScene();
+
+  // Build toolbar
+  buildOrbitToolbar();
+
+  // Start render loop
+  if(orbitAnimFrame) cancelAnimationFrame(orbitAnimFrame);
+  orbitLoop();
+
+  // Handle resize
+  window.addEventListener('resize',onOrbitResize);
+}
+
+function onOrbitResize(){
+  if(currentView!=='orbit') return;
+  const container=document.getElementById('orbitview');
+  if(!container||!orbitRenderer||!orbitCamera) return;
+  const W=container.clientWidth;
+  const H=container.clientHeight;
+  orbitRenderer.setSize(W,H);
+  orbitCamera.aspect=W/H;
+  orbitCamera.updateProjectionMatrix();
+}
+
+function orbitLoop(){
+  orbitAnimFrame=requestAnimationFrame(orbitLoop);
+  if(orbitControls) orbitControls.update();
+  if(orbitRenderer&&orbitScene&&orbitCamera){
+    orbitRenderer.render(orbitScene,orbitCamera);
+  }
+}
+
+function buildOrbitScene(){
+  if(!orbitScene) return;
+  // Clear scene
+  while(orbitScene.children.length>0) orbitScene.remove(orbitScene.children[0]);
+
+  // Ambient light
+  orbitScene.add(new THREE.AmbientLight(0xffffff,0.8));
+
+  // Strike zone wireframe
+  buildOrbitStrikeZone();
+
+  // Home plate
+  buildOrbitHomePlate();
+
+  // Mound marker
+  buildOrbitMound();
+
+  // Batter silhouette
+  buildOrbitBatter();
+
+  // Pitch paths
+  buildOrbitPitchPaths();
+
+  // Tunnel highlights
+  buildOrbitTunnelHighlights();
+
+  // Landing orbs
+  buildOrbitLandingOrbs();
+}
+
+function buildOrbitStrikeZone(){
+  const mat=new THREE.LineBasicMaterial({color:0x4a7aaa,transparent:true,opacity:0.7});
+  const pts=[
+    new THREE.Vector3(-0.24,1.37,0.12),
+    new THREE.Vector3(0.24,1.37,0.12),
+    new THREE.Vector3(0.24,0.75,0.12),
+    new THREE.Vector3(-0.24,0.75,0.12),
+    new THREE.Vector3(-0.24,1.37,0.12)
+  ];
+  const geo=new THREE.BufferGeometry().setFromPoints(pts);
+  orbitScene.add(new THREE.Line(geo,mat));
+
+  // Zone grid lines
+  const gridMat=new THREE.LineBasicMaterial({color:0x2a4a6a,transparent:true,opacity:0.5});
+  const vLines=[[-0.08,0.75,0.12,-0.08,1.37,0.12],[0.08,0.75,0.12,0.08,1.37,0.12]];
+  const hLines=[[-0.24,0.957,0.12,0.24,0.957,0.12],[-0.24,1.163,0.12,0.24,1.163,0.12]];
+  [...vLines,...hLines].forEach(([x1,y1,z1,x2,y2,z2])=>{
+    const g=new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(x1,y1,z1),new THREE.Vector3(x2,y2,z2)
+    ]);
+    orbitScene.add(new THREE.Line(g,gridMat));
+  });
+}
+
+function buildOrbitHomePlate(){
+  const shape=new THREE.Shape();
+  shape.moveTo(-0.215,0);shape.lineTo(0.215,0);
+  shape.lineTo(0.215,0.12);shape.lineTo(0,0.30);
+  shape.lineTo(-0.215,0.12);shape.closePath();
+  const geo=new THREE.ShapeGeometry(shape);
+  const mat=new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0.85,side:THREE.DoubleSide});
+  const plate=new THREE.Mesh(geo,mat);
+  plate.rotation.x=-Math.PI/2;
+  plate.position.set(0,0.01,0);
+  orbitScene.add(plate);
+}
+
+function buildOrbitMound(){
+  const geo=new THREE.CylinderGeometry(0.4,0.5,0.25,16);
+  const mat=new THREE.MeshBasicMaterial({color:0x3a2a1a,transparent:true,opacity:0.7});
+  const mound=new THREE.Mesh(geo,mat);
+  mound.position.set(0,0.125,17);
+  orbitScene.add(mound);
+
+  // Rubber
+  const rubberGeo=new THREE.BoxGeometry(0.6,0.05,0.15);
+  const rubberMat=new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0.9});
+  const rubber=new THREE.Mesh(rubberGeo,rubberMat);
+  rubber.position.set(0,0.275,17.1);
+  orbitScene.add(rubber);
+}
+
+function buildOrbitBatter(){
+  // Batter silhouette using simple geometry
+  const batMat=new THREE.MeshBasicMaterial({color:0x1a3a5a,transparent:true,opacity:0.55,side:THREE.DoubleSide});
+
+  // Determine batter side
+  const isLHB=(typeof batter!=='undefined'&&batter==='LHB');
+  const sideX=isLHB?-0.45:0.45;
+
+  // Body
+  const bodyGeo=new THREE.CylinderGeometry(0.12,0.14,0.7,8);
+  const body=new THREE.Mesh(bodyGeo,batMat);
+  body.position.set(sideX,0.75,0.05);
+  orbitScene.add(body);
+
+  // Head
+  const headGeo=new THREE.SphereGeometry(0.12,8,8);
+  const head=new THREE.Mesh(headGeo,batMat);
+  head.position.set(sideX,1.17,0.05);
+  orbitScene.add(head);
+
+  // Helmet brim
+  const brimGeo=new THREE.CylinderGeometry(0.14,0.14,0.04,8);
+  const brim=new THREE.Mesh(brimGeo,batMat);
+  brim.position.set(sideX+(isLHB?-0.06:0.06),1.22,0.05);
+  orbitScene.add(brim);
+
+  // Legs
+  [-0.06,0.06].forEach(ox=>{
+    const legGeo=new THREE.CylinderGeometry(0.06,0.06,0.45,6);
+    const leg=new THREE.Mesh(legGeo,batMat);
+    leg.position.set(sideX+ox,0.225,0.05);
+    orbitScene.add(leg);
+  });
+
+  // Bat
+  const batGeo=new THREE.CylinderGeometry(0.02,0.035,0.85,6);
+  const batMesh=new THREE.Mesh(batGeo,new THREE.MeshBasicMaterial({color:0x8b4513,transparent:true,opacity:0.8}));
+  batMesh.rotation.z=isLHB?-Math.PI/4:Math.PI/4;
+  batMesh.position.set(isLHB?sideX+0.3:sideX-0.3,1.05,0.05);
+  orbitScene.add(batMesh);
+}
+
+function buildOrbitPitchPaths(){
+  if(!seq.length) return;
+  seq.forEach((s,i)=>{
+    if(!orbitIsolation.includes(i)) return;
+    const col=PITCHES[s.pk].color;
+    const pts=s.pts3d.map(v=>new THREE.Vector3(v.x,v.y,v.z));
+    const mat=new THREE.LineBasicMaterial({color:col,transparent:true,opacity:0.85,linewidth:2});
+    const geo=new THREE.BufferGeometry().setFromPoints(pts);
+    orbitScene.add(new THREE.Line(geo,mat));
+  });
+}
+
+function buildOrbitLandingOrbs(){
+  if(!seq.length) return;
+  seq.forEach((s,i)=>{
+    if(!orbitIsolation.includes(i)) return;
+    const col=PITCHES[s.pk].color;
+    const pts=s.pts3d;
+    if(!pts||!pts.length) return;
+    const last=pts[pts.length-1];
+    const pos=new THREE.Vector3(last.x,last.y,last.z);
+    const geo=new THREE.SphereGeometry(0.055,10,10);
+    const mat=new THREE.MeshBasicMaterial({color:col,wireframe:true,transparent:true,opacity:0.6});
+    const orb=new THREE.Mesh(geo,mat);
+    orb.position.copy(pos);
+    orbitScene.add(orb);
+
+    // Pitch number label
+    const tc=document.createElement('canvas');
+    tc.width=48;tc.height=48;
+    const tx=tc.getContext('2d');
+    tx.fillStyle='#'+col.toString(16).padStart(6,'0');
+    tx.beginPath();tx.arc(24,24,22,0,Math.PI*2);tx.fill();
+    tx.fillStyle='#ffffff';tx.textAlign='center';tx.textBaseline='middle';
+    tx.font='bold 20px sans-serif';tx.fillText(String(i+1),24,24);
+    const spr=new THREE.Sprite(new THREE.SpriteMaterial({
+      map:new THREE.CanvasTexture(tc),transparent:true,opacity:0.95
+    }));
+    spr.scale.set(0.08,0.08,1);
+    spr.position.copy(pos);
+    spr.position.y+=0.08;
+    orbitScene.add(spr);
+  });
+}
+
+function buildOrbitTunnelHighlights(){
+  if(!orbitTunnelClusters||!orbitTunnelClusters.length) return;
+  orbitTunnelClusters.forEach(cluster=>{
+    if(!cluster||!cluster.length) return;
+    const pts=cluster.map(p=>new THREE.Vector3(p.x,p.y,p.z));
+    // Outer glow
+    const glowMat=new THREE.LineBasicMaterial({color:0xeab308,transparent:true,opacity:0.15,linewidth:8});
+    const glowGeo=new THREE.BufferGeometry().setFromPoints(pts);
+    orbitScene.add(new THREE.Line(glowGeo,glowMat));
+    // Inner line
+    const innerMat=new THREE.LineBasicMaterial({color:0xfde047,transparent:true,opacity:0.55,linewidth:3});
+    const innerGeo=new THREE.BufferGeometry().setFromPoints(pts);
+    orbitScene.add(new THREE.Line(innerGeo,innerMat));
+  });
+}
+
+function detectOrbitTunnels(){
+  orbitTunnelClusters=[];
+  if(!seq||seq.length<2) return;
+  for(let a=0;a<seq.length-1;a++){
+    for(let b=a+1;b<seq.length;b++){
+      const ptsA=seq[a].pts3d;
+      const ptsB=seq[b].pts3d;
+      if(!ptsA||!ptsB) continue;
+      const n=Math.min(ptsA.length,ptsB.length);
+      const s0=Math.floor(n*0.15);
+      const s1=Math.floor(n*0.72);
+      let tunnelPts=[];
+      for(let i=s0;i<s1;i++){
+        const pA=ptsA[i];
+        const pB=ptsB[Math.min(i,ptsB.length-1)];
+        if(!pA||!pB) continue;
+        // 8 inch = 0.2032 meters threshold
+        if(pA.distanceTo(pB)<=0.2032){
+          tunnelPts.push({
+            x:(pA.x+pB.x)/2,
+            y:(pA.y+pB.y)/2,
+            z:(pA.z+pB.z)/2
+          });
+        } else if(tunnelPts.length>3){
+          break;
+        }
+      }
+      if(tunnelPts.length>=3) orbitTunnelClusters.push(tunnelPts);
+    }
+  }
+}
+
+function buildOrbitToolbar(){
+  // Isolation checkboxes
+  const row=document.getElementById('orbitIsolationRow');
+  if(!row) return;
+  row.innerHTML='<span style="color:#3a5a7a;font-size:8px;letter-spacing:2px;">SHOW:</span>';
+  seq.forEach((s,i)=>{
+    const col='#'+PITCHES[s.pk].color.toString(16).padStart(6,'0');
+    const label=document.createElement('label');
+    label.style.cssText='display:flex;align-items:center;gap:3px;cursor:pointer;font-size:8px;color:#8aabb8;';
+    const cb=document.createElement('input');
+    cb.type='checkbox';cb.checked=true;
+    cb.style.accentColor=col;
+    cb.onchange=()=>{
+      if(cb.checked){
+        if(!orbitIsolation.includes(i)) orbitIsolation.push(i);
+      } else {
+        orbitIsolation=orbitIsolation.filter(x=>x!==i);
+      }
+      buildOrbitScene();
+    };
+    const dot=document.createElement('span');
+    dot.style.cssText='width:6px;height:6px;border-radius:50%;background:'+col+';display:inline-block;';
+    const txt=document.createElement('span');
+    txt.textContent=(i+1)+'. '+PITCHES[s.pk].name;
+    label.appendChild(cb);label.appendChild(dot);label.appendChild(txt);
+    row.appendChild(label);
+  });
+
+  // Scrubber chapter markers
+  const scrubber=document.getElementById('orbitScrubber');
+  if(!scrubber) return;
+  scrubber.innerHTML='';
+  if(!seq.length){
+    scrubber.innerHTML='<span style="color:#3a5a7a;font-size:9px;font-family:DM Mono,monospace;">No pitches — throw pitches in catcher view first</span>';
+    return;
+  }
+  seq.forEach((s,i)=>{
+    const col='#'+PITCHES[s.pk].color.toString(16).padStart(6,'0');
+    const btn=document.createElement('button');
+    btn.id='orbitchapter'+i;
+    btn.style.cssText='flex:1;padding:4px 2px;border-radius:4px;border:0.5px solid #1e2a3a;'+
+      'background:#0d1520;color:'+col+';font-family:DM Mono,monospace;font-size:8px;'+
+      'cursor:pointer;transition:all 0.15s;min-height:28px;';
+    btn.textContent=(i+1)+' '+PITCHES[s.pk].name.split(' ')[0];
+    btn.onclick=()=>orbitJumpToPitch(i);
+    scrubber.appendChild(btn);
+  });
+}
+
+function orbitHighlightChapter(idx){
+  seq.forEach((_,i)=>{
+    const btn=document.getElementById('orbitchapter'+i);
+    if(!btn) return;
+    const col='#'+PITCHES[seq[i].pk].color.toString(16).padStart(6,'0');
+    if(i===idx){
+      btn.style.background=col;
+      btn.style.color='#ffffff';
+      btn.style.borderColor=col;
+    } else {
+      btn.style.background='#0d1520';
+      btn.style.color=col;
+      btn.style.borderColor='#1e2a3a';
+    }
+  });
+}
+
+function orbitJumpToPitch(idx){
+  orbitStopPlay();
+  orbitPitchIndex=idx;
+  orbitHighlightChapter(idx);
+  orbitShowPitchBall(idx);
+}
+
+function orbitShowPitchBall(idx){
+  if(orbitBallMesh){orbitScene.remove(orbitBallMesh);orbitBallMesh=null;}
+  if(idx<0||idx>=seq.length) return;
+  if(!orbitIsolation.includes(idx)) return;
+  const s=seq[idx];
+  const pts=s.pts3d;
+  if(!pts||!pts.length) return;
+  const last=pts[pts.length-1];
+  const col=PITCHES[s.pk].color;
+  const geo=new THREE.SphereGeometry(0.07,10,10);
+  const mat=new THREE.MeshBasicMaterial({color:col});
+  orbitBallMesh=new THREE.Mesh(geo,mat);
+  orbitBallMesh.position.set(last.x,last.y,last.z);
+  orbitScene.add(orbitBallMesh);
+}
+
+function orbitPrevPitch(){
+  orbitStopPlay();
+  const visible=orbitIsolation.slice().sort((a,b)=>a-b);
+  if(!visible.length) return;
+  const cur=orbitPitchIndex;
+  const prev=visible.filter(i=>i<cur);
+  const idx=prev.length?prev[prev.length-1]:visible[visible.length-1];
+  orbitJumpToPitch(idx);
+}
+
+function orbitNextPitch(){
+  orbitStopPlay();
+  const visible=orbitIsolation.slice().sort((a,b)=>a-b);
+  if(!visible.length) return;
+  const cur=orbitPitchIndex;
+  const next=visible.filter(i=>i>cur);
+  const idx=next.length?next[0]:visible[0];
+  orbitJumpToPitch(idx);
+}
+
+function orbitTogglePlay(){
+  if(orbitPlaying) orbitStopPlay();
+  else orbitStartPlay();
+}
+
+function orbitStartPlay(){
+  if(!seq.length) return;
+  orbitPlaying=true;
+  document.getElementById('orbitPlayBtn').textContent='PAUSE';
+  document.getElementById('orbitPlayBtn').style.borderColor='#e05a5a';
+  document.getElementById('orbitPlayBtn').style.color='#e05a5a';
+  document.getElementById('orbitPlayBtn').style.background='#1a0a0a';
+  const visible=orbitIsolation.slice().sort((a,b)=>a-b);
+  if(!visible.length){orbitStopPlay();return;}
+  let playIdx=0;
+
+  function playNext(){
+    if(!orbitPlaying||playIdx>=visible.length){orbitStopPlay();return;}
+    const pitchIdx=visible[playIdx];
+    orbitJumpToPitch(pitchIdx);
+    orbitAnimateBallAlongPath(pitchIdx,()=>{
+      playIdx++;
+      if(playIdx<visible.length){
+        orbitPlayTimer=setTimeout(playNext,400);
+      } else {
+        orbitStopPlay();
+      }
+    });
+  }
+  playNext();
+}
+
+function orbitStopPlay(){
+  orbitPlaying=false;
+  if(orbitPlayTimer){clearTimeout(orbitPlayTimer);orbitPlayTimer=null;}
+  if(orbitBallAnimTimer){clearTimeout(orbitBallAnimTimer);orbitBallAnimTimer=null;}
+  const btn=document.getElementById('orbitPlayBtn');
+  if(btn){
+    btn.textContent='PLAY';
+    btn.style.borderColor='#4a9a4a';
+    btn.style.color='#4a9a4a';
+    btn.style.background='#1a2a1a';
+  }
+}
+
+function orbitAnimateBallAlongPath(pitchIdx,onDone){
+  if(orbitBallMesh){orbitScene.remove(orbitBallMesh);orbitBallMesh=null;}
+  const s=seq[pitchIdx];
+  if(!s||!s.pts3d||!s.pts3d.length){if(onDone)onDone();return;}
+  const pts=s.pts3d.map(v=>new THREE.Vector3(v.x,v.y,v.z));
+  const col=PITCHES[s.pk].color;
+  const geo=new THREE.SphereGeometry(0.07,10,10);
+  const mat=new THREE.MeshBasicMaterial({color:col});
+  orbitBallMesh=new THREE.Mesh(geo,mat);
+  orbitScene.add(orbitBallMesh);
+  const ms=PITCHES[s.pk].ms||1000;
+  const t0=performance.now();
+  function step(){
+    if(!orbitPlaying){if(onDone)onDone();return;}
+    const t=Math.min((performance.now()-t0)/ms,1);
+    const idx=Math.floor(t*(pts.length-1));
+    orbitBallMesh.position.copy(pts[idx]);
+    if(t<1) requestAnimationFrame(step);
+    else{
+      orbitBallAnimTimer=setTimeout(()=>{if(onDone)onDone();},200);
+    }
+  }
+  requestAnimationFrame(step);
+}
+
+function orbitResetCamera(){
+  if(!orbitCamera||!orbitControls) return;
+  orbitCamera.position.set(0,1.06,-1.2);
+  orbitCamera.lookAt(0,1.06,10);
+  orbitControls.target.set(0,1.06,5);
+  orbitControls.update();
+}
+
+function orbitTunnelZoom(){
+  if(!orbitTunnelClusters||!orbitTunnelClusters.length){
+    const ind=document.getElementById('tunnelIndicator');
+    if(ind){ind.textContent='NO TUNNELS DETECTED';ind.style.display='block';
+      setTimeout(()=>{ind.style.display='none';},2000);}
+    return;
+  }
+  const cluster=orbitTunnelClusters[orbitTunnelClusterIndex];
+  if(!cluster||!cluster.length) return;
+
+  // Find center of tunnel cluster
+  const cx=cluster.reduce((s,p)=>s+p.x,0)/cluster.length;
+  const cy=cluster.reduce((s,p)=>s+p.y,0)/cluster.length;
+  const cz=cluster.reduce((s,p)=>s+p.z,0)/cluster.length;
+
+  // Fly camera to tunnel zone
+  if(orbitControls) orbitControls.target.set(cx,cy,cz);
+  if(orbitCamera) orbitCamera.position.set(cx-1.5,cy+0.8,cz-1.5);
+  if(orbitControls) orbitControls.update();
+
+  // Update indicator
+  orbitTunnelClusterIndex=(orbitTunnelClusterIndex+1)%orbitTunnelClusters.length;
+  const ind=document.getElementById('tunnelIndicator');
+  if(ind){
+    ind.textContent='TUNNEL '+(orbitTunnelClusterIndex)+' of '+orbitTunnelClusters.length;
+    ind.style.display='block';
+    setTimeout(()=>{ind.style.display='none';},2500);
+  }
 }
 
 (function loop(){requestAnimationFrame(loop);renderer.render(scene,cam);})();
