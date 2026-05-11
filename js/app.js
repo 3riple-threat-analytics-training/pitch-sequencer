@@ -1637,8 +1637,9 @@ function buildOrbitBatter(){
   // Bat
   const batGeo=new THREE.CylinderGeometry(0.02,0.035,0.85,6);
   const batMesh=new THREE.Mesh(batGeo,new THREE.MeshBasicMaterial({color:0x8b4513,transparent:true,opacity:0.8}));
-  batMesh.rotation.z=isLHB?-Math.PI/4:Math.PI/4;
-  batMesh.position.set(isLHB?sideX+0.3:sideX-0.3,1.05,0.05);
+  batMesh.rotation.z=isLHB?Math.PI/6:-Math.PI/6;
+  batMesh.rotation.x=-Math.PI/5;
+  batMesh.position.set(isLHB?sideX-0.15:sideX+0.15,1.35,0.18);
   orbitScene.add(batMesh);
 }
 
