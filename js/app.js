@@ -1693,7 +1693,7 @@ function orbitDrawSinglePath(pitchIdx){
   orbitScene.add(line);
   orbitStaticPaths.push(line);
   const last=pts[pts.length-1];
-  const orbGeo=new THREE.SphereGeometry(0.055,10,10);
+  const orbGeo=new THREE.SphereGeometry(0.025,12,12);
   const orbMat=new THREE.MeshBasicMaterial({color:col,wireframe:true,transparent:true,opacity:0.6});
   const orb=new THREE.Mesh(orbGeo,orbMat);
   orb.position.copy(last);
@@ -1928,7 +1928,7 @@ function orbitShowPitchBall(idx){
   if(!pts||!pts.length) return;
   const last=pts[pts.length-1];
   const col=PITCHES[s.pk].color;
-  const geo=new THREE.SphereGeometry(0.07,10,10);
+  const geo=new THREE.SphereGeometry(0.055,10,10);
   const mat=new THREE.MeshBasicMaterial({color:col});
   orbitBallMesh=new THREE.Mesh(geo,mat);
   orbitBallMesh.position.set(last.x,last.y,last.z);
@@ -2027,7 +2027,7 @@ function orbitAnimateBallAlongPath(pitchIdx,onDone){
   if(!s||!s.pts3d||!s.pts3d.length){if(onDone)onDone();return;}
   const pts=s.pts3d.map(v=>new THREE.Vector3(v.x,v.y,v.z));
   const col=PITCHES[s.pk].color;
-  const geo=new THREE.SphereGeometry(0.07,10,10);
+  const geo=new THREE.SphereGeometry(0.055,10,10);
   const mat=new THREE.MeshBasicMaterial({color:col,depthTest:false});
   orbitBallMesh=new THREE.Mesh(geo,mat);
   orbitBallMesh.renderOrder=999;
