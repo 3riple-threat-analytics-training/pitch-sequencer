@@ -349,57 +349,149 @@ function renderStatsHeatmap(){
     return;
   }
 
-  const zones=[
-    ['TL','TM','TR'],
-    ['ML','MM','MR'],
-    ['BL','BM','BR']
-  ];
-
+  // Clear grid and set up 5-column layout:
+  // LEFT | TL TM TR | RIGHT
+  // LEFT | ML MM MR | RIGHT
+  // LEFT | BL BM BR | RIGHT
+  grid.style.display='grid';
+  grid.style.gridTemplateColumns='1fr 1fr 1fr 1fr 1fr';
+  grid.style.gridTemplateRows='auto auto auto auto auto';
+  grid.style.gap='3px';
   grid.innerHTML='';
 
-  zones.forEach(row=>{
-    row.forEach(zk=>{
-      const zd=getZoneData(ph,bh,bt,zk);
-      if(!zd){grid.appendChild(document.createElement('div'));return;}
+  // ── UP cell (spans all 5 columns) ──
+  const upZd=getZoneData(ph,bh,bt,'UP');
+  grid.appendChild(makeChaseCell('UP',upZd,bt,mk,statsPerspective,5,1));
 
-      const cell=document.createElement('div');
-      cell.className='stats-heatmap-cell';
+  // ── Three middle rows ──
+  const strikeRows=[
+    ['ML_LEFT','TL','TM','TR','MR_RIGHT'],
+    ['ML_LEFT','ML','MM','MR','MR_RIGHT'],
+    ['ML_LEFT','BL','BM','BR','MR_RIGHT']
+  ];
 
-      let val,label,bg,textCol;
-      if(statsPerspective==='pitcher'){
-        // MY PITCHER — show whiff rate, white=good, red=bad
-        val=zd.whiff;
-        label=Math.round(val*100)+'%';
-        if(zd.advantage){bg='rgba(255,255,255,0.85)';textCol='#1a1a1a';}
-        else if(zd.danger){bg='rgba(204,26,26,0.75)';textCol='#ffffff';}
-        else{
-          const intensity=val/0.50;
-          const r=Math.round(255*(1-intensity));
-          const g=Math.round(255*intensity*0.8);
-          bg='rgba('+r+','+g+',40,0.7)';
-          textCol='#ffffff';
-        }
-      } else {
-        // THIS BATTER — show hard contact, red=danger, white=advantage
-        val=zd.hardContact;
-        label=Math.round(val*100)+'%';
-        if(zd.danger){bg='rgba(204,26,26,0.85)';textCol='#ffffff';}
-        else if(zd.advantage){bg='rgba(255,255,255,0.85)';textCol='#1a1a1a';}
-        else{
-          const intensity=val/0.65;
-          bg='rgba('+Math.round(204*intensity)+','+Math.round(26*intensity)+',26,0.4)';
-          textCol='#ffffff';
-        }
-      }
+  const leftZd=getZoneData(ph,bh,bt,'IN');
+  const rightZd=getZoneData(ph,bh,bt,'OUT');
 
-      cell.style.background=bg;
-      cell.style.color=textCol;
-      cell.innerHTML='<div class="cell-label">'+zk+'</div><div class="cell-stat">'+label+'</div>';
+  // Row 1
+  grid.appendChild(makeChaseCell('LEFT',leftZd,bt,mk,statsPerspective,1,3));
+  grid.appendChild(makeStrikeCell('TL',getZoneData(ph,bh,bt,'TL'),bt,mk,statsPerspective));
+  grid.appendChild(makeStrikeCell('TM',getZoneData(ph,bh,bt,'TM'),bt,mk,statsPerspective));
+  grid.appendChild(makeStrikeCell('TR',getZoneData(ph,bh,bt,'TR'),bt,mk,statsPerspective));
+  grid.appendChild(makeChaseCell('RIGHT',rightZd,bt,mk,statsPerspective,1,3));
 
-      cell.onclick=()=>showZoneDetail(zk,zd,bt,mk);
-      grid.appendChild(cell);
-    });
-  });
+  // Row 2
+  grid.appendChild(makeStrikeCell('ML',getZoneData(ph,bh,bt,'ML'),bt,mk,statsPerspective));
+  grid.appendChild(makeStrikeCell('MM',getZoneData(ph,bh,bt,'MM'),bt,mk,statsPerspective));
+  grid.appendChild(makeStrikeCell('MR',getZoneData(ph,bh,bt,'MR'),bt,mk,statsPerspective));
+
+  // Row 3
+  grid.appendChild(makeStrikeCell('BL',getZoneData(ph,bh,bt,'BL'),bt,mk,statsPerspective));
+  grid.appendChild(makeStrikeCell('BM',getZoneData(ph,bh,bt,'BM'),bt,mk,statsPerspective));
+  grid.appendChild(makeStrikeCell('BR',getZoneData(ph,bh,bt,'BR'),bt,mk,statsPerspective));
+
+  // ── LOW cell (spans all 5 columns) ──
+  const lowZd=getZoneData(ph,bh,bt,'LOW');
+  grid.appendChild(makeChaseCell('LOW',lowZd,bt,mk,statsPerspective,5,1));
+
+  // Handedness note
+  const note=document.createElement('div');
+  note.style.cssText='grid-column:1/-1;font-family:DM Mono,monospace;font-size:7px;'
+    +'color:var(--text-muted);text-align:center;padding:2px 0;letter-spacing:0.5px;';
+  const isRHB=bh==='RHB';
+  note.textContent=ph+'HP vs '+bh+' · LEFT = '+(isRHB?'inside':'outside')+' · RIGHT = '+(isRHB?'outside':'inside');
+  grid.appendChild(note);
+}
+
+function makeStrikeCell(zk,zd,bt,mk,perspective){
+  const cell=document.createElement('div');
+  cell.className='stats-heatmap-cell';
+  if(!zd){cell.style.background='var(--bg-input)';return cell;}
+
+  let bg,textCol,val,label;
+  if(perspective==='pitcher'){
+    val=zd.whiff;
+    label=Math.round(val*100)+'%';
+    if(zd.advantage){bg='rgba(255,255,255,0.85)';textCol='#1a1a1a';}
+    else if(zd.danger){bg='rgba(204,26,26,0.80)';textCol='#ffffff';}
+    else{
+      const intensity=Math.min(1,val/0.50);
+      bg='rgba('+(Math.round(204*(1-intensity)))+','+(Math.round(180*intensity))+',40,0.7)';
+      textCol='#ffffff';
+    }
+  } else {
+    val=zd.hardContact;
+    label=Math.round(val*100)+'%';
+    if(zd.danger){bg='rgba(204,26,26,0.85)';textCol='#ffffff';}
+    else if(zd.advantage){bg='rgba(255,255,255,0.85)';textCol='#1a1a1a';}
+    else{
+      const intensity=Math.min(1,val/0.65);
+      bg='rgba('+(Math.round(204*intensity))+','+(Math.round(26*intensity))+',26,0.4)';
+      textCol='#ffffff';
+    }
+  }
+
+  cell.style.background=bg;
+  cell.style.color=textCol;
+  cell.innerHTML='<div class="cell-label">'+zk+'</div><div class="cell-stat">'+label+'</div>';
+  cell.onclick=()=>showZoneDetail(zk,zd,bt,mk);
+  return cell;
+}
+
+function makeChaseCell(label,zd,bt,mk,perspective,colSpan,rowSpan){
+  const cell=document.createElement('div');
+  cell.className='stats-heatmap-cell';
+  // Horizontal pills for UP and LOW
+  if(colSpan>1) {
+    cell.classList.add('chase-cell-horizontal');
+    cell.style.gridColumn='span '+colSpan;
+  }
+  // Vertical pills for LEFT and RIGHT
+  if(rowSpan>1){
+    cell.classList.add('chase-cell-vertical');
+    cell.style.gridRow='span '+rowSpan;
+  }
+
+  if(!zd){
+    cell.style.background='var(--bg-input)';
+    cell.innerHTML='<div class="cell-label">'+label+'</div>';
+    return cell;
+  }
+
+  const chaseRate=zd.chase||0;
+  let bg,textCol;
+  if(chaseRate>=0.40){
+    bg='rgba(255,255,255,0.85)';textCol='#1a1a1a';
+  } else if(chaseRate>=0.28){
+    const intensity=(chaseRate-0.28)/0.12;
+    bg='rgba('+(Math.round(255*intensity))+','
+      +(Math.round(255*intensity))+','
+      +(Math.round(255*intensity))+',0.6)';
+    textCol='#1a1a1a';
+  } else {
+    bg='rgba(204,26,26,0.70)';textCol='#ffffff';
+  }
+
+  const pct=Math.round(chaseRate*100)+'%';
+  cell.style.background=bg;
+  cell.style.color=textCol;
+
+  if(rowSpan>1){
+    // Vertical — stack label and stat vertically
+    cell.innerHTML=
+      '<div class="cell-label">'+label+'</div>'
+      +'<div class="cell-stat">'+pct+'</div>';
+  } else {
+    // Horizontal — label and stat side by side
+    cell.innerHTML=
+      '<div style="display:flex;gap:4px;align-items:center;">'
+      +'<div class="cell-label">'+label+'</div>'
+      +'<div class="cell-stat">CHASE '+pct+'</div>'
+      +'</div>';
+  }
+
+  cell.onclick=()=>showZoneDetail(label,zd,bt,mk);
+  return cell;
 }
 
 function showZoneDetail(zk,zd,bt,mk){
