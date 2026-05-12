@@ -1542,7 +1542,7 @@ function buildOrbitScene(){
 }
 
 function buildOrbitStrikeZone(){
-  const mat=new THREE.LineBasicMaterial({color:0x4a7aaa,transparent:true,opacity:0.7});
+  const mat=new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:0.85});
   const pts=[
     new THREE.Vector3(-0.24,1.37,0.12),
     new THREE.Vector3(0.24,1.37,0.12),
@@ -1554,7 +1554,7 @@ function buildOrbitStrikeZone(){
   orbitScene.add(new THREE.Line(geo,mat));
 
   // Zone grid lines
-  const gridMat=new THREE.LineBasicMaterial({color:0x2a4a6a,transparent:true,opacity:0.5});
+  const gridMat=new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:0.6});
   const vLines=[[-0.08,0.75,0.12,-0.08,1.37,0.12],[0.08,0.75,0.12,0.08,1.37,0.12]];
   const hLines=[[-0.24,0.957,0.12,0.24,0.957,0.12],[-0.24,1.163,0.12,0.24,1.163,0.12]];
   [...vLines,...hLines].forEach(([x1,y1,z1,x2,y2,z2])=>{
