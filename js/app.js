@@ -2098,6 +2098,29 @@ function orbitTunnelZoom(){
 
 (function loop(){requestAnimationFrame(loop);renderer.render(scene,cam);})();
 
+// ── Stats Tab ──
+function toggleStatsTab(){
+  const tab=document.getElementById('statstab');
+  const label=document.getElementById('statsTabLabel');
+  if(!tab||!label) return;
+  const open=tab.classList.toggle('visible');
+  label.textContent=open?'STATS ▾':'STATS ▸';
+}
+function setStatsSubtab(mode){
+  document.getElementById('subtabTable').classList.toggle('active',mode==='table');
+  document.getElementById('subtabHeatmap').classList.toggle('active',mode==='heatmap');
+  document.getElementById('statsTableView').classList.toggle('visible',mode==='table');
+  document.getElementById('statsHeatmapView').classList.toggle('visible',mode==='heatmap');
+}
+function setStatsPerspective(p){
+  document.getElementById('statsPitcherBtn').classList.toggle('active',p==='pitcher');
+  document.getElementById('statsBatterBtn').classList.toggle('active',p==='batter');
+}
+function setStatsColMode(mode){
+  document.getElementById('colBtnZones').classList.toggle('active',mode==='zones');
+  document.getElementById('colBtnOutcomes').classList.toggle('active',mode==='outcomes');
+}
+
 window.addEventListener('load',()=>{
   initSplash();
   setCamera();

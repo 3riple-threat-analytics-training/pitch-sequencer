@@ -388,6 +388,35 @@
         <div id="tip">Click rubber to set pitcher position.</div>
       </div>
       <div>
+        <div id="statsSection">
+          <div class="plbl" id="statsTabLabel" style="cursor:pointer;user-select:none;" onclick="toggleStatsTab()">STATS ▸</div>
+          <div id="statstab">
+            <div class="stats-matchup-pill" id="statsMatchupPill">— vs —</div>
+            <div class="stats-subtabs">
+              <button class="stats-subtab active" id="subtabTable" onclick="setStatsSubtab('table')">TABLE</button>
+              <button class="stats-subtab" id="subtabHeatmap" onclick="setStatsSubtab('heatmap')">HEATMAP</button>
+            </div>
+            <div class="stats-toggle-row">
+              <button class="stats-toggle-btn active" id="statsPitcherBtn" onclick="setStatsPerspective('pitcher')">MY PITCHER</button>
+              <button class="stats-toggle-btn" id="statsBatterBtn" onclick="setStatsPerspective('batter')">THIS BATTER</button>
+            </div>
+            <div id="statsTableView" class="visible">
+              <div class="stats-col-toggle">
+                <button class="stats-col-btn active" id="colBtnZones" onclick="setStatsColMode('zones')">BY ZONE</button>
+                <button class="stats-col-btn" id="colBtnOutcomes" onclick="setStatsColMode('outcomes')">BY OUTCOME</button>
+              </div>
+              <div id="statsTableContainer">
+                <div class="stats-no-data">Enable SIM MODE and throw pitches to see live stats, or load a plan to see historical data.</div>
+              </div>
+              <div class="plbl" style="margin-top:4px;">BEST PITCHES THIS MATCHUP</div>
+              <div id="statsBestPitches" class="stats-best-pitches"></div>
+            </div>
+            <div id="statsHeatmapView">
+              <div class="stats-heatmap-grid" id="statsHeatmapGrid"></div>
+              <div id="statsHeatmapDetail" style="display:none;padding:6px;border:0.5px solid var(--border-panel);border-radius:4px;background:var(--bg-input);font-family:'DM Mono',monospace;font-size:8px;color:var(--text-secondary);line-height:1.5;"></div>
+            </div>
+          </div>
+        </div>
         <div class="plbl">sequence <span id="seqn" class="seqn-color">0</span><span id="seqlimit">/6</span></div>
         <div id="extendwrap">
           <button id="extendbtn" onclick="toggleExtendAtBat()">EXTEND AT BAT</button>
