@@ -50,7 +50,7 @@ function getRP(){const rx=(rubber-0.5)*0.6,ho=hand==='R'?0.26:-0.26;return new T
 function setCamera(){cam.fov=52;cam.position.set(0,1.06,-1.2);cam.lookAt(0,1.06,17);cam.updateProjectionMatrix();}
 
 function setHand(h){hand=h;document.getElementById('brhp').classList.toggle('active',h==='R');document.getElementById('blhp').classList.toggle('active',h==='L');buildStatic();rebuildPaths();refreshGhost();}
-function setBatter(b){batter=b;['LHB','OFF','RHB'].forEach(x=>document.getElementById('b'+x.toLowerCase()).classList.toggle('active',x===b));buildStatic();rebuildPaths();refreshGhost();if(typeof dismissBatterHandednessNotification==='function') dismissBatterHandednessNotification();}
+function setBatter(b){batter=b;['LHB','OFF','RHB'].forEach(x=>document.getElementById('b'+x.toLowerCase()).classList.toggle('active',x===b));buildStatic();rebuildPaths();refreshGhost();if(typeof dismissBatterHandednessNotification==='function') dismissBatterHandednessNotification();if(typeof updateZoneGlows==='function') updateZoneGlows();}
 function selPitch(p){
   pitch=p;
   document.querySelectorAll('.pbtn').forEach(b=>b.classList.remove('sel'));
@@ -1417,6 +1417,7 @@ if(typeof toggleSimMode==='function'){
   toggleSimMode=function(){
     const result=__origToggleSimMode.apply(this,arguments);
     updateSeqUI();
+    if(typeof updateZoneGlows==='function') updateZoneGlows();
     return result;
   };
 }

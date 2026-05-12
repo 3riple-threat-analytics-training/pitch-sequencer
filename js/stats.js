@@ -717,27 +717,38 @@ function renderBestPitches(){
 
 // ── ZONE GLOWS ──
 function updateZoneGlows(){
-  const bt=getCurrentBatterType();
-  const ph=getCurrentPitcherHand();
-  if(!bt||!ph) return;
-  const mk=getCurrentMatchupKey();
-  const bh=mk.includes('RHB')?'RHB':'LHB';
-
-  // Clear existing glows
-  document.querySelectorAll('.zc,.cc').forEach(el=>{
+  // Clear all existing glows first
+  document.querySelectorAll('.zc,.cc,.cc-side').forEach(el=>{
     el.classList.remove('danger-zone','advantage-zone');
   });
 
-  // Apply new glows based on current zone
-  const allZones=['TL','TM','TR','ML','MM','MR','BL','BM','BR',
-    'TOP-EDG','BOT-EDG','LFT-EDG','RGT-EDG',
-    'TL-CRN','TR-CRN','BL-CRN','BR-CRN'];
+  const bt=getCurrentBatterType();
+  if(!bt) return;
 
-  allZones.forEach(zk=>{
-    const el=document.querySelector('[data-zk="'+zk+'"]');
-    if(!el) return;
-    const danger=isDangerZone(ph,bh,bt,zk);
-    const advantage=isAdvantageZone(ph,bh,bt,zk);
+  const ph=getCurrentPitcherHand();
+  const mk=getCurrentMatchupKey();
+  const bh=mk.includes('RHB')?'RHB':'LHB';
+
+  // Apply glows to all zone cells that have data-zk attribute
+  document.querySelectorAll('[data-zk]').forEach(el=>{
+    const zk=el.getAttribute('data-zk');
+    if(!zk) return;
+
+    // Map display zone keys to data keys
+    // Chase zones use different keys in data vs display
+    let dataZk=zk;
+    if(zk==='TOP-EDG'||zk==='UP') dataZk='UP';
+    else if(zk==='BOT-EDG'||zk==='LOW') dataZk='LOW';
+    else if(zk==='LFT-EDG'||zk==='IN') dataZk='IN';
+    else if(zk==='RGT-EDG'||zk==='OUT') dataZk='OUT';
+    else if(zk==='TL-CRN') dataZk='TL';
+    else if(zk==='TR-CRN') dataZk='TR';
+    else if(zk==='BL-CRN') dataZk='BL';
+    else if(zk==='BR-CRN') dataZk='BR';
+
+    const danger=isDangerZone(ph,bh,bt,dataZk);
+    const advantage=isAdvantageZone(ph,bh,bt,dataZk);
+
     if(danger) el.classList.add('danger-zone');
     else if(advantage) el.classList.add('advantage-zone');
   });
