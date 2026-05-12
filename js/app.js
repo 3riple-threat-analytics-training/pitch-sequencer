@@ -1434,6 +1434,11 @@ let orbitTunnelClusters=[];
 let orbitTunnelClusterIndex=0;
 let orbitBallMesh=null;
 let orbitBallAnimTimer=null;
+let orbitPlayMode=false;
+let orbitStaticPaths=[];
+let orbitStaticOrbs=[];
+let orbitStaticTunnels=[];
+let orbitDrawnPitchIndices=[];
 
 function initOrbitView(){
   const container=document.getElementById('orbitview');
@@ -1520,32 +1525,20 @@ function orbitLoop(){
 
 function buildOrbitScene(){
   if(!orbitScene) return;
-  // Clear scene
   while(orbitScene.children.length>0) orbitScene.remove(orbitScene.children[0]);
-
-  // Ambient light
+  orbitStaticPaths=[];
+  orbitStaticOrbs=[];
+  orbitStaticTunnels=[];
   orbitScene.add(new THREE.AmbientLight(0xffffff,0.8));
-
-  // Strike zone wireframe
   buildOrbitStrikeZone();
-
-  // Home plate
   buildOrbitHomePlate();
-
-  // Mound marker
   buildOrbitMound();
-
-  // Batter silhouette
   buildOrbitBatter();
-
-  // Pitch paths
-  buildOrbitPitchPaths();
-
-  // Tunnel highlights
-  buildOrbitTunnelHighlights();
-
-  // Landing orbs
-  buildOrbitLandingOrbs();
+  if(!orbitPlayMode){
+    buildOrbitPitchPaths();
+    buildOrbitLandingOrbs();
+    buildOrbitTunnelHighlights();
+  }
 }
 
 function buildOrbitStrikeZone(){
@@ -1688,6 +1681,116 @@ function buildOrbitLandingOrbs(){
   });
 }
 
+function orbitDrawSinglePath(pitchIdx){
+  if(!orbitScene) return;
+  const s=seq[pitchIdx];
+  if(!s||!s.pts3d||!s.pts3d.length) return;
+  const col=PITCHES[s.pk].color;
+  const pts=s.pts3d.map(v=>new THREE.Vector3(v.x,v.y,v.z));
+  const mat=new THREE.LineBasicMaterial({color:col,transparent:true,opacity:0.85,linewidth:2});
+  const geo=new THREE.BufferGeometry().setFromPoints(pts);
+  const line=new THREE.Line(geo,mat);
+  orbitScene.add(line);
+  orbitStaticPaths.push(line);
+  const last=pts[pts.length-1];
+  const orbGeo=new THREE.SphereGeometry(0.055,10,10);
+  const orbMat=new THREE.MeshBasicMaterial({color:col,wireframe:true,transparent:true,opacity:0.6});
+  const orb=new THREE.Mesh(orbGeo,orbMat);
+  orb.position.copy(last);
+  orbitScene.add(orb);
+  orbitStaticOrbs.push(orb);
+  const tc=document.createElement('canvas');
+  tc.width=48;tc.height=48;
+  const tx=tc.getContext('2d');
+  tx.fillStyle='#'+col.toString(16).padStart(6,'0');
+  tx.beginPath();tx.arc(24,24,22,0,Math.PI*2);tx.fill();
+  tx.fillStyle='#ffffff';tx.textAlign='center';tx.textBaseline='middle';
+  tx.font='bold 20px sans-serif';tx.fillText(String(pitchIdx+1),24,24);
+  const spr=new THREE.Sprite(new THREE.SpriteMaterial({
+    map:new THREE.CanvasTexture(tc),transparent:true,opacity:0.95
+  }));
+  spr.scale.set(0.08,0.08,1);
+  spr.position.copy(last);
+  spr.position.y+=0.08;
+  orbitScene.add(spr);
+  orbitStaticOrbs.push(spr);
+}
+
+function orbitDrawTunnelBetween(idxA,idxB){
+  if(!orbitScene) return;
+  const ptsA=seq[idxA]&&seq[idxA].pts3d;
+  const ptsB=seq[idxB]&&seq[idxB].pts3d;
+  if(!ptsA||!ptsB) return;
+  const n=Math.min(ptsA.length,ptsB.length);
+  const s0=Math.floor(n*0.15);
+  const s1=Math.floor(n*0.72);
+  let tunnelPts=[];
+  for(let i=s0;i<s1;i++){
+    const pA=ptsA[i];
+    const pB=ptsB[Math.min(i,ptsB.length-1)];
+    if(!pA||!pB) continue;
+    if(pA.distanceTo(pB)<=0.2032){
+      tunnelPts.push(new THREE.Vector3(
+        (pA.x+pB.x)/2,(pA.y+pB.y)/2,(pA.z+pB.z)/2
+      ));
+    } else if(tunnelPts.length>3) break;
+  }
+  if(tunnelPts.length<3) return;
+  const curve=new THREE.CatmullRomCurve3(tunnelPts);
+  const glowMat=new THREE.LineBasicMaterial({color:0xeab308,transparent:true,opacity:0.12,linewidth:12});
+  const glowLine=new THREE.Line(new THREE.BufferGeometry().setFromPoints(tunnelPts),glowMat);
+  orbitScene.add(glowLine);
+  orbitStaticTunnels.push(glowLine);
+  const innerMat=new THREE.LineBasicMaterial({color:0xfde047,transparent:true,opacity:0.6,linewidth:4});
+  const innerLine=new THREE.Line(new THREE.BufferGeometry().setFromPoints(tunnelPts),innerMat);
+  orbitScene.add(innerLine);
+  orbitStaticTunnels.push(innerLine);
+  const tubeGeo=new THREE.TubeGeometry(curve,tunnelPts.length*2,0.035,8,false);
+  const tubeMat=new THREE.MeshBasicMaterial({color:0xeab308,transparent:true,opacity:0.18,side:THREE.DoubleSide,depthWrite:false});
+  const tube=new THREE.Mesh(tubeGeo,tubeMat);
+  orbitScene.add(tube);
+  orbitStaticTunnels.push(tube);
+  const wireMat=new THREE.MeshBasicMaterial({color:0xfde047,transparent:true,opacity:0.35,wireframe:true,depthWrite:false});
+  const wire=new THREE.Mesh(new THREE.TubeGeometry(curve,tunnelPts.length*2,0.035,8,false),wireMat);
+  orbitScene.add(wire);
+  orbitStaticTunnels.push(wire);
+  const ep=tunnelPts[tunnelPts.length-1];
+  const ring=new THREE.Mesh(
+    new THREE.TorusGeometry(0.06,0.008,8,24),
+    new THREE.MeshBasicMaterial({color:0xeab308,transparent:true,opacity:0.9})
+  );
+  ring.position.copy(ep);
+  orbitScene.add(ring);
+  orbitStaticTunnels.push(ring);
+  const sphere=new THREE.Mesh(
+    new THREE.SphereGeometry(0.04,10,10),
+    new THREE.MeshBasicMaterial({color:0xfde047,transparent:true,opacity:0.7,wireframe:true})
+  );
+  sphere.position.copy(ep);
+  orbitScene.add(sphere);
+  orbitStaticTunnels.push(sphere);
+  const tc=document.createElement('canvas');
+  tc.width=160;tc.height=40;
+  const tx=tc.getContext('2d');
+  tx.fillStyle='rgba(234,179,8,0.85)';
+  tx.beginPath();
+  if(tx.roundRect) tx.roundRect(2,2,156,36,6);
+  else tx.rect(2,2,156,36);
+  tx.fill();
+  tx.fillStyle='#1a1500';
+  tx.font='bold 14px DM Mono,monospace';
+  tx.textAlign='center';tx.textBaseline='middle';
+  tx.fillText('DECISION POINT',80,20);
+  const spr=new THREE.Sprite(new THREE.SpriteMaterial({
+    map:new THREE.CanvasTexture(tc),transparent:true,opacity:0.95
+  }));
+  spr.scale.set(0.22,0.055,1);
+  spr.position.copy(ep);
+  spr.position.y+=0.12;
+  orbitScene.add(spr);
+  orbitStaticTunnels.push(spr);
+}
+
 function buildOrbitTunnelHighlights(){
   if(!orbitTunnelClusters||!orbitTunnelClusters.length) return;
   orbitTunnelClusters.forEach(cluster=>{
@@ -1754,7 +1857,14 @@ function buildOrbitToolbar(){
       } else {
         orbitIsolation=orbitIsolation.filter(x=>x!==i);
       }
+      orbitPlayMode=false;
       buildOrbitScene();
+      const sorted=orbitIsolation.slice().sort((a,b)=>a-b);
+      sorted.forEach((idxA,pos,arr)=>{
+        for(let j=pos+1;j<arr.length;j++){
+          orbitDrawTunnelBetween(idxA,arr[j]);
+        }
+      });
     };
     const dot=document.createElement('span');
     dot.style.cssText='width:6px;height:6px;border-radius:50%;background:'+col+';display:inline-block;';
@@ -1852,23 +1962,38 @@ function orbitTogglePlay(){
 
 function orbitStartPlay(){
   if(!seq.length) return;
+  if(orbitBallMesh){orbitScene.remove(orbitBallMesh);orbitBallMesh=null;}
+  orbitDrawnPitchIndices=[];
+  orbitPlayMode=true;
+  buildOrbitScene();
   orbitPlaying=true;
-  document.getElementById('orbitPlayBtn').textContent='PAUSE';
-  document.getElementById('orbitPlayBtn').style.borderColor='#e05a5a';
-  document.getElementById('orbitPlayBtn').style.color='#e05a5a';
-  document.getElementById('orbitPlayBtn').style.background='#1a0a0a';
+  const btn=document.getElementById('orbitPlayBtn');
+  if(btn){
+    btn.textContent='PAUSE';
+    btn.style.borderColor='#e05a5a';
+    btn.style.color='#e05a5a';
+    btn.style.background='#1a0a0a';
+  }
   const visible=orbitIsolation.slice().sort((a,b)=>a-b);
   if(!visible.length){orbitStopPlay();return;}
   let playIdx=0;
-
   function playNext(){
-    if(!orbitPlaying||playIdx>=visible.length){orbitStopPlay();return;}
+    if(!orbitPlaying||playIdx>=visible.length){
+      orbitStopPlay();
+      return;
+    }
     const pitchIdx=visible[playIdx];
-    orbitJumpToPitch(pitchIdx);
+    orbitPitchIndex=pitchIdx;
+    orbitHighlightChapter(pitchIdx);
     orbitAnimateBallAlongPath(pitchIdx,()=>{
+      orbitDrawSinglePath(pitchIdx);
+      orbitDrawnPitchIndices.forEach(prevIdx=>{
+        orbitDrawTunnelBetween(prevIdx,pitchIdx);
+      });
+      orbitDrawnPitchIndices.push(pitchIdx);
       playIdx++;
-      if(playIdx<visible.length){
-        orbitPlayTimer=setTimeout(playNext,400);
+      if(playIdx<visible.length&&orbitPlaying){
+        orbitPlayTimer=setTimeout(playNext,500);
       } else {
         orbitStopPlay();
       }
@@ -1879,8 +2004,11 @@ function orbitStartPlay(){
 
 function orbitStopPlay(){
   orbitPlaying=false;
+  orbitPlayMode=false;
+  orbitDrawnPitchIndices=[];
   if(orbitPlayTimer){clearTimeout(orbitPlayTimer);orbitPlayTimer=null;}
   if(orbitBallAnimTimer){clearTimeout(orbitBallAnimTimer);orbitBallAnimTimer=null;}
+  if(orbitBallMesh){orbitScene.remove(orbitBallMesh);orbitBallMesh=null;}
   const btn=document.getElementById('orbitPlayBtn');
   if(btn){
     btn.textContent='PLAY';
@@ -1888,6 +2016,7 @@ function orbitStopPlay(){
     btn.style.color='#4a9a4a';
     btn.style.background='#1a2a1a';
   }
+  buildOrbitScene();
 }
 
 function orbitAnimateBallAlongPath(pitchIdx,onDone){
@@ -1897,19 +2026,31 @@ function orbitAnimateBallAlongPath(pitchIdx,onDone){
   const pts=s.pts3d.map(v=>new THREE.Vector3(v.x,v.y,v.z));
   const col=PITCHES[s.pk].color;
   const geo=new THREE.SphereGeometry(0.07,10,10);
-  const mat=new THREE.MeshBasicMaterial({color:col});
+  const mat=new THREE.MeshBasicMaterial({color:col,depthTest:false});
   orbitBallMesh=new THREE.Mesh(geo,mat);
+  orbitBallMesh.renderOrder=999;
   orbitScene.add(orbitBallMesh);
-  const ms=PITCHES[s.pk].ms||1000;
-  const t0=performance.now();
+  const totalFrames=pts.length;
+  const ms=(PITCHES[s.pk].ms||1000)*1.5;
+  const msPerFrame=ms/totalFrames;
+  let frameIdx=0;
+  let done=false;
   function step(){
-    if(!orbitPlaying){if(onDone)onDone();return;}
-    const t=Math.min((performance.now()-t0)/ms,1);
-    const idx=Math.floor(t*(pts.length-1));
-    orbitBallMesh.position.copy(pts[idx]);
-    if(t<1) requestAnimationFrame(step);
-    else{
-      orbitBallAnimTimer=setTimeout(()=>{if(onDone)onDone();},200);
+    if(done) return;
+    if(!orbitPlaying){
+      done=true;
+      if(onDone) onDone();
+      return;
+    }
+    if(orbitBallMesh) orbitBallMesh.position.copy(pts[frameIdx]);
+    frameIdx++;
+    if(frameIdx<totalFrames){
+      orbitBallAnimTimer=setTimeout(()=>requestAnimationFrame(step),msPerFrame);
+    } else {
+      done=true;
+      orbitBallAnimTimer=setTimeout(()=>{
+        if(onDone) onDone();
+      },300);
     }
   }
   requestAnimationFrame(step);
