@@ -15,12 +15,16 @@ let statsPerspective='pitcher';
 let statsSubtab='table';
 let statsColMode='zones';
 let statsInitialized=false;
+let statsSelectedPitch=null;
 
 // ── INIT ──
 function initStats(){
   if(statsInitialized) return;
   statsInitialized=true;
   loadLiveStats();
+  // Set default selected pitch to first in arsenal
+  const arsenal=getCurrentArsenal();
+  statsSelectedPitch=arsenal.length?arsenal[0]:null;
   updateStatsUI();
 }
 
@@ -238,6 +242,36 @@ function updateStatsUI(){
 }
 
 // ── TABLE RENDERING ──
+function renderPitchSelector(){
+  const arsenal=getCurrentArsenal();
+  if(!arsenal.length) return '';
+  let html='<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px;">';
+  arsenal.forEach(pk=>{
+    const pitchName=typeof PITCHES!=='undefined'&&PITCHES[pk]?PITCHES[pk].name:pk;
+    const col=typeof PITCHES!=='undefined'&&PITCHES[pk]?
+      '#'+PITCHES[pk].color.toString(16).padStart(6,'0'):'#888888';
+    const isActive=statsSelectedPitch===pk;
+    const activeStyle=isActive?
+      'border-color:'+col+';color:'+col+';background:rgba(0,0,0,0.06);':
+      'border-color:var(--border-panel);color:var(--text-muted);';
+    html+='<button onclick="selectStatsPitch(\''+pk+'\')" style="'
+      +'padding:3px 7px;border-radius:4px;border:0.5px solid;'
+      +'background:var(--bg-input);font-family:DM Mono,monospace;'
+      +'font-size:8px;cursor:pointer;transition:all 0.15s;'
+      +'display:flex;align-items:center;gap:3px;'+activeStyle+'">'
+      +'<span style="color:'+col+';font-size:8px;">●</span>'
+      +pitchName
+      +'</button>';
+  });
+  html+='</div>';
+  return html;
+}
+
+function selectStatsPitch(pk){
+  statsSelectedPitch=pk;
+  renderStatsTable();
+}
+
 function renderStatsTable(){
   const container=document.getElementById('statsTableContainer');
   if(!container) return;
@@ -253,39 +287,180 @@ function renderStatsTable(){
   else renderTableByOutcome(container,bt,mk,arsenal);
 }
 
-function renderTableByZone(container,bt,mk,arsenal){
-  const zones=['TL','TM','TR','ML','MM','MR','BL','BM','BR'];
-  let html='<div style="overflow-x:auto;"><table class="stats-table">';
-  html+='<thead><tr><th>PITCH</th>';
-  zones.forEach(z=>{html+='<th>'+z+'</th>';});
-  html+='</tr></thead><tbody>';
-
+function getAvgArsenalEffectiveness(ph,bh,arsenal){
+  if(!arsenal||!arsenal.length) return 0.60;
+  let total=0;let count=0;
   arsenal.forEach(pk=>{
-    const pitchName=typeof PITCHES!=='undefined'&&PITCHES[pk]?PITCHES[pk].name:pk;
-    const col=typeof PITCHES!=='undefined'&&PITCHES[pk]?
-      '#'+PITCHES[pk].color.toString(16).padStart(6,'0'):'#888';
-    html+='<tr><td><span style="color:'+col+';margin-right:4px;">●</span>'+pitchName+'</td>';
-    zones.forEach(zk=>{
-      const whiff=getBlendedZoneStat(bt,mk,zk,pk,'whiff');
-      const hardContact=getBlendedZoneStat(bt,mk,zk,pk,'hardContact');
-      const danger=isDangerZone(getCurrentPitcherHand(),
-        mk.includes('RHB')?'RHB':'LHB',bt,zk);
-      const advantage=isAdvantageZone(getCurrentPitcherHand(),
-        mk.includes('RHB')?'RHB':'LHB',bt,zk);
-      let cls='stat-neutral';
-      if(danger) cls='stat-bad';
-      else if(advantage) cls='stat-good';
-      else if(whiff>=0.35) cls='stat-good';
-      else if(hardContact>=0.40) cls='stat-bad';
-      const pct=whiff!=null?Math.round(whiff*100)+'%':'—';
-      html+='<td class="'+cls+'">'+pct+'</td>';
-    });
-    html+='</tr>';
+    const pd=getPitchData(ph,bh,pk);
+    if(pd){total+=pd.effectiveness;count++;}
   });
+  return count?total/count:0.60;
+}
 
-  html+='</tbody></table></div>';
-  html+='<div style="font-family:DM Mono,monospace;font-size:7px;color:var(--text-muted);margin-top:4px;text-align:right;">WHIFF% BY ZONE · '+getDataSourceLabel(bt,mk)+'</div>';
+function getPitchZoneWhiff(ph,bh,bt,mk,zk,pk){
+  const zd=getZoneData(ph,bh,bt,zk);
+  if(!zd) return null;
+  const baseZoneWhiff=zd.whiff;
+  const pd=getPitchData(ph,bh,pk);
+  const arsenal=getCurrentArsenal();
+  const avgEff=getAvgArsenalEffectiveness(ph,bh,arsenal);
+  const pitchEff=pd?pd.effectiveness:avgEff;
+  const effectMult=avgEff>0?pitchEff/avgEff:1;
+  const baseAdjusted=Math.min(0.95,baseZoneWhiff*effectMult);
+  try{
+    const d=liveStats[bt]&&liveStats[bt][mk]&&
+      liveStats[bt][mk][zk]&&liveStats[bt][mk][zk][pk];
+    if(d&&d.thrown>=1){
+      const liveWhiff=d.whiffs/d.thrown;
+      const cw=Math.max(0,1-(d.thrown/CONFIDENCE_THRESHOLD));
+      const blended=(baseAdjusted*cw)+(liveWhiff*(1-cw));
+      return{whiff:blended,liveThrown:d.thrown,hasLive:true};
+    }
+  }catch(e){}
+  return{whiff:baseAdjusted,liveThrown:0,hasLive:false};
+}
+
+function getChaseZoneLive(bt,mk,zk,pk){
+  try{
+    const d=liveStats[bt]&&liveStats[bt][mk]&&
+      liveStats[bt][mk][zk]&&liveStats[bt][mk][zk][pk];
+    if(d&&d.thrown>=1) return{thrown:d.thrown,hasLive:true};
+  }catch(e){}
+  return{thrown:0,hasLive:false};
+}
+
+function renderTableByZone(container,bt,mk,arsenal){
+  if(!statsSelectedPitch||!arsenal.includes(statsSelectedPitch)){
+    statsSelectedPitch=arsenal[0]||null;
+  }
+  if(!statsSelectedPitch){
+    container.innerHTML='<div class="stats-no-data">No pitches in arsenal.</div>';
+    return;
+  }
+
+  const ph=getCurrentPitcherHand();
+  const bh=mk.includes('RHB')?'RHB':'LHB';
+  const pk=statsSelectedPitch;
+  const pd=getPitchData(ph,bh,pk);
+  const pitchName=typeof PITCHES!=='undefined'&&PITCHES[pk]?PITCHES[pk].name:pk;
+  const pitchCol=typeof PITCHES!=='undefined'&&PITCHES[pk]?
+    '#'+PITCHES[pk].color.toString(16).padStart(6,'0'):'#888888';
+
+  let html=renderPitchSelector();
+
+  // Pitch summary bar
+  if(pd){
+    const effectPct=Math.round(pd.effectiveness*100);
+    const whiffPct=Math.round(pd.whiff*100);
+    const hardPct=Math.round(pd.hardContact*100);
+    html+='<div style="padding:5px 7px;border-radius:4px;border:0.5px solid var(--border-panel);'
+      +'background:var(--bg-input);margin-bottom:5px;">'
+      +'<div style="display:flex;align-items:center;gap:5px;margin-bottom:4px;">'
+      +'<span style="color:'+pitchCol+';">●</span>'
+      +'<span style="font-family:DM Mono,monospace;font-size:9px;color:var(--text-primary);'
+      +'font-weight:600;">'+pitchName+'</span>'
+      +'</div>'
+      +'<div style="display:flex;gap:8px;flex-wrap:wrap;">'
+      +'<div style="font-family:DM Mono,monospace;font-size:8px;">'
+      +'<span style="color:var(--text-muted);">EFFECT </span>'
+      +'<span style="color:var(--text-primary);font-weight:600;">'+effectPct+'%</span></div>'
+      +'<div style="font-family:DM Mono,monospace;font-size:8px;">'
+      +'<span style="color:var(--text-muted);">WHIFF </span>'
+      +'<span style="color:#14532d;font-weight:600;">'+whiffPct+'%</span></div>'
+      +'<div style="font-family:DM Mono,monospace;font-size:8px;">'
+      +'<span style="color:var(--text-muted);">HARD </span>'
+      +'<span style="color:#7f1d1d;font-weight:600;">'+hardPct+'%</span></div>'
+      +'</div>'
+      +(pd.notes?'<div style="font-family:DM Mono,monospace;font-size:7px;'
+      +'color:var(--text-primary);margin-top:3px;font-style:italic;">'+pd.notes+'</div>':'')
+      +'</div>';
+  }
+
+  // Strike zone grid
+  html+='<div style="font-family:DM Mono,monospace;font-size:7px;color:var(--text-muted);'
+    +'letter-spacing:1px;margin-bottom:3px;">STRIKE ZONE WHIFF% · '
+    +'<span style="color:#cc1a1a;">●</span> = live data</div>';
+  html+='<div style="display:grid;grid-template-columns:repeat(3,1fr);'
+    +'gap:3px;margin-bottom:6px;">';
+
+  const strikeZones=['TL','TM','TR','ML','MM','MR','BL','BM','BR'];
+  strikeZones.forEach(zk=>{
+    const zd=getZoneData(ph,bh,bt,zk);
+    if(!zd){html+='<div></div>';return;}
+    const result=getPitchZoneWhiff(ph,bh,bt,mk,zk,pk);
+    if(!result){html+='<div></div>';return;}
+    const whiff=result.whiff;
+    const hasLive=result.hasLive;
+    const liveThrown=result.liveThrown;
+    const danger=zd.danger;
+    const advantage=zd.advantage;
+    let bg,textCol;
+    if(danger){bg='rgba(204,26,26,0.75)';textCol='#ffffff';}
+    else if(advantage){bg='rgba(255,255,255,0.85)';textCol='#1a1a1a';}
+    else if(whiff>=0.35){bg='rgba(20,83,45,0.75)';textCol='#ffffff';}
+    else if(whiff>=0.25){bg='rgba(180,140,20,0.5)';textCol='#1a1a1a';}
+    else{bg='rgba(204,26,26,0.40)';textCol='#ffffff';}
+    const pct=Math.round(whiff*100)+'%';
+    const liveIndicator=hasLive&&liveThrown>=5?
+      '<span style="color:#cc1a1a;font-size:6px;position:absolute;top:2px;right:3px;">●</span>':'';
+    html+='<div onclick="showZoneDetailFromTable(\''+zk+'\',\''+bt+'\',\''+mk+'\')" '
+      +'style="background:'+bg+';color:'+textCol+';border-radius:4px;padding:5px 2px;'
+      +'text-align:center;cursor:pointer;font-family:DM Mono,monospace;font-size:8px;'
+      +'font-weight:600;transition:all 0.15s;position:relative;">'
+      +'<div style="font-size:7px;opacity:0.8;">'+zk+'</div>'
+      +'<div>'+pct+'</div>'
+      +liveIndicator
+      +'</div>';
+  });
+  html+='</div>';
+
+  // Chase zones
+  html+='<div style="font-family:DM Mono,monospace;font-size:7px;color:var(--text-muted);'
+    +'letter-spacing:1px;margin-bottom:3px;">CHASE ZONES · CHASE%</div>';
+  html+='<div style="display:grid;grid-template-columns:repeat(4,1fr);'
+    +'gap:3px;margin-bottom:5px;">';
+  ['UP','LOW','IN','OUT'].forEach(zk=>{
+    const zd=getZoneData(ph,bh,bt,zk);
+    if(!zd){html+='<div></div>';return;}
+    const chase=zd.chase||0;
+    const liveData=getChaseZoneLive(bt,mk,zk,pk);
+    const dispLabel=zk==='IN'?'LEFT':zk==='OUT'?'RIGHT':zk;
+    let bg,textCol;
+    if(chase>=0.40){bg='rgba(255,255,255,0.85)';textCol='#1a1a1a';}
+    else if(chase>=0.28){
+      const intensity=(chase-0.28)/0.12;
+      bg='rgba('+(Math.round(255*intensity))+','
+        +(Math.round(255*intensity))+','
+        +(Math.round(255*intensity))+',0.6)';
+      textCol='#1a1a1a';
+    }else{bg='rgba(204,26,26,0.70)';textCol='#ffffff';}
+    const liveIndicator=liveData.hasLive&&liveData.thrown>=5?
+      '<span style="color:#cc1a1a;font-size:6px;position:absolute;'
+      +'top:2px;right:3px;">●</span>':'';
+    html+='<div onclick="showZoneDetailFromTable(\''+zk+'\',\''+bt+'\',\''+mk+'\')" '
+      +'style="background:'+bg+';color:'+textCol+';border-radius:4px;padding:4px 2px;'
+      +'text-align:center;font-family:DM Mono,monospace;font-size:8px;font-weight:600;'
+      +'position:relative;cursor:pointer;">'
+      +'<div style="font-size:7px;opacity:0.8;">'+dispLabel+'</div>'
+      +'<div>'+Math.round(chase*100)+'%</div>'
+      +liveIndicator
+      +'</div>';
+  });
+  html+='</div>';
+
+  html+='<div style="font-family:DM Mono,monospace;font-size:7px;color:var(--text-muted);'
+    +'margin-top:2px;text-align:right;">'+getDataSourceLabel(bt,mk)+'</div>';
   container.innerHTML=html;
+}
+
+function showZoneDetailFromTable(zk,bt,mk){
+  const ph=getCurrentPitcherHand();
+  const bh=mk.includes('RHB')?'RHB':'LHB';
+  const zd=getZoneData(ph,bh,bt,zk);
+  if(!zd) return;
+  // Switch to heatmap and show detail
+  setStatsSubtab('heatmap');
+  setTimeout(()=>showZoneDetail(zk,zd,bt,mk),50);
 }
 
 function renderTableByOutcome(container,bt,mk,arsenal){
