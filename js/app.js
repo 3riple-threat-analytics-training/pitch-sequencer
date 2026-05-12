@@ -2016,7 +2016,9 @@ function orbitStopPlay(){
     btn.style.color='#4a9a4a';
     btn.style.background='#1a2a1a';
   }
-  buildOrbitScene();
+  // Do NOT rebuild scene here — leave all paths, tunnels
+  // and decision points exactly as they are
+  // Scene only rebuilds when PLAY is hit again via orbitStartPlay
 }
 
 function orbitAnimateBallAlongPath(pitchIdx,onDone){
