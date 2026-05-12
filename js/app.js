@@ -1233,6 +1233,7 @@ function throwPitch(){
       const prominent=outcome==='WALK'||outcome==='STRIKEOUT';
       const showLbl=(batterType!=='RANDOM')||batterRevealed;
       addSimLogEntry((showLbl?'['+getBatterSimLogLabel()+'] ':'')+pitchNm+' → '+outcome,outcome,prominent);
+      if(typeof onSimPitchRecorded==='function') onSimPitchRecorded(zone,pitch,outcome);
     }
     if(batterType==='RANDOM'&&!batterRevealed){
       const revealByPitch=pitchesInAtBat>=4;
@@ -2123,6 +2124,7 @@ function setStatsColMode(mode){
 
 window.addEventListener('load',()=>{
   initSplash();
+  initStats();
   setCamera();
   buildStatic();
   buildZoneDiagram();

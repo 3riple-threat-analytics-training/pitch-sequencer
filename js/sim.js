@@ -205,6 +205,7 @@ function handleNewBatter(){
     secretBatterType='';
   }
   hideSimAdvanceButton();
+  if(typeof onNewBatter==='function') onNewBatter();
   if(simInningBreak){
     startedNewInning=true;
     handleNewInning();
@@ -271,6 +272,7 @@ function addSimLogEntry(line,tag,prominent){
   if(simLog.length>6) simLog=simLog.slice(simLog.length-6);
   updateSimLogUI();
   saveSimState();
+  if(tag==='BATTER REVEALED'&&typeof onBatterRevealed==='function') onBatterRevealed(secretBatterType);
 }
 function pushSimInningOver(){
   simLog.push({line:'',tag:'INNING OVER'});
@@ -1414,6 +1416,7 @@ function handleSimOutcome(pitchName,outcome,speed,pitchKey){
   const showLbl=(batterType!=='RANDOM')||batterRevealed;
   const takePrefix=(outcome==='CALLED STRIKE'||outcome==='CALLED BALL')?'TAKE: ':'';
   addSimLogEntry((showLbl?'['+getBatterSimLogLabel()+'] ':'')+pitchName+' → '+takePrefix+outcome,outcome,prominent);
+  if(typeof onSimPitchRecorded==='function') onSimPitchRecorded(zone,pitch,outcome);
 
   // Add courage pitch or danger zone log entry
   const clm=window.__lastCountLocMod;
