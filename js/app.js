@@ -249,8 +249,10 @@ function renderRosterList(){
   }
 
   roster.forEach(pitcher=>{
+    const isPulled=typeof pulledPitchers!=='undefined'&&pulledPitchers.includes(pitcher.id);
     const item=document.createElement('div');
-    item.className='roster-item'+(pitcher.id===activeId?' active':'');
+    item.className='roster-item'+(pitcher.id===activeId?' active':'')+(isPulled?' pulled':'');
+    if(isPulled) item.style.cssText='opacity:0.4;pointer-events:none;';
 
     // Info section — clickable to switch
     const info=document.createElement('div');
@@ -265,8 +267,8 @@ function renderRosterList(){
     meta.className='roster-item-meta';
     const hand=pitcher.hand==='R'?'RHP':'LHP';
     const age=pitcher.ageGroup||'';
-    const vel=pitcher.maxVelocity?pitcher.maxVelocity+'mph max':'';
-    meta.textContent=hand+(age?' · '+age:'')+(vel?' · '+vel:'');
+    const mv=pitcher.maxVelocity;
+    meta.textContent=hand+(age?' · '+age:'')+(mv?' · '+mv+' mph max':'')+(isPulled?' · PULLED':'');
 
     info.appendChild(name);
     info.appendChild(meta);

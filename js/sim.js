@@ -16,6 +16,7 @@ let fatigueWarningShown=false;
 let totalStrikeouts=0;
 let totalWalks=0;
 let totalHits=0;
+let pulledPitchers=[];
 let batterRevealed=false;
 
 let simHalfTop=true;
@@ -235,21 +236,100 @@ function closePitchingChangeModal(){
 
 function confirmPitchingChange(){
   closePitchingChangeModal();
+
+  // Track pulled pitcher so they cannot pitch again
+  const profile=getProfile();
+  const activeId=typeof getActivePitcherId==='function'?getActivePitcherId():null;
+  if(activeId&&!pulledPitchers.includes(activeId)){
+    pulledPitchers.push(activeId);
+  }
+
+  // Save this pitcher's outing stats before reset
+  const outingStats={
+    pitcherId:activeId,
+    name:profile?profile.name:'Pitcher',
+    pitches:totalPitchCount,
+    strikeouts:totalStrikeouts,
+    walks:totalWalks,
+    hits:totalHits,
+    fatigue:getFatigueLevelCurrent().label
+  };
+
+  // Reset stats for new pitcher
+  totalPitchCount=0;
+  totalStrikeouts=0;
+  totalWalks=0;
+  totalHits=0;
+  fatigueWarningShown=false;
+  updateFatigueUI();
+  applyFatigueToVelocity();
+
   const mode=typeof getAppMode==='function'?getAppMode():null;
   if(mode==='team'){
-    // Auto reset pitch count and game stats for new pitcher (roster pick)
-    totalPitchCount=0;
-    totalStrikeouts=0;
-    totalWalks=0;
-    totalHits=0;
-    fatigueWarningShown=false;
-    updateFatigueUI();
-    applyFatigueToVelocity();
     openSettingsModal();
-    setTimeout(()=>renderRosterList(),200);
+    setTimeout(()=>{
+      renderRosterList();
+    },200);
   } else {
-    showGameSummary();
+    // Individual mode — show outing summary then end game
+    const summary='OUTING SUMMARY\n\n'
+      +'Pitcher: '+outingStats.name+'\n'
+      +'Total Pitches: '+outingStats.pitches+'\n'
+      +'Strikeouts: '+outingStats.strikeouts+'\n'
+      +'Walks: '+outingStats.walks+'\n'
+      +'Hits Allowed: '+outingStats.hits+'\n'
+      +'Final Fatigue: '+outingStats.fatigue+'\n\n'
+      +'Game over — great outing!';
+    alert(summary);
+    endGame();
   }
+}
+
+function endGame(){
+  // Reset everything to inning 1
+  totalPitchCount=0;
+  totalStrikeouts=0;
+  totalWalks=0;
+  totalHits=0;
+  fatigueWarningShown=false;
+  pulledPitchers=[];
+  ballCount=0;
+  strikeCount=0;
+  outCount=0;
+  inningNumber=1;
+  simHalfTop=true;
+  simInningBreak=false;
+  totalScore=0;
+  inningHits=0;
+  scoreboardData=[];
+  runners={first:false,second:false,third:false};
+  pendingRunnerUpdate=null;
+  simLog=[];
+  pitchesInAtBat=0;
+  batterRevealed=false;
+  secretBatterType='';
+  updateFatigueUI();
+  applyFatigueToVelocity();
+  updateSimStatBar();
+  updateSimLogUI();
+  renderCount();
+  hideSimAdvanceButton();
+  unlockThrowButton();
+  clearSimStateSession();
+  // Clear sequence
+  if(typeof clearAll==='function') clearAll();
+  showFatigueToast('NEW GAME — PLAY BALL!');
+}
+
+function confirmEndGame(){
+  const profile=getProfile();
+  const name=profile?profile.name:'Pitcher';
+  const msg='END GAME?\n\n'
+    +name+' — '+totalPitchCount+' pitches\n'
+    +'K: '+totalStrikeouts+' · BB: '+totalWalks+' · H: '+totalHits+'\n\n'
+    +'This will reset the game to inning 1.\nAll pitch counts and fatigue will reset.';
+  if(!confirm(msg)) return;
+  endGame();
 }
 
 function showGameSummary(){
@@ -328,6 +408,14 @@ function toggleSimMode(){
     scoreboardData=[];
     pendingRunnerUpdate=null;
     closeDiamondModal();
+    // Reset fatigue and game stats when sim mode is turned off
+    totalPitchCount=0;
+    totalStrikeouts=0;
+    totalWalks=0;
+    totalHits=0;
+    fatigueWarningShown=false;
+    pulledPitchers=[];
+    updateFatigueUI();
   }
   updateSimPanelVisibility();
   if(simMode){
@@ -1700,6 +1788,11 @@ saveSimState=function(){
     d.inningHits=inningHits||0;
     d.scoreboardData=Array.isArray(scoreboardData)?scoreboardData:[];
     d.pendingRunnerUpdate=pendingRunnerUpdate||null;
+    d.totalPitchCount=totalPitchCount||0;
+    d.totalStrikeouts=totalStrikeouts||0;
+    d.totalWalks=totalWalks||0;
+    d.totalHits=totalHits||0;
+    d.pulledPitchers=Array.isArray(pulledPitchers)?pulledPitchers:[];
     sessionStorage.setItem(SIM_SESSION_KEY,JSON.stringify(d));
   }catch(e){}
 };
@@ -1709,7 +1802,7 @@ restoreSimState=function(){
   if(__baseRestoreSimState) __baseRestoreSimState();
   try{
     const raw=sessionStorage.getItem(SIM_SESSION_KEY);
-    if(!raw) return;
+    if(raw){
     const d=JSON.parse(raw);
     batterLevel=(typeof d.batterLevel==='string'&&BATTER_LEVELS[d.batterLevel])?d.batterLevel:'rec12';
     gameSituation=(typeof d.gameSituation==='string'&&SITUATION_MODIFIERS[d.gameSituation])?d.gameSituation:'NEUTRAL';
@@ -1736,6 +1829,12 @@ restoreSimState=function(){
     });
     updateDiamondUI();
     updateSimStatBar();
+    totalPitchCount=Math.max(0,parseInt(d.totalPitchCount,10)||0);
+    totalStrikeouts=Math.max(0,parseInt(d.totalStrikeouts,10)||0);
+    totalWalks=Math.max(0,parseInt(d.totalWalks,10)||0);
+    totalHits=Math.max(0,parseInt(d.totalHits,10)||0);
+    pulledPitchers=Array.isArray(d.pulledPitchers)?d.pulledPitchers:[];
+    }
   }catch(e){
     batterLevel='rec12';
     gameSituation='NEUTRAL';
@@ -1747,4 +1846,6 @@ restoreSimState=function(){
     scoreboardData=[];
     pendingRunnerUpdate=null;
   }
+  if(typeof updateFatigueUI==='function') updateFatigueUI();
+  if(typeof applyFatigueToVelocity==='function') applyFatigueToVelocity();
 };

@@ -356,12 +356,20 @@
           <div id="fatigue-bar" style="height:100%;width:0%;background:#4ade80;
             border-radius:3px;transition:width 0.3s ease,background 0.3s ease;"></div>
         </div>
-        <button onclick="showPitchingChangeModal()" style="width:100%;padding:4px;
-          border-radius:4px;border:0.5px solid #f87171;background:transparent;
-          color:#f87171;font-family:'DM Mono',monospace;font-size:8px;
-          cursor:pointer;letter-spacing:1px;transition:all 0.15s;">
-          ⇄ PITCHING CHANGE
-        </button>
+        <div style="display:flex;gap:4px;">
+          <button onclick="showPitchingChangeModal()" style="flex:1;padding:4px;
+            border-radius:4px;border:0.5px solid #f87171;background:transparent;
+            color:#f87171;font-family:'DM Mono',monospace;font-size:8px;
+            cursor:pointer;letter-spacing:1px;transition:all 0.15s;">
+            ⇄ CHANGE
+          </button>
+          <button onclick="confirmEndGame()" style="flex:1;padding:4px;
+            border-radius:4px;border:0.5px solid #cc1a1a;background:#cc1a1a;
+            color:#ffffff;font-family:'DM Mono',monospace;font-size:8px;
+            cursor:pointer;letter-spacing:1px;transition:all 0.15s;">
+            ■ END GAME
+          </button>
+        </div>
       </div>
       <div>
         <div class="plbl">options</div>
