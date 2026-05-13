@@ -13,6 +13,9 @@ let simLog=[];
 let pitchesInAtBat=0;
 let totalPitchCount=0;
 let fatigueWarningShown=false;
+let totalStrikeouts=0;
+let totalWalks=0;
+let totalHits=0;
 let batterRevealed=false;
 
 let simHalfTop=true;
@@ -105,29 +108,36 @@ function applyFatigueToVelocity(){
   const rangeLabel=document.getElementById('velrangelabel');
   if(!slider) return;
 
-  // Apply cap to slider max
   const currentPitch=typeof pitch!=='undefined'?pitch:'4FB';
   const range=typeof getPitchVelocityRange==='function'?
     getPitchVelocityRange(currentPitch):{min:45,max:100,auto:85};
 
   const cappedMax=Math.min(range.max,cap);
+  const cappedMin=range.min;
+
+  // Update slider bounds
+  slider.min=cappedMin;
   slider.max=cappedMax;
 
-  // If current value exceeds cap, reduce it
-  if(parseInt(slider.value,10)>cappedMax){
+  // Force slider value down if above cap
+  const currentVal=parseInt(slider.value,10);
+  if(currentVal>cappedMax){
     slider.value=cappedMax;
     if(sval) sval.textContent=cappedMax+' mph';
     if(typeof handleSpeedInput==='function') handleSpeedInput(cappedMax);
+  } else {
+    // Re-set value to force visual refresh
+    slider.value=currentVal;
   }
 
   // Update range label
+  const fatigue=getFatigueLevelCurrent();
   if(rangeLabel){
-    const fatigue=getFatigueLevelCurrent();
     if(fatigue.label!=='FRESH'){
-      rangeLabel.textContent=slider.min+'-'+cappedMax+' mph · FATIGUE CAP';
+      rangeLabel.textContent=cappedMin+'-'+cappedMax+' mph · FATIGUE CAP';
       rangeLabel.style.color='#f87171';
     } else {
-      rangeLabel.textContent=slider.min+'-'+cappedMax+' mph';
+      rangeLabel.textContent=cappedMin+'-'+cappedMax+' mph';
       rangeLabel.style.color='var(--text-muted)';
     }
   }
@@ -201,9 +211,19 @@ function showPitchingChangeModal(){
   document.getElementById('pc-fatigue-level').textContent=fatigue.label;
   document.getElementById('pc-fatigue-level').style.color=fatigue.color;
 
-  // Stats summary
-  document.getElementById('pc-strikeouts').textContent=
-    typeof outCount!=='undefined'?outCount:0;
+  // Update modal stats box to show full outing summary
+  const statsBox=document.getElementById('pc-stats-box');
+  if(statsBox){
+    statsBox.innerHTML=
+      '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;text-align:center;">'
+      +'<div><div id="pc-strikeouts" style="font-size:18px;font-weight:700;color:var(--text-primary);">'+totalStrikeouts+'</div>'
+      +'<div style="font-size:7px;color:var(--text-muted);letter-spacing:1px;">K</div></div>'
+      +'<div><div id="pc-walks" style="font-size:18px;font-weight:700;color:var(--text-primary);">'+totalWalks+'</div>'
+      +'<div style="font-size:7px;color:var(--text-muted);letter-spacing:1px;">BB</div></div>'
+      +'<div><div id="pc-hits" style="font-size:18px;font-weight:700;color:var(--text-primary);">'+totalHits+'</div>'
+      +'<div style="font-size:7px;color:var(--text-muted);letter-spacing:1px;">H</div></div>'
+      +'</div>';
+  }
 
   modal.style.display='flex';
 }
@@ -217,11 +237,17 @@ function confirmPitchingChange(){
   closePitchingChangeModal();
   const mode=typeof getAppMode==='function'?getAppMode():null;
   if(mode==='team'){
-    // Open roster to select new pitcher
+    // Auto reset pitch count and game stats for new pitcher (roster pick)
+    totalPitchCount=0;
+    totalStrikeouts=0;
+    totalWalks=0;
+    totalHits=0;
+    fatigueWarningShown=false;
+    updateFatigueUI();
+    applyFatigueToVelocity();
     openSettingsModal();
     setTimeout(()=>renderRosterList(),200);
   } else {
-    // Individual mode — show game summary
     showGameSummary();
   }
 }
@@ -232,11 +258,16 @@ function showGameSummary(){
   const summary='GAME SUMMARY\n\n'
     +'Pitcher: '+pitcherName+'\n'
     +'Total Pitches: '+totalPitchCount+'\n'
+    +'Strikeouts: '+totalStrikeouts+'\n'
+    +'Walks: '+totalWalks+'\n'
+    +'Hits Allowed: '+totalHits+'\n'
     +'Final Fatigue: '+getFatigueLevelCurrent().label+'\n\n'
     +'Great outing!';
   alert(summary);
-  // Reset pitch count for next game
   totalPitchCount=0;
+  totalStrikeouts=0;
+  totalWalks=0;
+  totalHits=0;
   fatigueWarningShown=false;
   updateFatigueUI();
   applyFatigueToVelocity();
@@ -244,6 +275,9 @@ function showGameSummary(){
 
 function resetPitchCount(){
   totalPitchCount=0;
+  totalStrikeouts=0;
+  totalWalks=0;
+  totalHits=0;
   fatigueWarningShown=false;
   updateFatigueUI();
   applyFatigueToVelocity();
@@ -1623,6 +1657,10 @@ if(typeof window!=='undefined'){
 
 function handleSimOutcome(pitchName,outcome,speed,pitchKey){
   incrementPitchCount();
+  // Track cumulative game stats
+  if(outcome==='STRIKEOUT') totalStrikeouts++;
+  else if(outcome==='WALK') totalWalks++;
+  else if(['SINGLE','DOUBLE','TRIPLE','HOME RUN'].includes(outcome)) totalHits++;
   const effSpeed=typeof speed==='number'?speed:parseInt((document.getElementById('spd')||{}).value,10)||0;
   if(effSpeed) lastPitchSpeed=effSpeed;
   const prominent=outcome==='WALK'||outcome==='STRIKEOUT';

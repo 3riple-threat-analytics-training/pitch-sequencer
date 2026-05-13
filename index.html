@@ -675,12 +675,27 @@ if('serviceWorker' in navigator){
       Fatigue level: <span id="pc-fatigue-level"
         style="font-weight:600;"></span>
     </div>
-    <div style="background:var(--bg-input);border-radius:6px;padding:10px;
-      font-family:'DM Mono',monospace;font-size:9px;color:var(--text-muted);
-      line-height:1.6;">
-      STRIKEOUTS THIS OUTING:
-      <span id="pc-strikeouts" style="color:var(--text-primary);
-        font-weight:600;">0</span>
+    <div id="pc-stats-box" style="background:var(--bg-input);border-radius:6px;
+      padding:10px;font-family:'DM Mono',monospace;font-size:9px;
+      color:var(--text-muted);line-height:1.6;">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;
+        gap:8px;text-align:center;">
+        <div>
+          <div style="font-size:18px;font-weight:700;color:var(--text-primary);"
+            id="pc-strikeouts">0</div>
+          <div style="font-size:7px;color:var(--text-muted);letter-spacing:1px;">K</div>
+        </div>
+        <div>
+          <div style="font-size:18px;font-weight:700;color:var(--text-primary);"
+            id="pc-walks">0</div>
+          <div style="font-size:7px;color:var(--text-muted);letter-spacing:1px;">BB</div>
+        </div>
+        <div>
+          <div style="font-size:18px;font-weight:700;color:var(--text-primary);"
+            id="pc-hits">0</div>
+          <div style="font-size:7px;color:var(--text-muted);letter-spacing:1px;">H</div>
+        </div>
+      </div>
     </div>
     <div style="display:flex;gap:8px;">
       <button onclick="confirmPitchingChange()" style="flex:1;padding:10px;
