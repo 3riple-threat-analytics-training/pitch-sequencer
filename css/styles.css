@@ -792,3 +792,7 @@ body[data-theme="dark"] .stat-bad{color:#f87171;}
   white-space:nowrap;
   line-height:1;
 }
+
+/* ── Pitcher fatigue (sim) ── */
+#fatiguewrap{margin-top:4px;}
+#pitchingchangemodal{box-sizing:border-box;}

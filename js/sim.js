@@ -11,6 +11,8 @@ let outCount=0;
 let inningNumber=1;
 let simLog=[];
 let pitchesInAtBat=0;
+let totalPitchCount=0;
+let fatigueWarningShown=false;
 let batterRevealed=false;
 
 let simHalfTop=true;
@@ -79,6 +81,174 @@ function getUmpireSetting(){
   return UMPIRE_SETTINGS[umpireQuality]||UMPIRE_SETTINGS['GOOD'];
 }
 
+// ── Fatigue System ──
+function getTotalPitchCount(){ return totalPitchCount; }
+
+function getFatigueLevelCurrent(){
+  return getFatigueLevel(totalPitchCount);
+}
+
+function getFatigueVelocityCap(){
+  const profile=getProfile();
+  const maxVel=profile&&profile.maxVelocity?
+    profile.maxVelocity:
+    (AGE_GROUP_MAX_VELOCITY[profile&&profile.ageGroup?profile.ageGroup:'hs']||80);
+  const fatigue=getFatigueLevelCurrent();
+  return Math.round(maxVel*fatigue.velCapPct);
+}
+
+function applyFatigueToVelocity(){
+  if(!simMode) return;
+  const cap=getFatigueVelocityCap();
+  const slider=document.getElementById('spd');
+  const sval=document.getElementById('sval');
+  const rangeLabel=document.getElementById('velrangelabel');
+  if(!slider) return;
+
+  // Apply cap to slider max
+  const currentPitch=typeof pitch!=='undefined'?pitch:'4FB';
+  const range=typeof getPitchVelocityRange==='function'?
+    getPitchVelocityRange(currentPitch):{min:45,max:100,auto:85};
+
+  const cappedMax=Math.min(range.max,cap);
+  slider.max=cappedMax;
+
+  // If current value exceeds cap, reduce it
+  if(parseInt(slider.value,10)>cappedMax){
+    slider.value=cappedMax;
+    if(sval) sval.textContent=cappedMax+' mph';
+    if(typeof handleSpeedInput==='function') handleSpeedInput(cappedMax);
+  }
+
+  // Update range label
+  if(rangeLabel){
+    const fatigue=getFatigueLevelCurrent();
+    if(fatigue.label!=='FRESH'){
+      rangeLabel.textContent=slider.min+'-'+cappedMax+' mph · FATIGUE CAP';
+      rangeLabel.style.color='#f87171';
+    } else {
+      rangeLabel.textContent=slider.min+'-'+cappedMax+' mph';
+      rangeLabel.style.color='var(--text-muted)';
+    }
+  }
+}
+
+function incrementPitchCount(){
+  if(!simMode) return;
+  totalPitchCount++;
+  updateFatigueUI();
+  applyFatigueToVelocity();
+
+  // Check for fatigue threshold warnings
+  const fatigue=getFatigueLevelCurrent();
+  if(totalPitchCount===51&&!fatigueWarningShown){
+    fatigueWarningShown=true;
+    showFatigueToast('MILD FATIGUE — velocity begins to drop');
+  } else if(totalPitchCount===76){
+    showFatigueToast('MODERATE FATIGUE — consider pitch count');
+  } else if(totalPitchCount===91){
+    showFatigueToast('PITCHER IS TIRED — consider a change');
+    setTimeout(()=>showPitchingChangeModal(),1500);
+  } else if(totalPitchCount===106){
+    showFatigueToast('PITCHER IS GASSED — strongly consider a change');
+    setTimeout(()=>showPitchingChangeModal(),1500);
+  }
+}
+
+function showFatigueToast(msg){
+  const existing=document.getElementById('fatigue-toast');
+  if(existing) existing.remove();
+  const toast=document.createElement('div');
+  toast.id='fatigue-toast';
+  toast.style.cssText='position:fixed;top:70px;left:50%;transform:translateX(-50%);'
+    +'background:#1a0a0a;border:1.5px solid #f87171;color:#f87171;'
+    +'padding:10px 24px;border-radius:8px;font-family:DM Mono,monospace;'
+    +'font-size:11px;font-weight:600;letter-spacing:1px;z-index:9999;'
+    +'pointer-events:none;box-shadow:0 2px 16px rgba(0,0,0,0.5);';
+  toast.textContent=msg;
+  document.body.appendChild(toast);
+  setTimeout(()=>{if(toast.parentNode) toast.remove();},3000);
+}
+
+function updateFatigueUI(){
+  const countEl=document.getElementById('fatigue-pitch-count');
+  const labelEl=document.getElementById('fatigue-level-label');
+  const barEl=document.getElementById('fatigue-bar');
+  const fatigue=getFatigueLevelCurrent();
+
+  if(countEl) countEl.textContent=totalPitchCount;
+  if(labelEl){
+    labelEl.textContent=fatigue.label;
+    labelEl.style.color=fatigue.color;
+  }
+  if(barEl){
+    // Bar fills from 0 to 106+ pitches
+    const pct=Math.min(100,(totalPitchCount/106)*100);
+    barEl.style.width=pct+'%';
+    barEl.style.background=fatigue.color;
+  }
+}
+
+function showPitchingChangeModal(){
+  const modal=document.getElementById('pitchingchangemodal');
+  if(!modal) return;
+  const fatigue=getFatigueLevelCurrent();
+  const profile=getProfile();
+  const pitcherName=profile?profile.name:'Pitcher';
+
+  document.getElementById('pc-pitcher-name').textContent=pitcherName;
+  document.getElementById('pc-pitch-count').textContent=totalPitchCount;
+  document.getElementById('pc-fatigue-level').textContent=fatigue.label;
+  document.getElementById('pc-fatigue-level').style.color=fatigue.color;
+
+  // Stats summary
+  document.getElementById('pc-strikeouts').textContent=
+    typeof outCount!=='undefined'?outCount:0;
+
+  modal.style.display='flex';
+}
+
+function closePitchingChangeModal(){
+  const modal=document.getElementById('pitchingchangemodal');
+  if(modal) modal.style.display='none';
+}
+
+function confirmPitchingChange(){
+  closePitchingChangeModal();
+  const mode=typeof getAppMode==='function'?getAppMode():null;
+  if(mode==='team'){
+    // Open roster to select new pitcher
+    openSettingsModal();
+    setTimeout(()=>renderRosterList(),200);
+  } else {
+    // Individual mode — show game summary
+    showGameSummary();
+  }
+}
+
+function showGameSummary(){
+  const profile=getProfile();
+  const pitcherName=profile?profile.name:'Pitcher';
+  const summary='GAME SUMMARY\n\n'
+    +'Pitcher: '+pitcherName+'\n'
+    +'Total Pitches: '+totalPitchCount+'\n'
+    +'Final Fatigue: '+getFatigueLevelCurrent().label+'\n\n'
+    +'Great outing!';
+  alert(summary);
+  // Reset pitch count for next game
+  totalPitchCount=0;
+  fatigueWarningShown=false;
+  updateFatigueUI();
+  applyFatigueToVelocity();
+}
+
+function resetPitchCount(){
+  totalPitchCount=0;
+  fatigueWarningShown=false;
+  updateFatigueUI();
+  applyFatigueToVelocity();
+}
+
 function getGradientStrikeProb(zoneKey,baseStrikeProb){
   const ump=getUmpireSetting();
   if(!ump.gradientEnabled) return baseStrikeProb;
@@ -126,6 +296,11 @@ function toggleSimMode(){
     closeDiamondModal();
   }
   updateSimPanelVisibility();
+  if(simMode){
+    if(typeof applyFatigueToVelocity==='function')applyFatigueToVelocity();
+  } else if(typeof pitch!=='undefined'&&pitch&&typeof applyPitchVelocity==='function'){
+    applyPitchVelocity(pitch);
+  }
   updateSimStatBar();
   saveSimState();
 }
@@ -145,6 +320,9 @@ function updateSimPanelVisibility(){
   const di=document.getElementById('diamondicon');
   if(di) di.style.display=simMode?'inline-flex':'none';
   if(!simMode) document.getElementById('simnewbatterbtn').style.display='none';
+  const fw=document.getElementById('fatiguewrap');
+  if(fw) fw.style.display=simMode?'block':'none';
+  if(simMode) updateFatigueUI();
 }
 
 function hideSimAdvanceButton(){document.getElementById('simnewbatterbtn').style.display='none';}
@@ -1444,6 +1622,7 @@ if(typeof window!=='undefined'){
 }
 
 function handleSimOutcome(pitchName,outcome,speed,pitchKey){
+  incrementPitchCount();
   const effSpeed=typeof speed==='number'?speed:parseInt((document.getElementById('spd')||{}).value,10)||0;
   if(effSpeed) lastPitchSpeed=effSpeed;
   const prominent=outcome==='WALK'||outcome==='STRIKEOUT';

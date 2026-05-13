@@ -336,6 +336,33 @@
         </div>
         <div id="zonediagram"></div>
       </div>
+      <div id="fatiguewrap" style="display:none;">
+        <div class="plbl">pitch count & fatigue</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;
+          margin-bottom:4px;">
+          <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text-secondary);">
+            PITCHES: <span id="fatigue-pitch-count" style="color:var(--text-primary);
+            font-weight:600;">0</span>
+          </div>
+          <div style="font-family:'DM Mono',monospace;font-size:9px;font-weight:600;"
+            id="fatigue-level-label">FRESH</div>
+          <button onclick="resetPitchCount()" style="padding:2px 8px;border-radius:4px;
+            border:0.5px solid var(--border-panel);background:transparent;
+            color:var(--text-muted);font-family:'DM Mono',monospace;font-size:7px;
+            cursor:pointer;letter-spacing:1px;">RESET</button>
+        </div>
+        <div style="width:100%;height:6px;background:var(--bg-input);border-radius:3px;
+          border:0.5px solid var(--border-panel);overflow:hidden;margin-bottom:4px;">
+          <div id="fatigue-bar" style="height:100%;width:0%;background:#4ade80;
+            border-radius:3px;transition:width 0.3s ease,background 0.3s ease;"></div>
+        </div>
+        <button onclick="showPitchingChangeModal()" style="width:100%;padding:4px;
+          border-radius:4px;border:0.5px solid #f87171;background:transparent;
+          color:#f87171;font-family:'DM Mono',monospace;font-size:8px;
+          cursor:pointer;letter-spacing:1px;transition:all 0.15s;">
+          ⇄ PITCHING CHANGE
+        </button>
+      </div>
       <div>
         <div class="plbl">options</div>
         <div class="crow"><input type="checkbox" id="ckbd" onchange="refreshGhost()"><label for="ckbd">Backdoor / back-foot strike</label></div>
@@ -631,5 +658,42 @@ if('serviceWorker' in navigator){
   });
 }
 </script>
+<div id="pitchingchangemodal" style="display:none;position:fixed;top:0;left:0;
+  width:100%;height:100%;background:rgba(5,8,18,0.97);z-index:1002;
+  align-items:center;justify-content:center;">
+  <div style="background:var(--bg-card);border:0.5px solid #f87171;border-radius:12px;
+    padding:28px 24px;width:100%;max-width:380px;margin:20px;
+    display:flex;flex-direction:column;gap:16px;">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;
+      letter-spacing:4px;color:var(--text-primary);">PITCHING CHANGE?</div>
+    <div style="font-family:'DM Mono',monospace;font-size:10px;
+      color:var(--text-secondary);line-height:1.6;">
+      <span id="pc-pitcher-name" style="color:var(--text-primary);
+        font-weight:600;"></span> has thrown
+      <span id="pc-pitch-count" style="color:#f87171;
+        font-weight:600;"></span> pitches.<br>
+      Fatigue level: <span id="pc-fatigue-level"
+        style="font-weight:600;"></span>
+    </div>
+    <div style="background:var(--bg-input);border-radius:6px;padding:10px;
+      font-family:'DM Mono',monospace;font-size:9px;color:var(--text-muted);
+      line-height:1.6;">
+      STRIKEOUTS THIS OUTING:
+      <span id="pc-strikeouts" style="color:var(--text-primary);
+        font-weight:600;">0</span>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button onclick="confirmPitchingChange()" style="flex:1;padding:10px;
+        border-radius:6px;font-family:'Bebas Neue',sans-serif;font-size:14px;
+        letter-spacing:2px;background:#cc1a1a;border:none;color:#ffffff;
+        cursor:pointer;">CHANGE PITCHER</button>
+      <button onclick="closePitchingChangeModal()" style="flex:1;padding:10px;
+        border-radius:6px;font-family:'DM Mono',monospace;font-size:9px;
+        letter-spacing:1px;background:transparent;
+        border:0.5px solid var(--border-panel);color:var(--text-muted);
+        cursor:pointer;">KEEP PITCHING</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>

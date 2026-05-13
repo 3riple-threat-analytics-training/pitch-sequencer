@@ -323,3 +323,19 @@ const AGE_GROUP_MAX_VELOCITY={
 // Slider range buffer — how much above/below auto velocity the coach can slide
 const VELOCITY_RANGE_BELOW=5;
 const VELOCITY_RANGE_ABOVE=2;
+
+// ── Pitcher Fatigue System ──
+const FATIGUE_LEVELS=[
+  {label:'FRESH',  minPitch:0,   maxPitch:50,  velCapPct:1.00, color:'#4ade80', locPenalty:0},
+  {label:'MILD',   minPitch:51,  maxPitch:75,  velCapPct:0.96, color:'#facc15', locPenalty:0.05},
+  {label:'MODERATE',minPitch:76, maxPitch:90,  velCapPct:0.93, color:'#fb923c', locPenalty:0.10},
+  {label:'TIRED',  minPitch:91,  maxPitch:105, velCapPct:0.90, color:'#f87171', locPenalty:0.15},
+  {label:'GASSED', minPitch:106, maxPitch:999, velCapPct:0.87, color:'#dc2626', locPenalty:0.22}
+];
+
+function getFatigueLevel(pitchCount){
+  for(let i=FATIGUE_LEVELS.length-1;i>=0;i--){
+    if(pitchCount>=FATIGUE_LEVELS[i].minPitch) return FATIGUE_LEVELS[i];
+  }
+  return FATIGUE_LEVELS[0];
+}

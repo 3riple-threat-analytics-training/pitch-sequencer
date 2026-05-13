@@ -68,6 +68,7 @@ function selPitch(p){
   rebuildTargetDiagram();
   refreshGhost();
   applyPitchVelocity(p);
+  if(typeof simMode!=='undefined'&&simMode&&typeof applyFatigueToVelocity==='function')applyFatigueToVelocity();
 }
 function selRole(r){role=r;document.querySelectorAll('.rpill').forEach(b=>b.classList.toggle('active',b.dataset.role===r));}
 function setRubber(e){
@@ -2227,6 +2228,7 @@ function onMaxVelChange(val){
   if(input) input.value=v;
   // Update current pitch velocity if a pitch is selected
   if(typeof pitch!=='undefined'&&pitch) applyPitchVelocity(pitch);
+  if(typeof simMode!=='undefined'&&simMode&&typeof applyFatigueToVelocity==='function')applyFatigueToVelocity();
 }
 
 function onSettingsMaxVelChange(val){
@@ -2247,6 +2249,7 @@ function onSettingsMaxVelChange(val){
     }
     // Recalculate current pitch velocity
     if(typeof pitch!=='undefined'&&pitch) applyPitchVelocity(pitch);
+    if(typeof simMode!=='undefined'&&simMode&&typeof applyFatigueToVelocity==='function')applyFatigueToVelocity();
   }
 }
 
