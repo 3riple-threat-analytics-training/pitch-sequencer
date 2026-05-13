@@ -24,13 +24,6 @@ const ALL_PITCHES_LIST=[
   {key:'KC', name:'Knuckle Curve', color:'#6366f1'},
 ];
 
-const AGE_SPEED={
-  youth: {min:35,max:70,default:55},
-  hs:    {min:55,max:85,default:72},
-  college:{min:70,max:95,default:83},
-  pro:   {min:80,max:102,default:90}
-};
-
 let profHand='R';
 let profSelectedPitches=[];
 
@@ -74,6 +67,7 @@ function selPitch(p){
   }
   rebuildTargetDiagram();
   refreshGhost();
+  applyPitchVelocity(p);
 }
 function selRole(r){role=r;document.querySelectorAll('.rpill').forEach(b=>b.classList.toggle('active',b.dataset.role===r));}
 function setRubber(e){
@@ -152,8 +146,12 @@ function profSetHand(h){
 }
 
 function profAgeChanged(){
-  const age=document.getElementById('prof-age').value;
-  return age;
+  const ageGroup=document.getElementById('prof-age').value;
+  const defaultVel=AGE_GROUP_MAX_VELOCITY[ageGroup]||80;
+  const slider=document.getElementById('prof-maxvel-slider');
+  const input=document.getElementById('prof-maxvel');
+  if(slider) slider.value=defaultVel;
+  if(input) input.value=defaultVel;
 }
 
 // ── Splash Screen ──
@@ -245,16 +243,17 @@ function renderRosterList(){
   list.innerHTML='';
 
   if(!roster.length){
-    list.innerHTML='<div style="font-family:DM Mono,monospace;font-size:9px;color:var(--text-muted);padding:8px 0;">No pitchers added yet.</div>';
+    list.innerHTML='<div style="font-family:DM Mono,monospace;font-size:9px;'
+      +'color:var(--text-muted);padding:8px 0;">No pitchers added yet.</div>';
   }
 
   roster.forEach(pitcher=>{
     const item=document.createElement('div');
     item.className='roster-item'+(pitcher.id===activeId?' active':'');
 
+    // Info section — clickable to switch
     const info=document.createElement('div');
-    info.style.flex='1';
-    info.style.cursor='pointer';
+    info.style.cssText='flex:1;cursor:pointer;';
     info.onclick=()=>switchToPitcher(pitcher.id);
 
     const name=document.createElement('div');
@@ -265,11 +264,31 @@ function renderRosterList(){
     meta.className='roster-item-meta';
     const hand=pitcher.hand==='R'?'RHP':'LHP';
     const age=pitcher.ageGroup||'';
-    meta.textContent=hand+(age?' · '+age:'');
+    const vel=pitcher.maxVelocity?pitcher.maxVelocity+'mph max':'';
+    meta.textContent=hand+(age?' · '+age:'')+(vel?' · '+vel:'');
 
     info.appendChild(name);
     info.appendChild(meta);
 
+    // Button group
+    const btnGroup=document.createElement('div');
+    btnGroup.style.cssText='display:flex;gap:4px;align-items:center;';
+
+    // Edit button
+    const edit=document.createElement('button');
+    edit.style.cssText='background:transparent;border:0.5px solid var(--border-panel);'
+      +'color:var(--text-muted);cursor:pointer;font-size:10px;padding:2px 6px;'
+      +'border-radius:4px;transition:all 0.15s;font-family:DM Mono,monospace;';
+    edit.textContent='✏';
+    edit.title='Edit pitcher';
+    edit.onclick=(e)=>{
+      e.stopPropagation();
+      editRosterPitcher(pitcher.id);
+    };
+    edit.onmouseover=()=>{edit.style.borderColor='#7ec8e3';edit.style.color='#7ec8e3';};
+    edit.onmouseout=()=>{edit.style.borderColor='var(--border-panel)';edit.style.color='var(--text-muted)';};
+
+    // Delete button
     const del=document.createElement('button');
     del.className='roster-item-delete';
     del.textContent='✕';
@@ -279,8 +298,10 @@ function renderRosterList(){
       deletePitcherConfirm(pitcher.id,pitcher.name);
     };
 
+    btnGroup.appendChild(edit);
+    btnGroup.appendChild(del);
     item.appendChild(info);
-    item.appendChild(del);
+    item.appendChild(btnGroup);
     list.appendChild(item);
   });
 
@@ -316,6 +337,32 @@ function deletePitcherConfirm(id,name){
   updateActivePitcherPill();
 }
 
+function editRosterPitcher(id){
+  const roster=getRoster();
+  const pitcher=roster.find(p=>p.id===id);
+  if(!pitcher) return;
+
+  // Set this pitcher as active so profile overlay loads their data
+  setActivePitcherId(id);
+  saveProfile(pitcher);
+  applyProfile(pitcher);
+
+  closeSettingsModal();
+
+  // Open profile overlay in edit mode
+  // Small delay to let settings modal close first
+  setTimeout(()=>{
+    openProfileOverlay(true);
+    // Pre-fill max velocity
+    const maxVelSlider=document.getElementById('prof-maxvel-slider');
+    const maxVelInput=document.getElementById('prof-maxvel');
+    const maxVel=pitcher.maxVelocity||
+      AGE_GROUP_MAX_VELOCITY[pitcher.ageGroup||'hs']||80;
+    if(maxVelSlider) maxVelSlider.value=maxVel;
+    if(maxVelInput) maxVelInput.value=maxVel;
+  },200);
+}
+
 function openAddPitcherFromSettings(){
   closeSettingsModal();
   openProfileOverlay(true);
@@ -336,7 +383,11 @@ function saveAndAddAnotherPitcher(){
     return;
   }
   const ageGroup=document.getElementById('prof-age').value;
-  const profile={name,hand:profHand,ageGroup,arsenal:profSelectedPitches};
+  const maxVelInput=document.getElementById('prof-maxvel');
+  const maxVelocity=maxVelInput&&maxVelInput.value?
+    parseInt(maxVelInput.value,10):
+    (AGE_GROUP_MAX_VELOCITY[ageGroup]||80);
+  const profile={name,hand:profHand,ageGroup,arsenal:profSelectedPitches,maxVelocity};
   const roster=getRoster();
   if(roster.length>=10){
     document.getElementById('profileerror').textContent='Roster is full (10 pitchers maximum)';
@@ -353,6 +404,11 @@ function saveAndAddAnotherPitcher(){
   profSetHand('R');
   profSelectedPitches=['4FB','CH'];
   document.getElementById('prof-age').value='youth';
+  const mvIn=document.getElementById('prof-maxvel');
+  const mvSl=document.getElementById('prof-maxvel-slider');
+  const yv=AGE_GROUP_MAX_VELOCITY['youth']||60;
+  if(mvIn) mvIn.value=yv;
+  if(mvSl) mvSl.value=yv;
   document.getElementById('profileerror').textContent='';
   buildArsenalGrid();
   document.getElementById('profilesubtitle').textContent='Add another pitcher to your roster';
@@ -375,6 +431,12 @@ function openProfileOverlay(isTeamMode){
     profHand=profile.hand||'R';
     profSetHand(profHand);
     document.getElementById('prof-age').value=profile.ageGroup||'youth';
+    const maxVelInput=document.getElementById('prof-maxvel');
+    if(maxVelInput){
+      maxVelInput.value=profile.maxVelocity||AGE_GROUP_MAX_VELOCITY[profile.ageGroup||'youth']||80;
+    }
+    const maxVelSlider=document.getElementById('prof-maxvel-slider');
+    if(maxVelSlider) maxVelSlider.value=maxVelInput?maxVelInput.value:AGE_GROUP_MAX_VELOCITY[profile.ageGroup||'youth']||80;
     profSelectedPitches=[...(profile.arsenal||['4FB','CH'])];
     document.getElementById('profilesubtitle').textContent=mode?'Manage your roster':'Update your profile';
     document.getElementById('profsavebtn').textContent='SAVE PROFILE';
@@ -385,6 +447,12 @@ function openProfileOverlay(isTeamMode){
     profSelectedPitches=['4FB','CH'];
     document.getElementById('prof-name').value='';
     document.getElementById('prof-age').value='youth';
+    const maxVelInputNew=document.getElementById('prof-maxvel');
+    if(maxVelInputNew){
+      maxVelInputNew.value=AGE_GROUP_MAX_VELOCITY['youth']||60;
+    }
+    const maxVelSliderNew=document.getElementById('prof-maxvel-slider');
+    if(maxVelSliderNew) maxVelSliderNew.value=AGE_GROUP_MAX_VELOCITY['youth']||60;
     document.getElementById('profilesubtitle').textContent=mode?'Add your first pitcher':'Set up your profile to get started';
     document.getElementById('profsavebtn').textContent=mode?'SAVE PITCHER':'START PITCHING';
     document.getElementById('profileeditlbl').style.display='none';
@@ -411,22 +479,36 @@ function saveProfileAndStart(){
     document.getElementById('profileerror').textContent='Please select no more than 5 pitches';
     return;
   }
-  const ageGroup=document.getElementById('prof-age').value;
-  const profile={name,hand:profHand,ageGroup,arsenal:profSelectedPitches};
   const mode=getAppMode();
-
   if(mode==='team'){
-    const roster=getRoster();
     const activeId=getActivePitcherId();
+    const ageGroup=document.getElementById('prof-age').value;
+    const maxVelInput=document.getElementById('prof-maxvel');
+    const maxVelocity=maxVelInput&&maxVelInput.value?
+      parseInt(maxVelInput.value,10):
+      (AGE_GROUP_MAX_VELOCITY[ageGroup]||80);
+    const profile={name,hand:profHand,ageGroup,arsenal:profSelectedPitches,maxVelocity};
     if(activeId){
       updatePitcherInRoster(activeId,profile);
     } else {
       const newId=addPitcherToRoster(profile);
       setActivePitcherId(newId);
     }
+    saveProfile(profile);
+    applyProfile(profile);
     updateActivePitcherPill();
+    closeProfileOverlay();
+    refreshPlanDropdown('');
+    // Reopen settings to show updated roster
+    setTimeout(()=>openSettingsModal(),200);
+    return;
   }
-
+  const ageGroup=document.getElementById('prof-age').value;
+  const maxVelInput=document.getElementById('prof-maxvel');
+  const maxVelocity=maxVelInput&&maxVelInput.value?
+    parseInt(maxVelInput.value,10):
+    (AGE_GROUP_MAX_VELOCITY[ageGroup]||80);
+  const profile={name,hand:profHand,ageGroup,arsenal:profSelectedPitches,maxVelocity};
   saveProfile(profile);
   applyProfile(profile);
   closeProfileOverlay();
@@ -436,22 +518,14 @@ function saveProfileAndStart(){
 function applyProfile(profile){
   if(!profile)return;
   setHand(profile.hand||'R');
-  const speeds=AGE_SPEED[profile.ageGroup]||AGE_SPEED.youth;
-  const spdEl=document.getElementById('spd');
-  if(spdEl){
-    spdEl.min=speeds.min;
-    spdEl.max=speeds.max;
-    const cur=parseInt(spdEl.value,10);
-    const nextVal=Math.max(speeds.min,Math.min(speeds.max,isNaN(cur)?speeds.default:cur));
-    spdEl.value=nextVal;
-    document.getElementById('sval').textContent=spdEl.value+' mph';
-  }
   ALL_PITCHES_LIST.forEach(p=>{
     const btn=document.getElementById('p'+p.key);
     if(btn) btn.style.display=profile.arsenal.includes(p.key)?'flex':'none';
   });
   if(!profile.arsenal.includes(pitch)&&profile.arsenal.length){
     selPitch(profile.arsenal[0]);
+  } else if(typeof applyPitchVelocity==='function'&&pitch&&profile.arsenal.includes(pitch)){
+    applyPitchVelocity(pitch);
   }
   const gear=document.getElementById('gearbtn');
   if(gear) gear.title=profile.name+' — Edit Profile';
@@ -2100,6 +2174,82 @@ function orbitTunnelZoom(){
 
 (function loop(){requestAnimationFrame(loop);renderer.render(scene,cam);})();
 
+// ── Pitch Velocity System ──
+function getMaxVelocity(){
+  const profile=getProfile();
+  if(profile&&profile.maxVelocity) return profile.maxVelocity;
+  const ageGroup=profile?profile.ageGroup:'hs';
+  return AGE_GROUP_MAX_VELOCITY[ageGroup]||80;
+}
+
+function getPitchAutoVelocity(pitchKey){
+  const maxVel=getMaxVelocity();
+  const pct=PITCH_VELOCITY_PCT[pitchKey]||0.85;
+  return Math.round(maxVel*pct);
+}
+
+function getPitchVelocityRange(pitchKey){
+  const auto=getPitchAutoVelocity(pitchKey);
+  return{
+    min:Math.max(40,auto-VELOCITY_RANGE_BELOW),
+    max:Math.min(110,auto+VELOCITY_RANGE_ABOVE),
+    auto
+  };
+}
+
+function applyPitchVelocity(pitchKey){
+  const range=getPitchVelocityRange(pitchKey);
+  const slider=document.getElementById('spd');
+  const sval=document.getElementById('sval');
+  const rangeLabel=document.getElementById('velrangelabel');
+  if(!slider) return;
+
+  // Set slider bounds
+  slider.min=range.min;
+  slider.max=range.max;
+  slider.value=range.auto;
+
+  // Update display
+  if(sval) sval.textContent=range.auto+' mph';
+  if(rangeLabel) rangeLabel.textContent=range.min+'-'+range.max+' mph';
+
+  // Update internal speed variable
+  if(typeof handleSpeedInput==='function') handleSpeedInput(range.auto);
+}
+
+function onMaxVelChange(val){
+  const v=parseInt(val,10);
+  if(isNaN(v)) return;
+  // Sync both inputs
+  const slider=document.getElementById('prof-maxvel-slider');
+  const input=document.getElementById('prof-maxvel');
+  if(slider) slider.value=v;
+  if(input) input.value=v;
+  // Update current pitch velocity if a pitch is selected
+  if(typeof pitch!=='undefined'&&pitch) applyPitchVelocity(pitch);
+}
+
+function onSettingsMaxVelChange(val){
+  const v=parseInt(val,10);
+  if(isNaN(v)) return;
+  const display=document.getElementById('settings-maxvel-display');
+  if(display) display.textContent=v+' mph';
+  // Save to profile immediately
+  const profile=getProfile();
+  if(profile){
+    profile.maxVelocity=v;
+    saveProfile(profile);
+    if(typeof getAppMode==='function'&&getAppMode()==='team'){
+      const activeId=typeof getActivePitcherId==='function'?getActivePitcherId():null;
+      if(activeId&&typeof updatePitcherInRoster==='function'){
+        updatePitcherInRoster(activeId,{maxVelocity:v});
+      }
+    }
+    // Recalculate current pitch velocity
+    if(typeof pitch!=='undefined'&&pitch) applyPitchVelocity(pitch);
+  }
+}
+
 // ── Stats Tab ──
 function toggleStatsTab(){
   const tab=document.getElementById('statstab');
@@ -2126,6 +2276,8 @@ function setStatsColMode(mode){
 window.addEventListener('load',()=>{
   initSplash();
   initStats();
+  // Apply velocity for default selected pitch
+  if(typeof pitch!=='undefined'&&pitch) applyPitchVelocity(pitch);
   setCamera();
   buildStatic();
   buildZoneDiagram();

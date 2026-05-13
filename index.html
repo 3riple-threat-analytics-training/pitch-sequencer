@@ -129,6 +129,21 @@
     </div>
 
     <div class="pfield">
+      <label class="pflbl">MAX FASTBALL VELOCITY <span style="color:#7ec8e3;font-size:8px;">(mph)</span></label>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <input type="range" min="40" max="110" value="80" id="prof-maxvel-slider"
+          oninput="document.getElementById('prof-maxvel').value=this.value;onMaxVelChange(this.value)"
+          style="flex:1;">
+        <input type="number" id="prof-maxvel" min="40" max="110" value="80"
+          oninput="document.getElementById('prof-maxvel-slider').value=this.value;onMaxVelChange(this.value)"
+          style="width:52px;padding:5px;border-radius:4px;border:0.5px solid #1e2a3a;
+          background:#0d1520;color:#e8f4fd;font-family:DM Mono,monospace;font-size:11px;
+          text-align:center;">
+        <span style="font-family:DM Mono,monospace;font-size:9px;color:#3a5a7a;">mph</span>
+      </div>
+    </div>
+
+    <div class="pfield">
       <label class="pflbl">PITCH ARSENAL <span id="arsenalcount" style="color:#7ec8e3">(select 2–5)</span></label>
       <div id="arsenalgrid"></div>
     </div>
@@ -349,8 +364,13 @@
       </div>
       <div>
         <div class="plbl">speed (mph)</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;">
+          <span id="velrangelabel" style="font-family:'DM Mono',monospace;font-size:7px;
+            color:var(--text-muted);letter-spacing:1px;">— mph range</span>
+        </div>
         <div id="srow">
-          <input type="range" min="45" max="100" value="85" id="spd" step="1" oninput="handleSpeedInput(this.value)">
+          <input type="range" min="45" max="100" value="85" id="spd" step="1"
+            oninput="handleSpeedInput(this.value)">
           <span id="sval">85 mph</span>
         </div>
       </div>
@@ -537,6 +557,21 @@
     </div>
     <button class="settings-editprofile" id="editProfileBtn" onclick="openProfileFromSettings()">✏ EDIT PITCHER PROFILE</button>
     <div style="border-top:0.5px solid var(--border-panel);padding-top:12px;margin-top:4px;">
+      <div style="font-family:'DM Mono',monospace;font-size:8px;color:var(--text-muted);
+        letter-spacing:1px;margin-bottom:8px;">PITCHER SETTINGS</div>
+      <div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--text-secondary);
+        margin-bottom:4px;">MAX FASTBALL VELOCITY</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <input type="range" min="40" max="110" value="80" id="settings-maxvel-slider"
+          oninput="onSettingsMaxVelChange(this.value)"
+          style="flex:1;accent-color:#cc1a1a;">
+        <span id="settings-maxvel-display" style="font-family:'DM Mono',monospace;
+          font-size:11px;color:var(--text-primary);min-width:48px;text-align:right;">80 mph</span>
+      </div>
+      <div style="font-family:'DM Mono',monospace;font-size:7px;color:var(--text-muted);
+        margin-top:3px;">Adjusting this recalculates all pitch velocities</div>
+    </div>
+    <div style="border-top:0.5px solid var(--border-panel);padding-top:12px;margin-top:4px;">
       <div style="font-family:'DM Mono',monospace;font-size:8px;color:var(--text-muted);letter-spacing:1px;margin-bottom:6px;">SESSION DATA</div>
       <button onclick="clearAllStats()" style="width:100%;padding:7px;border-radius:6px;font-family:'DM Mono',monospace;font-size:9px;letter-spacing:1px;background:transparent;border:0.5px solid #cc1a1a;color:#cc1a1a;cursor:pointer;">CLEAR SESSION STATS</button>
     </div>
@@ -567,6 +602,11 @@ function openSettingsModal(){
   const saved = localStorage.getItem('pitchseq-theme');
   const isDark = saved === 'dark';
   document.getElementById('themetoggle').checked = isDark;
+  const maxVel = typeof getMaxVelocity === 'function' ? getMaxVelocity() : 80;
+  const settingsSlider = document.getElementById('settings-maxvel-slider');
+  const settingsDisplay = document.getElementById('settings-maxvel-display');
+  if(settingsSlider) settingsSlider.value = maxVel;
+  if(settingsDisplay) settingsDisplay.textContent = maxVel + ' mph';
   document.getElementById('settingsoverlay').classList.add('visible');
 }
 function closeSettingsModal(){

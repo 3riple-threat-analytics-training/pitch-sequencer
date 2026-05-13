@@ -304,3 +304,22 @@ function getZoneBorderDistance(zoneKey){
   const dist=Math.sqrt(coords.x*coords.x+coords.y*coords.y);
   return Math.min(1,dist/1.06); // normalize to 0-1
 }
+
+// ── Pitch Velocity System ──
+const PITCH_VELOCITY_PCT={
+  '4FB':1.00,'2FB':0.98,'SK':0.97,'CT':0.93,
+  'SWP':0.88,'SL':0.87,'SLV':0.85,'CH':0.85,
+  'SP':0.85,'FK':0.83,'CB':0.80,'SCR':0.82,
+  'KC':0.78,'KN':0.68,'EPH':0.55
+};
+
+const AGE_GROUP_MAX_VELOCITY={
+  'youth':60,
+  'hs':80,
+  'college':88,
+  'pro':93
+};
+
+// Slider range buffer — how much above/below auto velocity the coach can slide
+const VELOCITY_RANGE_BELOW=5;
+const VELOCITY_RANGE_ABOVE=2;
