@@ -262,6 +262,8 @@ function restoreSimState(){
     updateSeqUI();
     rebuildPaths();
     refreshGhost();
+    if(typeof updateFatigueUI==='function') updateFatigueUI();
+    if(typeof applyFatigueToVelocity==='function') applyFatigueToVelocity();
   }catch(e){
     clearSimStateSession();
   }

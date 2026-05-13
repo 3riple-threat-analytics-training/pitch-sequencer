@@ -1310,6 +1310,7 @@ function throwPitch(){
       const prominent=outcome==='WALK'||outcome==='STRIKEOUT';
       const showLbl=(batterType!=='RANDOM')||batterRevealed;
       addSimLogEntry((showLbl?'['+getBatterSimLogLabel()+'] ':'')+pitchNm+' → '+outcome,outcome,prominent);
+      if(typeof incrementPitchCount==='function') incrementPitchCount();
       if(typeof onSimPitchRecorded==='function') onSimPitchRecorded(zone,pitch,outcome);
     }
     if(batterType==='RANDOM'&&!batterRevealed){

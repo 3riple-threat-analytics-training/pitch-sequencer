@@ -1834,6 +1834,17 @@ restoreSimState=function(){
     totalWalks=Math.max(0,parseInt(d.totalWalks,10)||0);
     totalHits=Math.max(0,parseInt(d.totalHits,10)||0);
     pulledPitchers=Array.isArray(d.pulledPitchers)?d.pulledPitchers:[];
+    // Restore sim mode UI state
+    if(simMode){
+      const sb=document.getElementById('simbtn');
+      if(sb){sb.textContent='SIM MODE ON';sb.classList.add('on');}
+      updateSimPanelVisibility();
+      updateFatigueUI();
+      applyFatigueToVelocity();
+      renderCount();
+      updateSimStatBar();
+      updateSimLogUI();
+    }
     }
   }catch(e){
     batterLevel='rec12';
