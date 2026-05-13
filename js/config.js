@@ -248,7 +248,11 @@ const UMPIRE_SETTINGS={
     cornerBallProb:0.40,
     chaseStrikeProb:0.00,
     inZoneBallProb:0.00,
-    inconsistencyRate:0.02
+    inconsistencyRate:0.02,
+    // Gradient settings — probability at exact zone boundary
+    // Dead center = 0% ball, outer edge = gradientBallProb
+    gradientBallProb:0.20,
+    gradientEnabled:true
   },
   BAD:{
     label:'BAD',
@@ -258,10 +262,45 @@ const UMPIRE_SETTINGS={
     cornerBallProb:0.90,
     chaseStrikeProb:0.00,
     inZoneBallProb:0.22,
-    inconsistencyRate:0.15
+    inconsistencyRate:0.15,
+    gradientBallProb:0.40,
+    gradientEnabled:true
+  },
+  HOMER:{
+    label:'HOMER',
+    edgeStrikeProb:0.25,
+    edgeBallProb:0.75,
+    cornerStrikeProb:0.08,
+    cornerBallProb:0.92,
+    chaseStrikeProb:0.00,
+    inZoneBallProb:0.30,
+    inconsistencyRate:0.20,
+    gradientBallProb:0.50,
+    gradientEnabled:true,
+    homerBias:true
   }
 };
 
 // Zone key classification for umpire calls
 const EDGE_ZONE_KEYS=['LFT-EDG','RGT-EDG','TOP-EDG','BOT-EDG'];
 const CORNER_ZONE_KEYS=['TL-CRN','TR-CRN','BL-CRN','BR-CRN'];
+// Zone center coordinates for gradient calculation
+// x: horizontal (-1=far left, 0=center, 1=far right)
+// y: vertical (-1=far bottom, 0=center, 1=far top)
+const ZONE_CENTER_COORDS={
+  'TL':{x:-0.33,y:0.33},'TM':{x:0,y:0.33},'TR':{x:0.33,y:0.33},
+  'ML':{x:-0.33,y:0},'MM':{x:0,y:0},'MR':{x:0.33,y:0},
+  'BL':{x:-0.33,y:-0.33},'BM':{x:0,y:-0.33},'BR':{x:0.33,y:-0.33},
+  'LFT-EDG':{x:-0.75,y:0},'RGT-EDG':{x:0.75,y:0},
+  'TOP-EDG':{x:0,y:0.75},'BOT-EDG':{x:0,y:-0.75},
+  'TL-CRN':{x:-0.75,y:0.75},'TR-CRN':{x:0.75,y:0.75},
+  'BL-CRN':{x:-0.75,y:-0.75},'BR-CRN':{x:0.75,y:-0.75}
+};
+
+// Distance from zone center — 0=dead center, 1=outer edge of strike zone
+function getZoneBorderDistance(zoneKey){
+  const coords=ZONE_CENTER_COORDS[zoneKey];
+  if(!coords) return 0;
+  const dist=Math.sqrt(coords.x*coords.x+coords.y*coords.y);
+  return Math.min(1,dist/1.06); // normalize to 0-1
+}

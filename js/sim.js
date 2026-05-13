@@ -68,7 +68,7 @@ function getSituationModifier(){
 function setUmpireQuality(q){
   const normalized=String(q||'GOOD').trim().toUpperCase();
   umpireQuality=UMPIRE_SETTINGS[normalized]?normalized:'GOOD';
-  ['GOOD','BAD'].forEach(key=>{
+  ['GOOD','BAD','HOMER'].forEach(key=>{
     const btn=document.getElementById('ump'+key);
     if(btn) btn.classList.toggle('active',key===umpireQuality);
   });
@@ -77,6 +77,30 @@ function setUmpireQuality(q){
 
 function getUmpireSetting(){
   return UMPIRE_SETTINGS[umpireQuality]||UMPIRE_SETTINGS['GOOD'];
+}
+
+function getGradientStrikeProb(zoneKey,baseStrikeProb){
+  const ump=getUmpireSetting();
+  if(!ump.gradientEnabled) return baseStrikeProb;
+
+  // Get distance from zone center (0=dead center, 1=outer edge)
+  const borderDist=getZoneBorderDistance(zoneKey);
+
+  // Gradient ball probability scales with distance from center
+  // Dead center: 0% extra ball chance
+  // Outer edge: gradientBallProb% extra ball chance
+  const gradientBallChance=borderDist*ump.gradientBallProb;
+
+  // Apply homer bias — extra penalty for pitcher on borderline calls
+  let homerPenalty=0;
+  if(ump.homerBias){
+    homerPenalty=borderDist*0.15;
+  }
+
+  // Final strike probability reduced by gradient and homer penalty
+  const adjustedStrikeProb=Math.max(0,baseStrikeProb-gradientBallChance-homerPenalty);
+
+  return adjustedStrikeProb;
 }
 
 function toggleSimMode(){
@@ -627,12 +651,16 @@ function getEdgeZoneOutcome(zoneKey,strikesNow,roleVal,bdVal,countVal,strikesAtS
     const ump=getUmpireSetting();
     let calledStrike=false;
     if(EDGE_ZONE_KEYS.includes(zoneKey)){
-      calledStrike=Math.random()<ump.edgeStrikeProb;
+      const gradientProb=getGradientStrikeProb(zoneKey,ump.edgeStrikeProb);
+      calledStrike=Math.random()<gradientProb;
     }else if(CORNER_ZONE_KEYS.includes(zoneKey)){
-      calledStrike=Math.random()<ump.cornerStrikeProb;
+      const gradientProb=getGradientStrikeProb(zoneKey,ump.cornerStrikeProb);
+      calledStrike=Math.random()<gradientProb;
     }
     // Apply inconsistency
     if(Math.random()<ump.inconsistencyRate) calledStrike=!calledStrike;
+    // Homer umpire — extra inconsistency favoring batter on close calls
+    if(ump.homerBias&&Math.random()<0.12) calledStrike=false;
     const call=calledStrike?'CALLED STRIKE':'CALLED BALL';
     outcome=applySimCountOutcome(call,strikesAtStart);
   }
@@ -1244,9 +1272,15 @@ function simulateOutcome(zk,rl,bd,ct,speed,pitchKey){
 
   const result=getSimOutcome(zk,rl,bd,ct,effSpeed,effPitchKey);
   if(result==='STRIKE'){
-    // Bad umpire occasionally calls in-zone pitch a ball
     const ump=getUmpireSetting();
-    if(Math.random()<ump.inZoneBallProb){
+    // Gradient — inner zones less likely to be called ball than edge zones
+    const gradientBallProb=ump.inZoneBallProb*getZoneBorderDistance(zk);
+    if(Math.random()<gradientBallProb){
+      if(effSpeed) lastPitchSpeed=effSpeed;
+      return 'CALLED BALL';
+    }
+    // Homer umpire extra bias on in-zone pitches near border
+    if(ump.homerBias&&getZoneBorderDistance(zk)>0.5&&Math.random()<0.08){
       if(effSpeed) lastPitchSpeed=effSpeed;
       return 'CALLED BALL';
     }
@@ -1479,7 +1513,7 @@ restoreSimState=function(){
       const btn=document.getElementById('sit'+key);
       if(btn) btn.classList.toggle('active',key===gameSituation);
     });
-    ['GOOD','BAD'].forEach(key=>{
+    ['GOOD','BAD','HOMER'].forEach(key=>{
       const btn=document.getElementById('ump'+key);
       if(btn) btn.classList.toggle('active',key===umpireQuality);
     });
