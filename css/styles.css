@@ -498,6 +498,10 @@ body[data-theme="light"] .sim-l-reveal{
     border-color: #cc1a1a;
     color: #ffffff;
   }
+
+  #outcome-flash {
+    display: block;
+  }
 }
 
 .zc-disabled{opacity:0.25;pointer-events:none;cursor:not-allowed;}
@@ -1012,3 +1016,35 @@ body[data-theme="dark"] .stat-bad{color:#f87171;}
   }
 
 }
+
+/* Outcome flash overlay */
+#outcome-flash {
+  display: none;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 28px;
+  letter-spacing: 3px;
+  color: white;
+  text-shadow: 0 0 20px rgba(0,0,0,0.8), 0 2px 4px rgba(0,0,0,0.9);
+  pointer-events: none;
+  z-index: 100;
+  text-align: center;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 0.15s ease-in;
+}
+
+#outcome-flash.visible {
+  opacity: 1;
+}
+
+/* Only show on mobile */
+@media (min-width: 601px) {
+  #outcome-flash {
+    display: none !important;
+  }
+}
+

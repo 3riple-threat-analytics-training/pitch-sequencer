@@ -1238,6 +1238,37 @@ function animBall(pts,color,ms,onDone){
   (function step(){const t=Math.min((performance.now()-t0)/ms,1);ball.position.copy(pts[Math.floor(t*(pts.length-1))]);t<1?requestAnimationFrame(step):(scene.remove(ball),onDone&&onDone());})();
 }
 
+function showOutcomeFlash(outcome){
+  if(!outcome) return;
+  const el=document.getElementById('outcome-flash');
+  if(!el) return;
+
+  if(['SWING & MISS','STRIKEOUT','CALLED STRIKE','STRIKE'].includes(outcome)){
+    el.style.color='#4ade80';
+  } else if(['BALL','WALK','CALLED BALL'].includes(outcome)){
+    el.style.color='#f87171';
+  } else if(['FOUL'].includes(outcome)){
+    el.style.color='#fbbf24';
+  } else if(['HOME RUN','TRIPLE','DOUBLE','SINGLE'].includes(outcome)){
+    el.style.color='#f87171';
+  } else if(['GROUND OUT','POP FLY'].includes(outcome)){
+    el.style.color='#4ade80';
+  } else {
+    el.style.color='#ffffff';
+  }
+
+  el.textContent=outcome;
+  el.classList.add('visible');
+  el.style.display='block';
+
+  setTimeout(()=>{
+    el.classList.remove('visible');
+    setTimeout(()=>{
+      el.style.display='none';
+    },150);
+  },2000);
+}
+
 function commitPitch(pts3d,pk,zk,spd,bd,rl,ct,outcome){
   // Sim mode: no pitch limit — at bat plays out naturally
   // Planning mode: 6 pitch default, 12 with extension
@@ -1249,7 +1280,10 @@ function commitPitch(pts3d,pk,zk,spd,bd,rl,ct,outcome){
   }
   const col=PITCHES[pk].color;
   pathObjs.push(line3D(pts3d,col,0.88,3));
-  animBall(pts3d,col,PITCHES[pk].ms,()=>addLanding(pts3d[pts3d.length-1],col,spd,outcome));
+  animBall(pts3d,col,PITCHES[pk].ms,()=>{
+    addLanding(pts3d[pts3d.length-1],col,spd,outcome);
+    showOutcomeFlash(outcome);
+  });
   // Detect tunnel against all previous pitches and store best tunnel found
   let tunnelData={detected:false,length:0,prevIndex:-1,prevPk:'',prevSpd:0};
   if(seq.length>0){
