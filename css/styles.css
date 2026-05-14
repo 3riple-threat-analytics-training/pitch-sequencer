@@ -800,50 +800,62 @@ body[data-theme="dark"] .stat-bad{color:#f87171;}
 
 @media (max-width: 768px) {
 
-  /* Hide title and subtitle to save vertical space */
-  #title,
-  #subtitle {
-    display: none;
-  }
+  #title, #subtitle { display: none; }
 
-  /* Header: stack into two flex rows */
-  #header {
-    padding: 0;
-  }
+  #header { padding: 0; }
 
   .header-controls {
     display: flex;
-    flex-direction: column;
-    gap: 4px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 3px;
     padding: 5px 7px;
     width: 100%;
   }
 
-  /* Row 1: hand-toggle + batter tgrp + viewtoggle all on one line */
-  #hand-toggle,
+  #hand-toggle {
+    display: inline-flex;
+    gap: 3px;
+    flex-shrink: 0;
+    border-right: 1px solid #2a3a5a;
+    padding-right: 5px;
+    margin-right: 1px;
+  }
+
   .header-controls > .tgrp {
     display: inline-flex;
     gap: 3px;
     flex-shrink: 0;
   }
 
-  /* Wrap row 1 items in a single flex row */
-  .header-controls {
-    flex-direction: row;
-    flex-wrap: wrap;
-    align-items: center;
+  .header-controls > .tgrp:first-of-type {
+    border-right: 1px solid #2a3a5a;
+    padding-right: 5px;
+    margin-right: 1px;
   }
 
-  /* Force sim/pill/gear onto their own second row */
+  /* Force simbtn + gear onto their own second row */
+  .header-controls::after {
+    content: '';
+    flex-basis: 100%;
+    height: 0;
+    order: 9;
+  }
+
+  #hand-toggle { order: 1; }
+  .header-controls > .tgrp:first-of-type { order: 2; }
+  #viewtoggle { order: 3; }
+  #simbtn { order: 10; flex: 1; }
+  #activepitcherpill { order: 11; }
+  #gearbtn { order: 12; }
+
   #simbtn {
-    flex-basis: auto;
-    order: 10;
-    margin-top: 0;
+    width: auto;
+    flex-shrink: 0;
   }
 
   #activepitcherpill {
-    order: 11;
-    margin-left: auto;
     max-width: 100px;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -852,47 +864,14 @@ body[data-theme="dark"] .stat-bad{color:#f87171;}
     padding: 4px 8px;
   }
 
-  #gearbtn {
-    order: 12;
-  }
-
-  /* Push sim+pill+gear to their own row by inserting a full-width break before simbtn */
-  #simbtn {
-    margin-left: 0;
-  }
-
-  /* Full width spacer before row 2 */
-  .header-controls::after {
-    content: '';
-    flex-basis: 100%;
-    height: 0;
-    order: 9;
-  }
-
-  /* Compact all header buttons */
   .header-controls .hbtn,
   .header-controls .tbtn,
   #simbtn {
     font-size: 7.5px;
     padding: 4px 6px;
-    border-radius: 5px;
-    white-space: nowrap;
-    letter-spacing: 0.2px;
     min-height: unset;
-    min-width: unset;
-  }
-
-  /* Vertical dividers after each group using right border */
-  #hand-toggle {
-    border-right: 1px solid #2a3a5a;
-    padding-right: 5px;
-    margin-right: 2px;
-  }
-
-  .header-controls > .tgrp:first-of-type {
-    border-right: 1px solid #2a3a5a;
-    padding-right: 5px;
-    margin-right: 2px;
+    letter-spacing: 0.2px;
+    white-space: nowrap;
   }
 
 }
