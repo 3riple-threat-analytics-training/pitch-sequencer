@@ -219,6 +219,27 @@ body{background:var(--bg-body);display:flex;justify-content:center;min-height:10
 #diamondmodal #modal-stat-k,
 #diamondmodal #modal-stat-bb,
 #diamondmodal #modal-stat-h{font-variant-numeric:tabular-nums;}
+html body #diamondmodal #modal-new-inning-btn{
+  color:#0a1a2a !important;
+  background:#7ec8e3 !important;
+  border-color:#7ec8e3 !important;
+  font-family:'Bebas Neue',sans-serif !important;
+  font-size:16px !important;
+  letter-spacing:2px !important;
+}
+body[data-theme="light"] #diamondmodal #modal-stat-pitches,
+body[data-theme="light"] #diamondmodal #modal-stat-k,
+body[data-theme="light"] #diamondmodal #modal-stat-bb,
+body[data-theme="light"] #diamondmodal #modal-stat-h{
+  color:#ffffff !important;
+}
+body[data-theme="light"] #diamondmodal > div{
+  background:#080c14;
+  border-color:#1e2a3a;
+}
+body[data-theme="light"] #diamondmodal [style*="color:#e8f4fd"]{
+  color:#ffffff !important;
+}
 .sim-out-slot{display:flex;flex-direction:column;align-items:center;gap:3px;}
 .sim-out-lbl{font-size:7px;letter-spacing:1px;color:#3a5a7a;text-transform:uppercase;}
 .sim-out-dot{width:8px;height:8px;border-radius:50%;border:1px solid #3a5a7a;background:transparent;box-sizing:border-box;}
