@@ -219,13 +219,31 @@ body{background:var(--bg-body);display:flex;justify-content:center;min-height:10
 #diamondmodal #modal-stat-k,
 #diamondmodal #modal-stat-bb,
 #diamondmodal #modal-stat-h{font-variant-numeric:tabular-nums;}
-html body #diamondmodal #modal-new-inning-btn{
-  color:#0a1a2a !important;
-  background:#7ec8e3 !important;
-  border-color:#7ec8e3 !important;
-  font-family:'Bebas Neue',sans-serif !important;
-  font-size:16px !important;
-  letter-spacing:2px !important;
+#modal-new-batter-btn{
+  width:100%;
+  padding:10px;
+  border-radius:6px;
+  font-family:'Bebas Neue',sans-serif;
+  font-size:16px;
+  letter-spacing:2px;
+  background:#cc1a1a;
+  border:0.5px solid #cc1a1a;
+  color:#ffffff;
+  cursor:pointer;
+  display:block;
+}
+#modal-new-inning-btn{
+  width:100%;
+  padding:10px;
+  border-radius:6px;
+  font-family:'Bebas Neue',sans-serif;
+  font-size:16px;
+  letter-spacing:2px;
+  background:#7ec8e3;
+  border:0.5px solid #7ec8e3;
+  color:#0a1a2a;
+  cursor:pointer;
+  display:none;
 }
 body[data-theme="light"] #diamondmodal #modal-stat-pitches,
 body[data-theme="light"] #diamondmodal #modal-stat-k,

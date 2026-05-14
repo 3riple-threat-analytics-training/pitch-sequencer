@@ -75,16 +75,6 @@
   border-color:var(--border-panel) !important;
   color:var(--text-muted) !important;
 }
-#diamondmodal button[style*="background:#cc1a1a"]{
-  background:var(--border-accent) !important;
-  border-color:var(--border-accent) !important;
-  color:var(--text-savebtn) !important;
-}
-#diamondmodal #modal-new-inning-btn{
-  background:var(--bg-savebtn) !important;
-  border-color:var(--border-accent) !important;
-  color:var(--text-savebtn) !important;
-}
 </style>
 </head>
 <body data-theme="light">
@@ -287,16 +277,12 @@
     </div>
 
     <!-- NEW BATTER button — always visible -->
-    <button onclick="modalNewBatter()" style="width:100%;padding:10px;border-radius:6px;
-      font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:2px;
-      background:#cc1a1a;border:0.5px solid #cc1a1a;color:white;cursor:pointer;">
+    <button id="modal-new-batter-btn" onclick="modalNewBatter()">
       NEW BATTER
     </button>
 
     <!-- NEW INNING button — only shown when 3 outs -->
-    <button id="modal-new-inning-btn" onclick="modalNewInning()" style="display:none;width:100%;padding:10px;border-radius:6px;
-      font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:2px;
-      background:#0a1a2a;border:0.5px solid #7ec8e3;color:#7ec8e3;cursor:pointer;">
+    <button id="modal-new-inning-btn" onclick="modalNewInning()">
       NEW INNING
     </button>
 
