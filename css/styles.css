@@ -804,6 +804,11 @@ body[data-theme="dark"] .stat-bad{color:#f87171;}
 
   #header { padding: 0; }
 
+  #hand-toggle, .tgrp {
+    flex: 0 0 auto;
+    width: auto;
+  }
+
   .header-controls {
     display: flex;
     flex-direction: row;
