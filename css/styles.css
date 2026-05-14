@@ -358,7 +358,7 @@ body[data-theme="light"] .sim-l-reveal{
   #title{font-size:18px;letter-spacing:2px;}
   #subtitle{font-size:9px;letter-spacing:1.5px;}
   #main{flex-direction:column;}
-  #cwrap{width:100%;height:300px;min-height:300px;max-height:300px;}
+  #cwrap{width:100%;height:220px;min-height:220px;max-height:220px;}
   #panel{width:100%;max-height:none;overflow-y:visible;border-left:none;border-top:0.5px solid var(--border-panel);padding:9px;gap:8px;}
   .plbl{font-size:10px;}
   .pbtn{padding:8px 9px;font-size:10px;min-height:36px;}
