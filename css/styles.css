@@ -362,6 +362,57 @@ body[data-theme="light"] .sim-l-reveal{
   #panel{width:100%;max-height:none;overflow-y:visible;border-left:none;border-top:0.5px solid var(--border-panel);padding:9px;gap:8px;}
   .plbl{font-size:10px;}
   .pbtn{padding:8px 9px;font-size:10px;min-height:36px;}
+  /* Mobile pitch type — horizontal chip row */
+  #panel > div:has(#pitchtypesection){
+    order:-1;
+  }
+  #panel .pbtn{
+    display:none;
+  }
+  #panel .pbtn[style*="display: none"],
+  #panel .pbtn[style*="display:none"]{
+    display:none !important;
+  }
+  #panel #pitchtypesection .pbtn:not([style*="display: none"]):not([style*="display:none"]){
+    display:inline-flex;
+    flex-direction:row;
+    align-items:center;
+    gap:3px;
+    width:auto;
+    flex:1;
+    min-width:0;
+    padding:6px 4px;
+    margin-bottom:0;
+    font-size:0;
+    white-space:nowrap;
+    border-radius:6px;
+    justify-content:center;
+  }
+  #panel #pitchtypesection .pbtn:not([style*="display: none"]):not([style*="display:none"])::after{
+    content:attr(data-abbr);
+    font-size:8px;
+    font-family:'DM Mono',monospace;
+    font-weight:700;
+    letter-spacing:0.3px;
+  }
+  #panel #pitchtypesection .pbtn .dot{
+    width:6px;
+    height:6px;
+    flex-shrink:0;
+  }
+  #panel{
+    display:flex;
+    flex-direction:column;
+  }
+  #pitchtypesection{
+    display:flex;
+    flex-direction:row;
+    flex-wrap:nowrap;
+    gap:4px;
+    width:100%;
+    min-width:0;
+    overflow-x:auto;
+  }
   .rpill{font-size:8px;padding:9px 4px;min-height:38px;}
   .crow{padding:8px 9px;min-height:36px;}
   .crow label{font-size:9px;}

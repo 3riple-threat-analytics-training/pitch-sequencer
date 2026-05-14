@@ -381,21 +381,23 @@
       </div>
       <div>
         <div class="plbl">pitch type</div>
-        <button class="pbtn sel" id="p4FB" onclick="selPitch('4FB')"><span class="dot dot-4fb"></span>4-seam FB</button>
-        <button class="pbtn" id="p2FB" onclick="selPitch('2FB')"><span class="dot dot-2fb"></span>2-seam FB</button>
-        <button class="pbtn" id="pCB" onclick="selPitch('CB')"><span class="dot dot-cb"></span>Curveball</button>
-        <button class="pbtn" id="pSL" onclick="selPitch('SL')"><span class="dot dot-sl"></span>Slider</button>
-        <button class="pbtn" id="pCH" onclick="selPitch('CH')"><span class="dot dot-ch"></span>Changeup</button>
-        <button class="pbtn" id="pCT" onclick="selPitch('CT')"><span class="dot dot-ct"></span>Cutter</button>
-        <button class="pbtn" id="pSP" onclick="selPitch('SP')"><span class="dot dot-sp"></span>Splitter</button>
-        <button class="pbtn" id="pSK"  onclick="selPitch('SK')"><span class="dot" style="background:#f43f5e"></span>Sinker</button>
-        <button class="pbtn" id="pFK"  onclick="selPitch('FK')"><span class="dot" style="background:#0891b2"></span>Forkball</button>
-        <button class="pbtn" id="pSCR" onclick="selPitch('SCR')"><span class="dot" style="background:#ec4899"></span>Screwball</button>
-        <button class="pbtn" id="pEPH" onclick="selPitch('EPH')"><span class="dot" style="background:#d97706"></span>Eephus</button>
-        <button class="pbtn" id="pSLV" onclick="selPitch('SLV')"><span class="dot" style="background:#7c3aed"></span>Slurve</button>
-        <button class="pbtn" id="pSWP" onclick="selPitch('SWP')"><span class="dot" style="background:#10b981"></span>Sweeper</button>
-        <button class="pbtn" id="pKN" onclick="selPitch('KN')"><span class="dot" style="background:#94a3b8"></span>Knuckleball</button>
-        <button class="pbtn" id="pKC" onclick="selPitch('KC')"><span class="dot" style="background:#6366f1"></span>Knuckle Curve</button>
+        <div id="pitchtypesection">
+        <button class="pbtn sel" id="p4FB" data-abbr="4SFB" onclick="selPitch('4FB')"><span class="dot dot-4fb"></span>4-seam FB</button>
+        <button class="pbtn" id="p2FB" data-abbr="2SFB" onclick="selPitch('2FB')"><span class="dot dot-2fb"></span>2-seam FB</button>
+        <button class="pbtn" id="pCB" data-abbr="CB" onclick="selPitch('CB')"><span class="dot dot-cb"></span>Curveball</button>
+        <button class="pbtn" id="pSL" data-abbr="SL" onclick="selPitch('SL')"><span class="dot dot-sl"></span>Slider</button>
+        <button class="pbtn" id="pCH" data-abbr="CH" onclick="selPitch('CH')"><span class="dot dot-ch"></span>Changeup</button>
+        <button class="pbtn" id="pCT" data-abbr="CT" onclick="selPitch('CT')"><span class="dot dot-ct"></span>Cutter</button>
+        <button class="pbtn" id="pSP" data-abbr="SPL" onclick="selPitch('SP')"><span class="dot dot-sp"></span>Splitter</button>
+        <button class="pbtn" id="pSK"  data-abbr="SNK" onclick="selPitch('SK')"><span class="dot" style="background:#f43f5e"></span>Sinker</button>
+        <button class="pbtn" id="pFK"  data-abbr="FK" onclick="selPitch('FK')"><span class="dot" style="background:#0891b2"></span>Forkball</button>
+        <button class="pbtn" id="pSCR" data-abbr="SCR" onclick="selPitch('SCR')"><span class="dot" style="background:#ec4899"></span>Screwball</button>
+        <button class="pbtn" id="pEPH" data-abbr="EPH" onclick="selPitch('EPH')"><span class="dot" style="background:#d97706"></span>Eephus</button>
+        <button class="pbtn" id="pSLV" data-abbr="SLV" onclick="selPitch('SLV')"><span class="dot" style="background:#7c3aed"></span>Slurve</button>
+        <button class="pbtn" id="pSWP" data-abbr="SWP" onclick="selPitch('SWP')"><span class="dot" style="background:#10b981"></span>Sweeper</button>
+        <button class="pbtn" id="pKN" data-abbr="KN" onclick="selPitch('KN')"><span class="dot" style="background:#94a3b8"></span>Knuckleball</button>
+        <button class="pbtn" id="pKC" data-abbr="KC" onclick="selPitch('KC')"><span class="dot" style="background:#6366f1"></span>Knuckle Curve</button>
+        </div>
       </div>
       <div>
         <div class="plbl">speed (mph)</div>
