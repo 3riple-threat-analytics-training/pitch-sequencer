@@ -254,23 +254,25 @@
 <div id="app">
   <div id="header">
     <div><div id="title">PITCH SEQUENCER</div><div id="subtitle">CATCHER'S VIEW</div></div>
-    <div class="header-controls">
-      <div id="hand-toggle">
-        <button class="hbtn active" id="brhp" onclick="setHand('R')">RHP</button>
-        <button class="hbtn" id="blhp" onclick="setHand('L')">LHP</button>
+    <div id="header-row">
+      <div class="header-controls">
+        <div id="hand-toggle">
+          <button class="hbtn active" id="brhp" onclick="setHand('R')">RHP</button>
+          <button class="hbtn" id="blhp" onclick="setHand('L')">LHP</button>
+        </div>
+        <div class="tgrp">
+          <button class="tbtn" id="blhb" onclick="setBatter('LHB')">RHB</button>
+          <button class="tbtn" id="boff" onclick="setBatter('OFF')">OFF</button>
+          <button class="tbtn active" id="brhb" onclick="setBatter('RHB')">LHB</button>
+        </div>
+        <div class="tgrp" id="viewtoggle">
+          <button class="tbtn active" id="vcatcher" onclick="setView('catcher')">CATCHER</button>
+          <button class="tbtn" id="vside" onclick="setView('side')">SIDE VIEW</button>
+          <button class="tbtn" id="vorbit" onclick="setView('orbit')">ORBIT</button>
+        </div>
+        <button id="simbtn" onclick="toggleSimMode()">SIM MODE OFF</button>
+        <button id="activepitcherpill" onclick="openRosterFromPill()"></button>
       </div>
-      <div class="tgrp">
-        <button class="tbtn" id="blhb" onclick="setBatter('LHB')">RHB</button>
-        <button class="tbtn" id="boff" onclick="setBatter('OFF')">OFF</button>
-        <button class="tbtn active" id="brhb" onclick="setBatter('RHB')">LHB</button>
-      </div>
-      <div class="tgrp" id="viewtoggle">
-        <button class="tbtn active" id="vcatcher" onclick="setView('catcher')">CATCHER</button>
-        <button class="tbtn" id="vside" onclick="setView('side')">SIDE VIEW</button>
-        <button class="tbtn" id="vorbit" onclick="setView('orbit')">ORBIT</button>
-      </div>
-      <button id="simbtn" onclick="toggleSimMode()">SIM MODE OFF</button>
-      <button id="activepitcherpill" onclick="openRosterFromPill()"></button>
       <button id="gearbtn" onclick="openSettingsModal()" title="Settings">⚙</button>
     </div>
   </div>
