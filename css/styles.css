@@ -370,7 +370,8 @@ body[data-theme="light"] .sim-l-reveal{
   .actbtn{width:100%;padding:9px 6px;font-size:13px;min-height:44px;}
   #clrbtn{padding:8px 6px;min-height:36px;font-size:10px;}
   .planinput,.planselect,.planbtn{font-size:10px;min-height:36px;}
-  .hbtn,.zebtn,.tbtn,#simbtn{font-size:10px;padding:8px 10px;min-height:36px;}
+  .hbtn,.zebtn,.tbtn,#simbtn{font-size:7.5px;padding:4px 6px;min-height:unset;letter-spacing:0.2px;}
+  #simbtn{width:auto;flex-shrink:0;}
   #srow{display:flex;flex-direction:column;align-items:stretch;gap:4px;}
   #srow input{width:100%;}
   #sval,.clbl,#countdisp{font-size:10px;}
