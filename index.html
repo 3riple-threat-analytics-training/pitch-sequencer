@@ -330,7 +330,10 @@
     </div>
     <div id="panel">
       <div>
-        <div class="plbl">target zone</div>
+        <div id="target-zone-header">
+          <div class="plbl">target zone</div>
+          <button id="gearbtn-mobile" onclick="openSettingsModal()" title="Settings">⚙</button>
+        </div>
         <div id="ze-toggle" class="zone-toggle">
           <button class="zebtn active" id="zezone" type="button" onclick="setTargetMode('ZONE')">ZONE</button>
           <button class="zebtn" id="zeedge" type="button" onclick="setTargetMode('EDGE')">EDGE</button>
