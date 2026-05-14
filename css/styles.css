@@ -417,8 +417,8 @@ body[data-theme="light"] .sim-l-reveal{
   .crow{padding:8px 9px;min-height:36px;}
   .crow label{font-size:9px;}
   #tunnelbtn{padding:8px 9px;font-size:10px;min-height:36px;}
-  .actbtns{flex-direction:column;gap:6px;}
-  .actbtn{width:100%;padding:9px 6px;font-size:13px;min-height:44px;}
+  .actbtns{flex-direction:row;gap:4px;}
+  .actbtn{flex:1;padding:7px 4px;font-size:11px;min-height:44px;width:auto;}
   #clrbtn{padding:8px 6px;min-height:36px;font-size:10px;}
   .planinput,.planselect,.planbtn{font-size:10px;min-height:36px;}
   .hbtn,.zebtn,.tbtn,#simbtn{font-size:7.5px;padding:4px 6px;min-height:unset;letter-spacing:0.2px;}
