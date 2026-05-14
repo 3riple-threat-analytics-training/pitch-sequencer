@@ -75,6 +75,16 @@
   border-color:var(--border-panel) !important;
   color:var(--text-muted) !important;
 }
+#diamondmodal button[style*="background:#cc1a1a"]{
+  background:var(--border-accent) !important;
+  border-color:var(--border-accent) !important;
+  color:var(--text-savebtn) !important;
+}
+#diamondmodal #modal-new-inning-btn{
+  background:var(--bg-savebtn) !important;
+  border-color:var(--border-accent) !important;
+  color:var(--text-savebtn) !important;
+}
 </style>
 </head>
 <body data-theme="light">
@@ -200,16 +210,45 @@
 <div id="diamondmodal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;
   background:rgba(5,8,18,0.95);z-index:998;align-items:center;justify-content:center;">
   <div style="background:#080c14;border:0.5px solid #1e2a3a;border-radius:12px;
-    padding:24px;width:100%;max-width:340px;margin:20px;display:flex;flex-direction:column;
-    gap:16px;align-items:center;">
+    padding:20px;width:100%;max-width:340px;margin:20px;display:flex;flex-direction:column;
+    gap:12px;align-items:center;">
     <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:3px;color:#e8f4fd;">
-      BASERUNNERS
+      AT-BAT RESULT
     </div>
     <div id="diamond-outcome-badge" style="display:none;padding:6px 16px;border-radius:6px;
       font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:3px;
       margin-top:-4px;"></div>
     <div id="runs-result" style="font-size:11px;font-family:'DM Mono',monospace;color:#5a8aaa;"></div>
-    <svg width="200" height="180" viewBox="0 0 200 180" xmlns="http://www.w3.org/2000/svg">
+
+    <!-- Outs display -->
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span style="font-family:'DM Mono',monospace;font-size:9px;color:#5a8aaa;letter-spacing:1px;">OUTS:</span>
+      <div id="modal-out-1" style="width:12px;height:12px;border-radius:50%;border:1px solid #3a5a7a;background:transparent;"></div>
+      <div id="modal-out-2" style="width:12px;height:12px;border-radius:50%;border:1px solid #3a5a7a;background:transparent;"></div>
+      <div id="modal-out-3" style="width:12px;height:12px;border-radius:50%;border:1px solid #3a5a7a;background:transparent;"></div>
+    </div>
+
+    <!-- Quick stats -->
+    <div style="display:flex;gap:8px;justify-content:center;width:100%;">
+      <div style="flex:1;background:#0d1520;border-radius:5px;padding:5px;text-align:center;">
+        <span id="modal-stat-pitches" style="font-family:'Bebas Neue',sans-serif;font-size:16px;color:#e8f4fd;display:block;">0</span>
+        <span style="font-family:'DM Mono',monospace;font-size:7px;color:#3a5a7a;letter-spacing:1px;">PITCHES</span>
+      </div>
+      <div style="flex:1;background:#0d1520;border-radius:5px;padding:5px;text-align:center;">
+        <span id="modal-stat-k" style="font-family:'Bebas Neue',sans-serif;font-size:16px;color:#e8f4fd;display:block;">0</span>
+        <span style="font-family:'DM Mono',monospace;font-size:7px;color:#3a5a7a;letter-spacing:1px;">K</span>
+      </div>
+      <div style="flex:1;background:#0d1520;border-radius:5px;padding:5px;text-align:center;">
+        <span id="modal-stat-bb" style="font-family:'Bebas Neue',sans-serif;font-size:16px;color:#e8f4fd;display:block;">0</span>
+        <span style="font-family:'DM Mono',monospace;font-size:7px;color:#3a5a7a;letter-spacing:1px;">BB</span>
+      </div>
+      <div style="flex:1;background:#0d1520;border-radius:5px;padding:5px;text-align:center;">
+        <span id="modal-stat-h" style="font-family:'Bebas Neue',sans-serif;font-size:16px;color:#e8f4fd;display:block;">0</span>
+        <span style="font-family:'DM Mono',monospace;font-size:7px;color:#3a5a7a;letter-spacing:1px;">H</span>
+      </div>
+    </div>
+
+    <svg width="160" height="144" viewBox="0 0 200 180" xmlns="http://www.w3.org/2000/svg">
       <polygon points="100,10 180,90 100,170 20,90" fill="none" stroke="#2a4a6a" stroke-width="1.5"/>
       <line x1="100" y1="10" x2="180" y2="90" stroke="#1e2a3a" stroke-width="0.5"/>
       <line x1="180" y1="90" x2="100" y2="170" stroke="#1e2a3a" stroke-width="0.5"/>
@@ -231,6 +270,7 @@
       <text x="100" y="195" text-anchor="middle" fill="#3a5a7a" font-size="9"
         font-family="DM Mono,monospace">HOME</text>
     </svg>
+
     <div style="display:flex;align-items:center;gap:10px;">
       <button onclick="removeRun()" style="padding:4px 10px;border-radius:4px;
         border:0.5px solid #1e2a3a;background:#0d1520;color:#5a8aaa;
@@ -241,14 +281,25 @@
         border:0.5px solid #1e2a3a;background:#0d1520;color:#5a8aaa;
         font-family:'DM Mono',monospace;font-size:12px;cursor:pointer;">+</button>
     </div>
+
     <div style="font-size:8px;color:#3a5a7a;font-family:'DM Mono',monospace;text-align:center;">
-      Tap bases to toggle runners - Use +/- to adjust score manually
+      Tap bases to toggle runners · Use +/- to adjust score
     </div>
-    <button onclick="closeDiamondModal()" style="width:100%;padding:8px;border-radius:6px;
-      font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:2px;
-      background:#1a3a5c;border:0.5px solid #7ec8e3;color:#7ec8e3;cursor:pointer;">
-      CONFIRM & CLOSE
+
+    <!-- NEW BATTER button — always visible -->
+    <button onclick="modalNewBatter()" style="width:100%;padding:10px;border-radius:6px;
+      font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:2px;
+      background:#cc1a1a;border:0.5px solid #cc1a1a;color:white;cursor:pointer;">
+      NEW BATTER
     </button>
+
+    <!-- NEW INNING button — only shown when 3 outs -->
+    <button id="modal-new-inning-btn" onclick="modalNewInning()" style="display:none;width:100%;padding:10px;border-radius:6px;
+      font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:2px;
+      background:#0a1a2a;border:0.5px solid #7ec8e3;color:#7ec8e3;cursor:pointer;">
+      NEW INNING
+    </button>
+
   </div>
 </div>
 <div id="app">
@@ -559,7 +610,6 @@
               </svg>
             </span>
           </div>
-          <button type="button" id="simnewbatterbtn" class="simnewbatterbtn" onclick="onSimAdvanceClick()">NEW BATTER</button>
           <div id="simlog" class="simlog"></div>
         </div>
       </div>

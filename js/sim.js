@@ -31,6 +31,7 @@ let totalScore=0;
 let inningHits=0;
 let scoreboardData=[]; // array of {inning, hits, score} per completed inning
 let pendingRunnerUpdate=null; // suggested runner state after a hit
+let lastSimDiamondBadgeText=null; // terminal outcome when opening modal without pendingRunnerUpdate
 
 const WEAK_CONTACT_TABLE=[
   {outcome:'FOUL',weight:40},
@@ -441,18 +442,24 @@ function updateSimPanelVisibility(){
   if(uw) uw.style.display=simMode?'block':'none';
   const di=document.getElementById('diamondicon');
   if(di) di.style.display=simMode?'inline-flex':'none';
-  if(!simMode) document.getElementById('simnewbatterbtn').style.display='none';
+  if(!simMode){
+    const sbb=document.getElementById('simnewbatterbtn');
+    if(sbb) sbb.style.display='none';
+  }
   const fw=document.getElementById('fatiguewrap');
   if(fw) fw.style.display=simMode?'block':'none';
   if(simMode) updateFatigueUI();
 }
 
-function hideSimAdvanceButton(){document.getElementById('simnewbatterbtn').style.display='none';}
-function showSimAdvanceButton(){
-  if(!simMode)return;
+function hideSimAdvanceButton(){
   const btn=document.getElementById('simnewbatterbtn');
-  btn.textContent=simInningBreak?'NEW INNING':'NEW BATTER';
-  btn.style.display='block';
+  if(btn) btn.style.display='none';
+}
+function showSimAdvanceButton(){
+  if(!simMode) return;
+  setTimeout(()=>{
+    openDiamondModal();
+  },2200);
 }
 
 function lockThrowButton(){
@@ -508,6 +515,7 @@ function dismissBatterHandednessNotification(){
 
 function handleNewBatter(){
   dismissBatterHandednessNotification();
+  lastSimDiamondBadgeText=null;
   unlockThrowButton();
   cancelSimScheduledClear();
   let startedNewInning=false;
@@ -699,7 +707,6 @@ function applyHitToRunners(hitType){
   totalScore+=runsScored;
   inningHits++;
   updateSimStatBar();
-  openDiamondModal();
 }
 
 function applyWalkToRunners(){
@@ -721,7 +728,6 @@ function applyWalkToRunners(){
   runners=newRunners;
   totalScore+=runsScored;
   updateSimStatBar();
-  openDiamondModal();
 }
 
 function resetRunners(){
@@ -1622,8 +1628,8 @@ function applySimCountOutcome(outcome,strikesAtStart){
     saveSimState();
     return display;
   }
-  if(strikeCount>=3&&(outcome==='STRIKE'||outcome==='SWING & MISS'||outcome==='CALLED STRIKE')){display='STRIKEOUT';addSimOutCore();if(simMode) lockThrowButton();showSimAdvanceButton();saveSimState();return display;}
-  if(outcome==='GROUND OUT'||outcome==='POP FLY'){ballCount=0;strikeCount=0;renderCount();addSimOutCore();if(simMode) lockThrowButton();showSimAdvanceButton();saveSimState();return outcome;}
+  if(strikeCount>=3&&(outcome==='STRIKE'||outcome==='SWING & MISS'||outcome==='CALLED STRIKE')){display='STRIKEOUT';addSimOutCore();if(simMode){lockThrowButton();lastSimDiamondBadgeText='STRIKEOUT';}showSimAdvanceButton();saveSimState();return display;}
+  if(outcome==='GROUND OUT'||outcome==='POP FLY'){ballCount=0;strikeCount=0;renderCount();addSimOutCore();if(simMode){lockThrowButton();lastSimDiamondBadgeText=outcome;}showSimAdvanceButton();saveSimState();return outcome;}
   if(outcome==='SINGLE'||outcome==='DOUBLE'||outcome==='TRIPLE'||outcome==='HOME RUN'){
     ballCount=0;strikeCount=0;renderCount();
     if(simMode){
@@ -1647,6 +1653,21 @@ function applySimCountOutcome(outcome,strikesAtStart){
 
 function openDiamondModal(){
   updateDiamondUI();
+  const outCountForModal=outCount||0;
+  ['modal-out-1','modal-out-2','modal-out-3'].forEach((id,i)=>{
+    const dot=document.getElementById(id);
+    if(dot) dot.style.background=i<outCountForModal?'#f87171':'transparent';
+  });
+  const sp=document.getElementById('modal-stat-pitches');
+  const sk=document.getElementById('modal-stat-k');
+  const sb=document.getElementById('modal-stat-bb');
+  const sh=document.getElementById('modal-stat-h');
+  if(sp) sp.textContent=totalPitchCount||0;
+  if(sk) sk.textContent=totalStrikeouts||0;
+  if(sb) sb.textContent=totalWalks||0;
+  if(sh) sh.textContent=totalHits||0;
+  const newInningBtn=document.getElementById('modal-new-inning-btn');
+  if(newInningBtn) newInningBtn.style.display=outCountForModal>=3?'block':'none';
   const badge=document.getElementById('diamond-outcome-badge');
   if(badge&&pendingRunnerUpdate){
     const colors={
@@ -1662,6 +1683,19 @@ function openDiamondModal(){
     badge.style.background=c.bg;
     badge.style.border='0.5px solid '+c.border;
     badge.style.color=c.text;
+  } else if(badge&&lastSimDiamondBadgeText){
+    const tc={
+      'STRIKEOUT':{bg:'#1a0a0a',border:'#f87171',text:'#f87171'},
+      'GROUND OUT':{bg:'#1a1810',border:'#a8a29e',text:'#d6d3d1'},
+      'POP FLY':{bg:'#1a1810',border:'#a8a29e',text:'#d6d3d1'},
+    };
+    const c=tc[lastSimDiamondBadgeText]||{bg:'#0d1520',border:'#7ec8e3',text:'#7ec8e3'};
+    badge.textContent=lastSimDiamondBadgeText;
+    badge.style.display='block';
+    badge.style.background=c.bg;
+    badge.style.border='0.5px solid '+c.border;
+    badge.style.color=c.text;
+    lastSimDiamondBadgeText=null;
   } else if(badge){
     badge.style.display='none';
   }
@@ -1864,3 +1898,13 @@ restoreSimState=function(){
   if(typeof updateFatigueUI==='function') updateFatigueUI();
   if(typeof applyFatigueToVelocity==='function') applyFatigueToVelocity();
 };
+
+function modalNewBatter(){
+  closeDiamondModal();
+  if(atBatOver) handleNewBatter();
+}
+
+function modalNewInning(){
+  closeDiamondModal();
+  if(atBatOver) handleNewBatter();
+}

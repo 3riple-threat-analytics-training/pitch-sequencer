@@ -215,6 +215,10 @@ body{background:var(--bg-body);display:flex;justify-content:center;min-height:10
 #diamondicon{display:none;align-items:center;}
 #diamondicon svg circle.occupied{fill:#eab308;}
 #diamondmodal circle.occupied{fill:#eab308;stroke:#eab308;}
+#diamondmodal #modal-stat-pitches,
+#diamondmodal #modal-stat-k,
+#diamondmodal #modal-stat-bb,
+#diamondmodal #modal-stat-h{font-variant-numeric:tabular-nums;}
 .sim-out-slot{display:flex;flex-direction:column;align-items:center;gap:3px;}
 .sim-out-lbl{font-size:7px;letter-spacing:1px;color:#3a5a7a;text-transform:uppercase;}
 .sim-out-dot{width:8px;height:8px;border-radius:50%;border:1px solid #3a5a7a;background:transparent;box-sizing:border-box;}
