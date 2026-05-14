@@ -433,6 +433,15 @@ body[data-theme="light"] .sim-l-reveal{
   .cc-side{width:34px;font-size:8px;padding:3px;}
   #seqlist{max-height:190px;}
   .simnewbatterbtn{font-size:13px;min-height:44px;padding:10px;}
+  #zonediagram {
+    width: 88%;
+    margin: 0 auto;
+  }
+
+  .zd-chase-row,
+  .zd-mid {
+    width: 100%;
+  }
 }
 
 .zc-disabled{opacity:0.25;pointer-events:none;cursor:not-allowed;}
