@@ -751,6 +751,10 @@ function renderCount(){
   pitchCount=ballCount+'-'+strikeCount;
   document.getElementById('bnum').textContent=ballCount;
   document.getElementById('snum').textContent=strikeCount;
+  const bnumInline=document.getElementById('bnum-inline');
+  const snumInline=document.getElementById('snum-inline');
+  if(bnumInline) bnumInline.textContent=ballCount;
+  if(snumInline) snumInline.textContent=strikeCount;
   const cd=document.getElementById('countdisp');
   cd.textContent=pitchCount;
   cd.style.borderColor=PITCHER_COUNTS.includes(pitchCount)?'#4ade80':HITTER_COUNTS.includes(pitchCount)?'#f87171':'#3a5a7a';

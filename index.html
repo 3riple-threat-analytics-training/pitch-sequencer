@@ -337,6 +337,16 @@
         <div id="ze-toggle" class="zone-toggle">
           <button class="zebtn active" id="zezone" type="button" onclick="setTargetMode('ZONE')">ZONE</button>
           <button class="zebtn" id="zeedge" type="button" onclick="setTargetMode('EDGE')">EDGE</button>
+          <div id="count-inline">
+            <span class="clbl">B</span>
+            <button class="carr" onclick="adjCount('b',-1)">◀</button>
+            <span id="bnum-inline" class="cnum">0</span>
+            <button class="carr" onclick="adjCount('b',1)">▶</button>
+            <span class="clbl">S</span>
+            <button class="carr" onclick="adjCount('s',-1)">◀</button>
+            <span id="snum-inline" class="cnum">0</span>
+            <button class="carr" onclick="adjCount('s',1)">▶</button>
+          </div>
         </div>
         <div id="zonediagram"></div>
       </div>

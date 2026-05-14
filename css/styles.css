@@ -258,6 +258,7 @@ body[data-theme="light"] .sim-l-reveal{
 .header-controls{display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
 .count-s-label{margin-left:6px;}
 .zone-toggle{margin:4px 0 5px 0;}
+#count-inline{display:none;}
 .seqn-color{color:var(--text-seq);}
 .sim-results-label{margin-top:5px;}
 #battertypewrap{display:none;margin-top:6px;}
@@ -381,6 +382,38 @@ body[data-theme="light"] .sim-l-reveal{
     cursor:pointer;
   }
   #gearbtn{display:none;}
+  /* Show inline count next to ZONE/EDGE on mobile */
+  #count-inline{
+    display:flex;
+    align-items:center;
+    gap:2px;
+    margin-left:auto;
+    flex-shrink:0;
+  }
+  #count-inline .carr{
+    font-size:10px;
+    padding:2px 3px;
+    min-height:unset;
+    min-width:unset;
+    background:transparent;
+    border:none;
+    color:var(--text-muted);
+    cursor:pointer;
+  }
+  #count-inline .cnum{
+    font-size:11px;
+    min-width:10px;
+    text-align:center;
+    color:var(--text-primary);
+    font-weight:700;
+  }
+  #count-inline .clbl{
+    font-size:9px;
+    color:var(--text-muted);
+    margin:0 1px;
+  }
+  /* Hide original count section on mobile */
+  #countrow{display:none;}
   .pbtn{padding:8px 9px;font-size:10px;min-height:36px;}
   /* Mobile pitch type — horizontal chip row */
   #panel > div:has(#pitchtypesection){
