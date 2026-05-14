@@ -442,6 +442,62 @@ body[data-theme="light"] .sim-l-reveal{
   .zd-mid {
     width: 100%;
   }
+
+  /* Light mode mobile — header button visibility */
+  body[data-theme="light"] .hbtn,
+  body[data-theme="light"] .tbtn,
+  body[data-theme="light"] #simbtn {
+    border: 1px solid #999999;
+    background: #d8cfc0;
+    color: #222222;
+  }
+
+  body[data-theme="light"] .hbtn.active {
+    background: #2a1a4a;
+    border-color: #6a30b0;
+    color: #c084fc;
+  }
+
+  body[data-theme="light"] .tbtn.active {
+    background: #1a3a2a;
+    border-color: #2d6a4f;
+    color: #4ade80;
+  }
+
+  body[data-theme="light"] #simbtn.on {
+    background: #12321f;
+    border-color: #2d6a4f;
+    color: #86efac;
+  }
+
+  /* Light mode mobile — zone grid borders */
+  body[data-theme="light"] .zd-grid {
+    border-color: #999999;
+  }
+
+  body[data-theme="light"] .zc {
+    border: 0.5px solid #aaaaaa;
+  }
+
+  body[data-theme="light"] .cc,
+  body[data-theme="light"] .cc-side {
+    border-color: #999999;
+    background: #d8cfc0;
+    color: #333333;
+  }
+
+  /* Light mode mobile — pitch chips */
+  body[data-theme="light"] #panel #pitchtypesection .pbtn:not([style*="display:none"]) {
+    border: 1px solid #999999;
+    background: #d8cfc0;
+    color: #222222;
+  }
+
+  body[data-theme="light"] #panel #pitchtypesection .pbtn.sel {
+    background: #cc1a1a;
+    border-color: #cc1a1a;
+    color: #ffffff;
+  }
 }
 
 .zc-disabled{opacity:0.25;pointer-events:none;cursor:not-allowed;}
