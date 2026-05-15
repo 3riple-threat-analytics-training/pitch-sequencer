@@ -508,7 +508,7 @@ body[data-theme="light"] .sim-l-reveal{
   #activepitcherpill-panel{
     display:none;
     width:100%;
-    padding:7px 10px;
+    padding:3px 8px;
     font-size:10px;
     font-weight:700;
     font-family:'DM Mono',monospace;
@@ -520,6 +520,24 @@ body[data-theme="light"] .sim-l-reveal{
     cursor:pointer;
     text-align:left;
     margin-bottom:4px;
+  }
+  /* Compress fatigue section on mobile */
+  #fatiguewrap{
+    margin-top:0;
+  }
+  #fatiguewrap .plbl{
+    display:none;
+  }
+  #fatiguewrap > div:first-of-type{
+    margin-bottom:2px;
+  }
+  #fatiguewrap > div:nth-child(2){
+    height:4px;
+    margin-bottom:3px;
+  }
+  #fatiguewrap > div:last-child button{
+    padding:3px 4px;
+    font-size:7px;
   }
   #pitchtypesection{
     display:flex;
