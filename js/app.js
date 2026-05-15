@@ -213,9 +213,11 @@ function chooseSplashMode(mode){
 // ── Team Mode ──
 function initTeamMode(){
   const pill=document.getElementById('activepitcherpill');
+  const pillPanel=document.getElementById('activepitcherpill-panel');
   const rosterSection=document.getElementById('rosterSection');
   const editProfileBtn=document.getElementById('editProfileBtn');
   if(pill) pill.classList.add('visible');
+  if(pillPanel) pillPanel.style.display='block';
   if(rosterSection) rosterSection.classList.add('visible');
   if(editProfileBtn) editProfileBtn.style.display='none';
   updateActivePitcherPill();
@@ -223,10 +225,13 @@ function initTeamMode(){
 
 function updateActivePitcherPill(){
   const pill=document.getElementById('activepitcherpill');
+  const pillPanel=document.getElementById('activepitcherpill-panel');
   if(!pill) return;
   const pitcher=getActivePitcher();
   if(pitcher){
-    pill.textContent='⚾ '+pitcher.name.toUpperCase();
+    const text='⚾ '+pitcher.name.toUpperCase();
+    pill.textContent=text;
+    if(pillPanel) pillPanel.textContent=text+' ▾';
   }
 }
 
