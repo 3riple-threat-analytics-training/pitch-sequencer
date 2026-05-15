@@ -500,6 +500,38 @@ body[data-theme="light"] .sim-l-reveal{
     display:flex;
     flex-direction:column;
   }
+  /* Move pitcher pill above pitch type section on mobile in team mode */
+  #activepitcherpill.visible{
+    display:flex;
+    width:100%;
+    padding:7px 10px;
+    font-size:10px;
+    font-weight:700;
+    font-family:'DM Mono',monospace;
+    letter-spacing:1px;
+    border-radius:6px;
+    background:#cc1a1a;
+    border:none;
+    color:white;
+    cursor:pointer;
+    align-items:center;
+    justify-content:space-between;
+    order:-2;
+    max-width:100%;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+  }
+  #activepitcherpill.visible::after{
+    content:'▾';
+    font-size:12px;
+    margin-left:6px;
+    flex-shrink:0;
+  }
+  /* Hide pitcher pill from header on mobile — it shows in panel instead */
+  .header-controls #activepitcherpill{
+    display:none;
+  }
   #pitchtypesection{
     display:flex;
     flex-direction:row;
