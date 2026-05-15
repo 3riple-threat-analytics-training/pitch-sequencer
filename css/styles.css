@@ -528,12 +528,8 @@ body[data-theme="light"] .sim-l-reveal{
   #fatiguewrap .plbl{
     display:none;
   }
-  #fatiguewrap > div:first-of-type{
-    margin-bottom:2px;
-  }
-  #fatiguewrap > div:nth-child(2){
+  #fatigue-bar{
     height:4px;
-    margin-bottom:3px;
   }
   #fatiguewrap > div:last-child button{
     padding:3px 4px;
