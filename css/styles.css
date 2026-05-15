@@ -1041,16 +1041,7 @@ body[data-theme="dark"] .stat-bad{color:#f87171;}
     gap: 3px;
     flex-shrink: 0;
     width: auto;
-    border-right: 1px solid #2a3a5a;
-    padding-right: 5px;
-    margin-right: 1px;
     order: 1;
-  }
-
-  .header-controls > .tgrp:first-of-type {
-    border-right: 1px solid #2a3a5a;
-    padding-right: 5px;
-    margin-right: 1px;
   }
 
   .header-controls > .tgrp {
@@ -1069,15 +1060,6 @@ body[data-theme="dark"] .stat-bad{color:#f87171;}
     gap: 3px;
     flex-shrink: 0;
     width: auto;
-    border-right: 1px solid #2a3a5a;
-    padding-right: 5px;
-    margin-right: 1px;
-  }
-
-  body[data-theme="light"] #hand-toggle,
-  body[data-theme="light"] .header-controls > .tgrp:first-of-type,
-  body[data-theme="light"] #viewtoggle {
-    border-right-color: #999999;
   }
 
   /* invisible full-width break before row 2 */
