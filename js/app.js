@@ -1610,6 +1610,8 @@ function initOrbitView(){
 
   // Initialize isolation to all pitches visible
   orbitIsolation=seq.map((_,i)=>i);
+  orbitPlayedIndices=[];
+  orbitSoloMode=false;
   orbitPitchIndex=-1;
 
   // Detect tunnel clusters (before scene so highlights can render)
@@ -1964,6 +1966,113 @@ function detectOrbitTunnels(){
   }
 }
 
+function orbitShowKeepPathModal(pitchIdx,onYes,onNo){
+  // Remove any existing modal
+  const existing=document.getElementById('orbitKeepPathModal');
+  if(existing) existing.remove();
+
+  const s=seq[pitchIdx];
+  if(!s) return;
+  const col='#'+PITCHES[s.pk].color.toString(16).padStart(6,'0');
+  const pitchName=PITCHES[s.pk].name;
+
+  const overlay=document.createElement('div');
+  overlay.id='orbitKeepPathModal';
+  overlay.style.cssText=
+    'position:absolute;top:0;left:0;width:100%;height:100%;'+
+    'background:rgba(0,0,0,0.72);display:flex;align-items:center;'+
+    'justify-content:center;z-index:999;font-family:DM Mono,monospace;';
+
+  const box=document.createElement('div');
+  box.style.cssText=
+    'background:#0d1520;border:1px solid #1e3a5a;border-radius:8px;'+
+    'padding:24px 28px;max-width:320px;width:90%;text-align:center;'+
+    'box-shadow:0 8px 32px rgba(0,0,0,0.6);';
+
+  const title=document.createElement('div');
+  title.style.cssText='font-size:11px;letter-spacing:2px;color:#3a5a7a;'+
+    'margin-bottom:10px;';
+  title.textContent='GOING BACK';
+
+  const msg=document.createElement('div');
+  msg.style.cssText='font-size:13px;color:#c8d8e8;margin-bottom:20px;'+
+    'line-height:1.5;';
+  msg.innerHTML='Keep <span style="color:'+col+'">pitch '+
+    (pitchIdx+1)+' ('+pitchName+')</span> path visible?';
+
+  const btnRow=document.createElement('div');
+  btnRow.style.cssText='display:flex;gap:10px;justify-content:center;';
+
+  const yesBtn=document.createElement('button');
+  yesBtn.textContent='KEEP';
+  yesBtn.style.cssText=
+    'flex:1;padding:10px;border-radius:5px;border:1px solid #4a9a4a;'+
+    'background:#1a2a1a;color:#4ade80;font-family:DM Mono,monospace;'+
+    'font-size:11px;letter-spacing:1px;cursor:pointer;';
+  yesBtn.onclick=()=>{overlay.remove();onYes();};
+
+  const noBtn=document.createElement('button');
+  noBtn.textContent='REMOVE';
+  noBtn.style.cssText=
+    'flex:1;padding:10px;border-radius:5px;border:1px solid #7a2a2a;'+
+    'background:#1a0a0a;color:#f87171;font-family:DM Mono,monospace;'+
+    'font-size:11px;letter-spacing:1px;cursor:pointer;';
+  noBtn.onclick=()=>{overlay.remove();onNo();};
+
+  btnRow.appendChild(yesBtn);
+  btnRow.appendChild(noBtn);
+  box.appendChild(title);
+  box.appendChild(msg);
+  box.appendChild(btnRow);
+  overlay.appendChild(box);
+
+  const container=document.getElementById('orbitview');
+  if(container) container.appendChild(overlay);
+}
+
+function orbitRemovePitchPath(pitchIdx){
+  // Remove static path lines and orbs for this pitch index
+  // We identify them by rebuilding — simpler than tagging every object
+  // Strategy: remove all static paths/orbs, then redraw only the ones
+  // that should remain
+  if(!orbitScene) return;
+  orbitStaticPaths.forEach(o=>orbitScene.remove(o));
+  orbitStaticOrbs.forEach(o=>orbitScene.remove(o));
+  orbitStaticPaths=[];
+  orbitStaticOrbs=[];
+
+  // Remove from played list
+  orbitPlayedIndices=orbitPlayedIndices.filter(i=>i!==pitchIdx);
+
+  // Redraw paths for all remaining played pitches
+  orbitPlayedIndices.forEach(i=>orbitDrawSinglePath(i));
+
+  // Remove the tunnel between pitchIdx and its immediately preceding
+  // played pitch only
+  const preceding=orbitPlayedIndices
+    .filter(i=>i<pitchIdx)
+    .sort((a,b)=>b-a)[0];
+
+  if(preceding!==undefined){
+    // Remove all static tunnels and redraw only the ones that
+    // don't involve the (preceding, pitchIdx) pair
+    orbitStaticTunnels.forEach(o=>orbitScene.remove(o));
+    orbitStaticTunnels=[];
+    // Rebuild tunnels for all remaining played pitch pairs
+    // excluding the pair (preceding, pitchIdx)
+    const played=orbitPlayedIndices.slice().sort((a,b)=>a-b);
+    for(let a=0;a<played.length-1;a++){
+      for(let b=a+1;b<played.length;b++){
+        const idxA=played[a];
+        const idxB=played[b];
+        if(idxA===preceding&&idxB===pitchIdx) continue;
+        if(idxA===pitchIdx) continue;
+        orbitDrawTunnelBetween(idxA,idxB);
+      }
+    }
+  }
+}
+
 function buildOrbitToolbar(){
   // Isolation checkboxes
   const row=document.getElementById('orbitIsolationRow');
@@ -2055,9 +2164,35 @@ function orbitPrevPitch(){
   const visible=orbitIsolation.slice().sort((a,b)=>a-b);
   if(!visible.length) return;
   const cur=orbitPitchIndex;
-  const prev=visible.filter(i=>i<cur);
-  const idx=prev.length?prev[prev.length-1]:visible[visible.length-1];
-  orbitJumpToPitch(idx);
+  const prevList=visible.filter(i=>i<cur);
+  const targetIdx=prevList.length
+    ? prevList[prevList.length-1]
+    : visible[visible.length-1];
+
+  // If current pitch has been played, show Keep Path modal
+  if(orbitPlayedIndices.includes(cur)){
+    orbitShowKeepPathModal(
+      cur,
+      ()=>{
+        // YES — keep path, just move camera back
+        orbitPitchIndex=targetIdx;
+        orbitHighlightChapter(targetIdx);
+        orbitFocusReleasePoint(targetIdx);
+      },
+      ()=>{
+        // NO — remove path and most recent tunnel, move camera back
+        orbitRemovePitchPath(cur);
+        orbitPitchIndex=targetIdx;
+        orbitHighlightChapter(targetIdx);
+        orbitFocusReleasePoint(targetIdx);
+      }
+    );
+  } else {
+    // Not yet played — move back silently
+    orbitPitchIndex=targetIdx;
+    orbitHighlightChapter(targetIdx);
+    orbitFocusReleasePoint(targetIdx);
+  }
 }
 
 function orbitNextPitch(){
@@ -2065,9 +2200,13 @@ function orbitNextPitch(){
   const visible=orbitIsolation.slice().sort((a,b)=>a-b);
   if(!visible.length) return;
   const cur=orbitPitchIndex;
-  const next=visible.filter(i=>i>cur);
-  const idx=next.length?next[0]:visible[0];
-  orbitJumpToPitch(idx);
+  const nextList=visible.filter(i=>i>cur);
+  if(!nextList.length) return; // already at last pitch, do nothing
+  const targetIdx=nextList[0];
+  orbitPitchIndex=targetIdx;
+  orbitHighlightChapter(targetIdx);
+  orbitFocusReleasePoint(targetIdx);
+  // No ball, no path — user must hit Play
 }
 
 function orbitTogglePlay(){
@@ -2165,6 +2304,10 @@ function orbitAnimateBallAlongPath(pitchIdx,onDone){
       orbitBallAnimTimer=setTimeout(()=>requestAnimationFrame(step),msPerFrame);
     } else {
       done=true;
+      // Mark this pitch as played
+      if(!orbitPlayedIndices.includes(pitchIdx)){
+        orbitPlayedIndices.push(pitchIdx);
+      }
       orbitBallAnimTimer=setTimeout(()=>{
         if(onDone) onDone();
       },300);
