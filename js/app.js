@@ -1558,6 +1558,9 @@ let orbitStaticPaths=[];
 let orbitStaticOrbs=[];
 let orbitStaticTunnels=[];
 let orbitDrawnPitchIndices=[];
+let orbitPlayedIndices=[];
+let orbitSoloMode=false;
+let orbitLastTunnelPair=[-1,-1];
 
 function initOrbitView(){
   const container=document.getElementById('orbitview');
@@ -1587,7 +1590,10 @@ function initOrbitView(){
 
   // OrbitControls
   orbitControls=new THREE.OrbitControls(orbitCamera,canvas);
-  orbitControls.target.set(0,1.06,5);
+  const initTarget=(seq&&seq.length&&seq[0].pts3d&&seq[0].pts3d.length)
+    ? seq[0].pts3d[0]
+    : {x:0,y:1.5,z:17};
+  orbitControls.target.set(initTarget.x,initTarget.y,initTarget.z);
   orbitControls.enableDamping=true;
   orbitControls.dampingFactor=0.08;
   orbitControls.minDistance=0.5;
@@ -2035,23 +2041,13 @@ function orbitJumpToPitch(idx){
   orbitStopPlay();
   orbitPitchIndex=idx;
   orbitHighlightChapter(idx);
-  orbitShowPitchBall(idx);
+  orbitFocusReleasePoint(idx);
 }
 
 function orbitShowPitchBall(idx){
-  if(orbitBallMesh){orbitScene.remove(orbitBallMesh);orbitBallMesh=null;}
-  if(idx<0||idx>=seq.length) return;
-  if(!orbitIsolation.includes(idx)) return;
-  const s=seq[idx];
-  const pts=s.pts3d;
-  if(!pts||!pts.length) return;
-  const last=pts[pts.length-1];
-  const col=PITCHES[s.pk].color;
-  const geo=new THREE.SphereGeometry(0.055,10,10);
-  const mat=new THREE.MeshBasicMaterial({color:col});
-  orbitBallMesh=new THREE.Mesh(geo,mat);
-  orbitBallMesh.position.set(last.x,last.y,last.z);
-  orbitScene.add(orbitBallMesh);
+  // Ball only appears when Play is pressed — this function is now a no-op
+  // Camera is moved by orbitFocusReleasePoint instead
+  return;
 }
 
 function orbitPrevPitch(){
@@ -2182,6 +2178,17 @@ function orbitResetCamera(){
   orbitCamera.position.set(0,1.06,-1.2);
   orbitCamera.lookAt(0,1.06,10);
   orbitControls.target.set(0,1.06,5);
+  orbitControls.update();
+}
+
+function orbitFocusReleasePoint(pitchIdx){
+  if(!orbitCamera||!orbitControls) return;
+  const s=seq[pitchIdx];
+  if(!s||!s.pts3d||!s.pts3d.length) return;
+  const rp=s.pts3d[0];
+  // Point camera toward mound from slightly behind catcher position
+  orbitControls.target.set(rp.x,rp.y,rp.z);
+  orbitCamera.position.set(rp.x,rp.y+0.8,rp.z-2.5);
   orbitControls.update();
 }
 
