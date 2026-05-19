@@ -1564,6 +1564,15 @@ let orbitLastTunnelPair=[-1,-1];
 let orbitSoloPitchIndex=-1;
 let orbitSoloStaticPaths=[];
 let orbitSoloStaticTunnels=[];
+let orbitFrameStepMode=false;
+let orbitFrameStepPts=[];
+let orbitFrameStepIndex=0;
+let orbitFrameStepLine=null;
+let orbitFrameStepPitchIdx=-1;
+let orbitFrameStepTunnelRevealed=false;
+let orbitTouchStartX=0;
+let orbitTouchStartY=0;
+let orbitTouchStartTime=0;
 
 function initOrbitView(){
   const container=document.getElementById('orbitview');
@@ -1618,6 +1627,12 @@ function initOrbitView(){
   orbitSoloPitchIndex=-1;
   orbitSoloStaticPaths=[];
   orbitSoloStaticTunnels=[];
+  orbitFrameStepMode=false;
+  orbitFrameStepPts=[];
+  orbitFrameStepIndex=0;
+  orbitFrameStepLine=null;
+  orbitFrameStepPitchIdx=-1;
+  orbitFrameStepTunnelRevealed=false;
   orbitPitchIndex=-1;
 
   // Detect tunnel clusters (before scene so highlights can render)
@@ -2534,10 +2549,23 @@ function orbitNextPitch(){
 
 function orbitTogglePlay(){
   if(orbitPlaying){
-    orbitStopPlay();
+    // Pause — orbitAnimateBallAlongPath will hand off to frame step
+    orbitPlaying=false;
+    const btn=document.getElementById('orbitPlayBtn');
+    if(btn){
+      btn.textContent='PLAY';
+      btn.style.borderColor='#4a9a4a';
+      btn.style.color='#4a9a4a';
+      btn.style.background='#1a2a1a';
+    }
+  } else if(orbitFrameStepMode){
+    // Resume from current frame step position
+    const pitchIdx=orbitFrameStepPitchIdx;
+    const resumeFrame=orbitFrameStepIndex;
+    orbitExitFrameStep();
+    // Rebuild animation from resume frame
+    orbitResumeFromFrame(pitchIdx,resumeFrame);
   } else {
-    // If we were in single pitch mode, replay the selected pitch
-    // If no pitch selected, start full sequence
     orbitStartPlay();
   }
 }
@@ -2655,23 +2683,32 @@ function orbitAnimateBallAlongPath(pitchIdx,onDone){
   const msPerFrame=ms/totalFrames;
   let frameIdx=0;
   let done=false;
+  // Expose current frame index so spacebar pause can hand off
+  orbitAnimateBallAlongPath._currentPitchIdx=pitchIdx;
+  orbitAnimateBallAlongPath._getCurrentFrame=()=>frameIdx;
+  orbitAnimateBallAlongPath._getPts=()=>pts;
   function step(){
     if(done) return;
     if(!orbitPlaying){
+      // Paused — hand off to frame step mode at current frame
+      if(orbitFrameStepMode===false&&frameIdx>0){
+        orbitEnterFrameStep(pitchIdx,frameIdx);
+      }
       done=true;
-      if(onDone) onDone();
       return;
     }
     if(orbitBallMesh) orbitBallMesh.position.copy(pts[frameIdx]);
     frameIdx++;
     if(frameIdx<totalFrames){
-      orbitBallAnimTimer=setTimeout(()=>requestAnimationFrame(step),msPerFrame);
+      orbitBallAnimTimer=setTimeout(
+        ()=>requestAnimationFrame(step),msPerFrame
+      );
     } else {
       done=true;
-      // Mark this pitch as played
       if(!orbitPlayedIndices.includes(pitchIdx)){
         orbitPlayedIndices.push(pitchIdx);
       }
+      orbitAnimateBallAlongPath._currentPitchIdx=-1;
       orbitBallAnimTimer=setTimeout(()=>{
         if(onDone) onDone();
       },300);
@@ -2697,6 +2734,189 @@ function orbitFocusReleasePoint(pitchIdx){
   orbitControls.target.set(rp.x,rp.y,rp.z);
   orbitCamera.position.set(rp.x,rp.y+0.8,rp.z-2.5);
   orbitControls.update();
+}
+
+function orbitEnterFrameStep(pitchIdx,startFrame){
+  // Enter frame step mode for the given pitch at the given frame
+  const s=seq[pitchIdx];
+  if(!s||!s.pts3d||!s.pts3d.length) return;
+  orbitFrameStepMode=true;
+  orbitFrameStepPitchIdx=pitchIdx;
+  orbitFrameStepPts=s.pts3d.map(v=>new THREE.Vector3(v.x,v.y,v.z));
+  orbitFrameStepIndex=Math.max(0,Math.min(
+    startFrame,orbitFrameStepPts.length-1
+  ));
+  orbitFrameStepTunnelRevealed=false;
+
+  // Position ball at current frame
+  if(orbitBallMesh) orbitScene.remove(orbitBallMesh);
+  const col=PITCHES[s.pk].color;
+  const geo=new THREE.SphereGeometry(0.055,10,10);
+  const mat=new THREE.MeshBasicMaterial({color:col,depthTest:false});
+  orbitBallMesh=new THREE.Mesh(geo,mat);
+  orbitBallMesh.renderOrder=999;
+  orbitScene.add(orbitBallMesh);
+  orbitBallMesh.position.copy(orbitFrameStepPts[orbitFrameStepIndex]);
+
+  // Draw path up to current frame
+  orbitRedrawFrameStepPath();
+}
+
+function orbitExitFrameStep(){
+  orbitFrameStepMode=false;
+  orbitFrameStepPts=[];
+  orbitFrameStepIndex=0;
+  orbitFrameStepPitchIdx=-1;
+  orbitFrameStepTunnelRevealed=false;
+  if(orbitFrameStepLine){
+    orbitScene.remove(orbitFrameStepLine);
+    orbitFrameStepLine=null;
+  }
+}
+
+function orbitResumeFromFrame(pitchIdx,startFrame){
+  const s=seq[pitchIdx];
+  if(!s||!s.pts3d||!s.pts3d.length) return;
+  const pts=s.pts3d.map(v=>new THREE.Vector3(v.x,v.y,v.z));
+  const col=PITCHES[s.pk].color;
+  const totalFrames=pts.length;
+  const ms=(PITCHES[s.pk].ms||1000)*1.5;
+  const msPerFrame=ms/totalFrames;
+
+  // Ensure ball mesh exists
+  if(orbitBallMesh) orbitScene.remove(orbitBallMesh);
+  const geo=new THREE.SphereGeometry(0.055,10,10);
+  const mat=new THREE.MeshBasicMaterial({color:col,depthTest:false});
+  orbitBallMesh=new THREE.Mesh(geo,mat);
+  orbitBallMesh.renderOrder=999;
+  orbitScene.add(orbitBallMesh);
+
+  orbitPlaying=true;
+  const btn=document.getElementById('orbitPlayBtn');
+  if(btn){
+    btn.textContent='PAUSE';
+    btn.style.borderColor='#e05a5a';
+    btn.style.color='#e05a5a';
+    btn.style.background='#1a0a0a';
+  }
+
+  // Draw path up to resume frame immediately
+  if(startFrame>0){
+    const existingPts=pts.slice(0,startFrame+1);
+    const resumeGeo=new THREE.BufferGeometry().setFromPoints(existingPts);
+    const resumeMat=new THREE.LineBasicMaterial({
+      color:col,transparent:true,opacity:0.85,linewidth:2
+    });
+    const resumeLine=new THREE.Line(resumeGeo,resumeMat);
+    orbitScene.add(resumeLine);
+    orbitStaticPaths.push(resumeLine);
+  }
+
+  let frameIdx=startFrame;
+  let done=false;
+
+  function step(){
+    if(done) return;
+    if(!orbitPlaying){
+      if(!orbitFrameStepMode&&frameIdx>0){
+        orbitEnterFrameStep(pitchIdx,frameIdx);
+      }
+      done=true;
+      return;
+    }
+    if(orbitBallMesh) orbitBallMesh.position.copy(pts[frameIdx]);
+    frameIdx++;
+    if(frameIdx<totalFrames){
+      orbitBallAnimTimer=setTimeout(
+        ()=>requestAnimationFrame(step),msPerFrame
+      );
+    } else {
+      done=true;
+      if(!orbitPlayedIndices.includes(pitchIdx)){
+        orbitPlayedIndices.push(pitchIdx);
+      }
+      orbitBallAnimTimer=setTimeout(()=>{
+        orbitDrawSinglePath(pitchIdx);
+        orbitPlayedIndices
+          .filter(i=>i!==pitchIdx)
+          .forEach(prevIdx=>{
+            orbitDrawTunnelBetween(
+              Math.min(prevIdx,pitchIdx),
+              Math.max(prevIdx,pitchIdx)
+            );
+          });
+        orbitStopPlay();
+      },300);
+    }
+  }
+  requestAnimationFrame(step);
+}
+
+function orbitRedrawFrameStepPath(){
+  // Remove existing frame step path line
+  if(orbitFrameStepLine){
+    orbitScene.remove(orbitFrameStepLine);
+    orbitFrameStepLine=null;
+  }
+  if(orbitFrameStepIndex<1) return;
+  const s=seq[orbitFrameStepPitchIdx];
+  if(!s) return;
+  const col=PITCHES[s.pk].color;
+  const pts=orbitFrameStepPts.slice(0,orbitFrameStepIndex+1);
+  const geo=new THREE.BufferGeometry().setFromPoints(pts);
+  const mat=new THREE.LineBasicMaterial({
+    color:col,transparent:true,opacity:0.85,linewidth:2
+  });
+  orbitFrameStepLine=new THREE.Line(geo,mat);
+  orbitScene.add(orbitFrameStepLine);
+
+  // Reveal tunnel when ball enters tunnel zone on forward step
+  const totalFrames=orbitFrameStepPts.length;
+  const tunnelStartFrame=Math.floor(totalFrames*0.15);
+  const tunnelEndFrame=Math.floor(totalFrames*0.72);
+  if(!orbitFrameStepTunnelRevealed&&
+    orbitFrameStepIndex>=tunnelStartFrame&&
+    orbitFrameStepIndex<=tunnelEndFrame){
+    orbitPlayedIndices.forEach(prevIdx=>{
+      if(prevIdx===orbitFrameStepPitchIdx) return;
+      orbitDrawTunnelBetween(
+        Math.min(prevIdx,orbitFrameStepPitchIdx),
+        Math.max(prevIdx,orbitFrameStepPitchIdx)
+      );
+    });
+    orbitFrameStepTunnelRevealed=true;
+  }
+}
+
+function orbitStepFrame(delta){
+  // delta: +1 forward, -1 backward
+  if(!orbitFrameStepMode) return;
+  const newIdx=orbitFrameStepIndex+delta;
+  if(newIdx<0||newIdx>=orbitFrameStepPts.length) return;
+  orbitFrameStepIndex=newIdx;
+  if(orbitBallMesh){
+    orbitBallMesh.position.copy(orbitFrameStepPts[orbitFrameStepIndex]);
+  }
+  orbitRedrawFrameStepPath();
+
+  // If stepped to last frame, mark as played and draw final path
+  if(orbitFrameStepIndex===orbitFrameStepPts.length-1){
+    const pitchIdx=orbitFrameStepPitchIdx;
+    if(!orbitPlayedIndices.includes(pitchIdx)){
+      orbitPlayedIndices.push(pitchIdx);
+    }
+    orbitExitFrameStep();
+    orbitDrawSinglePath(pitchIdx);
+    orbitPlayedIndices
+      .filter(i=>i!==pitchIdx)
+      .forEach(prevIdx=>{
+        orbitDrawTunnelBetween(
+          Math.min(prevIdx,pitchIdx),
+          Math.max(prevIdx,pitchIdx)
+        );
+      });
+    orbitStopPlay();
+  }
 }
 
 function orbitTunnelZoom(){
@@ -2848,4 +3068,79 @@ window.addEventListener('load',()=>{
   updateSimLogUI();
   initProfile();
   setView('catcher');
+
+  // Orbit view keyboard controls
+  document.addEventListener('keydown',(e)=>{
+    if(currentView!=='orbit') return;
+    // Spacebar — toggle play/pause
+    if(e.code==='Space'){
+      e.preventDefault();
+      orbitTogglePlay();
+      return;
+    }
+    // Arrow keys — frame step (only when paused)
+    if(e.code==='ArrowRight'&&!orbitPlaying){
+      e.preventDefault();
+      if(orbitFrameStepMode){
+        orbitStepFrame(1);
+      } else if(orbitPitchIndex>=0){
+        // Enter frame step at frame 0 of selected pitch
+        orbitEnterFrameStep(orbitPitchIndex,0);
+        orbitStepFrame(1);
+      }
+      return;
+    }
+    if(e.code==='ArrowLeft'&&!orbitPlaying){
+      e.preventDefault();
+      if(orbitFrameStepMode){
+        orbitStepFrame(-1);
+      }
+      return;
+    }
+  });
+
+  // Orbit view mobile touch controls
+  const orbitCanvas=document.getElementById('orbitcanvas');
+  if(orbitCanvas){
+    orbitCanvas.addEventListener('touchstart',(e)=>{
+      if(currentView!=='orbit') return;
+      if(e.touches.length===1){
+        orbitTouchStartX=e.touches[0].clientX;
+        orbitTouchStartY=e.touches[0].clientY;
+        orbitTouchStartTime=performance.now();
+      }
+    },{passive:true});
+
+    orbitCanvas.addEventListener('touchend',(e)=>{
+      if(currentView!=='orbit') return;
+      if(e.changedTouches.length===1){
+        const dx=e.changedTouches[0].clientX-orbitTouchStartX;
+        const dy=e.changedTouches[0].clientY-orbitTouchStartY;
+        const dt=performance.now()-orbitTouchStartTime;
+        const dist=Math.sqrt(dx*dx+dy*dy);
+
+        // Tap — toggle play/pause (short touch, minimal movement)
+        if(dist<12&&dt<300){
+          orbitTogglePlay();
+          return;
+        }
+
+        // Swipe — frame step (only when paused)
+        if(!orbitPlaying&&dist>30&&Math.abs(dx)>Math.abs(dy)){
+          if(dx>0){
+            // Swipe right — step forward
+            if(orbitFrameStepMode){
+              orbitStepFrame(1);
+            } else if(orbitPitchIndex>=0){
+              orbitEnterFrameStep(orbitPitchIndex,0);
+              orbitStepFrame(1);
+            }
+          } else {
+            // Swipe left — step backward
+            if(orbitFrameStepMode) orbitStepFrame(-1);
+          }
+        }
+      }
+    },{passive:true});
+  }
 });
