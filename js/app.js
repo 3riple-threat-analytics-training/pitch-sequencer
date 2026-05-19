@@ -2210,13 +2210,54 @@ function orbitNextPitch(){
 }
 
 function orbitTogglePlay(){
-  if(orbitPlaying) orbitStopPlay();
-  else orbitStartPlay();
+  if(orbitPlaying){
+    orbitStopPlay();
+  } else {
+    // If we were in single pitch mode, replay the selected pitch
+    // If no pitch selected, start full sequence
+    orbitStartPlay();
+  }
 }
 
 function orbitStartPlay(){
   if(!seq.length) return;
   if(orbitBallMesh){orbitScene.remove(orbitBallMesh);orbitBallMesh=null;}
+
+  // SINGLE PITCH MODE — a specific pitch has been selected via arrows
+  if(orbitPitchIndex>=0&&orbitPitchIndex<seq.length){
+    const pitchIdx=orbitPitchIndex;
+
+    // Do NOT clear the scene — all existing paths/tunnels remain
+    orbitPlaying=true;
+    const btn=document.getElementById('orbitPlayBtn');
+    if(btn){
+      btn.textContent='PAUSE';
+      btn.style.borderColor='#e05a5a';
+      btn.style.color='#e05a5a';
+      btn.style.background='#1a0a0a';
+    }
+
+    orbitHighlightChapter(pitchIdx);
+    orbitFocusReleasePoint(pitchIdx);
+
+    orbitAnimateBallAlongPath(pitchIdx,()=>{
+      // Draw this pitch path after ball lands
+      orbitDrawSinglePath(pitchIdx);
+      // Draw tunnels between this pitch and all previously played pitches
+      orbitPlayedIndices
+        .filter(i=>i!==pitchIdx)
+        .forEach(prevIdx=>{
+          orbitDrawTunnelBetween(
+            Math.min(prevIdx,pitchIdx),
+            Math.max(prevIdx,pitchIdx)
+          );
+        });
+      orbitStopPlay();
+    });
+    return;
+  }
+
+  // FULL SEQUENCE MODE — no pitch selected, play all from beginning
   orbitDrawnPitchIndices=[];
   orbitPlayMode=true;
   buildOrbitScene();
@@ -2261,7 +2302,8 @@ function orbitStopPlay(){
   orbitPlayMode=false;
   orbitDrawnPitchIndices=[];
   if(orbitPlayTimer){clearTimeout(orbitPlayTimer);orbitPlayTimer=null;}
-  if(orbitBallAnimTimer){clearTimeout(orbitBallAnimTimer);orbitBallAnimTimer=null;}
+  if(orbitBallAnimTimer){clearTimeout(orbitBallAnimTimer);
+    orbitBallAnimTimer=null;}
   if(orbitBallMesh){orbitScene.remove(orbitBallMesh);orbitBallMesh=null;}
   const btn=document.getElementById('orbitPlayBtn');
   if(btn){
@@ -2270,9 +2312,8 @@ function orbitStopPlay(){
     btn.style.color='#4a9a4a';
     btn.style.background='#1a2a1a';
   }
-  // Do NOT rebuild scene here — leave all paths, tunnels
-  // and decision points exactly as they are
-  // Scene only rebuilds when PLAY is hit again via orbitStartPlay
+  // NOTE: orbitPitchIndex is intentionally NOT reset here
+  // so the selected pitch is remembered after stopping
 }
 
 function orbitAnimateBallAlongPath(pitchIdx,onDone){
