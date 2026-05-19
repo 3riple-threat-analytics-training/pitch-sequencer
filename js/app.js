@@ -2110,11 +2110,16 @@ function orbitShowSoloCompleteModal(pitchIdx){
   const col='#'+PITCHES[s.pk].color.toString(16).padStart(6,'0');
   const pitchName=PITCHES[s.pk].name;
 
-  // Determine scenario: have all pitches been played?
-  const allPlayed=seq.every((_,i)=>orbitPlayedIndices.includes(i));
+  // Find next pitch in visible isolation list
   const visible=orbitIsolation.slice().sort((a,b)=>a-b);
-  const nextIdx=visible.find(i=>i>pitchIdx&&
-    !orbitPlayedIndices.includes(i));
+  const currentPos=visible.indexOf(pitchIdx);
+  const isLastPitch=currentPos===visible.length-1;
+  // Next pitch — wraps to first if on last pitch
+  const nextIdx=isLastPitch ? visible[0] : visible[currentPos+1];
+  const nextS=seq[nextIdx];
+  const nextCol=nextS
+    ? '#'+PITCHES[nextS.pk].color.toString(16).padStart(6,'0')
+    : '#7ec8e3';
 
   const overlay=document.createElement('div');
   overlay.id='orbitSoloCompleteModal';
@@ -2145,7 +2150,32 @@ function orbitShowSoloCompleteModal(pitchIdx){
   const btnCol=document.createElement('div');
   btnCol.style.cssText='display:flex;flex-direction:column;gap:8px;';
 
-  // Always show Restore Full Sequence
+  // Continue button — always show
+  // If last pitch: "RETURN TO PITCH 1", otherwise "CONTINUE TO PITCH N"
+  const continueBtn=document.createElement('button');
+  if(isLastPitch){
+    continueBtn.textContent='RETURN TO PITCH 1'+
+      (nextS?' ('+PITCHES[nextS.pk].name.toUpperCase()+')':'');
+  } else {
+    continueBtn.textContent='CONTINUE TO PITCH '+(nextIdx+1)+
+      (nextS?' ('+PITCHES[nextS.pk].name.toUpperCase()+')':'');
+  }
+  continueBtn.style.cssText=
+    'width:100%;padding:10px;border-radius:5px;'+
+    'border:1px solid '+nextCol+';background:#0d1520;color:'+nextCol+';'+
+    'font-family:DM Mono,monospace;font-size:10px;'+
+    'letter-spacing:1px;cursor:pointer;';
+  continueBtn.onclick=()=>{
+    overlay.remove();
+    orbitEndSolo(false);
+    orbitPitchIndex=nextIdx;
+    orbitHighlightChapter(nextIdx);
+    orbitFocusReleasePoint(nextIdx);
+  };
+  btnCol.appendChild(continueBtn);
+
+  // Restore Full Sequence — resets orbitPitchIndex to -1 so next
+  // Play press triggers full sequence mode from the beginning
   const restoreBtn=document.createElement('button');
   restoreBtn.textContent='RESTORE FULL SEQUENCE';
   restoreBtn.style.cssText=
@@ -2156,33 +2186,13 @@ function orbitShowSoloCompleteModal(pitchIdx){
   restoreBtn.onclick=()=>{
     overlay.remove();
     orbitEndSolo(true);
+    // Reset pitch index so next Play runs full sequence from beginning
+    orbitPitchIndex=-1;
+    orbitHighlightChapter(-1);
   };
-
-  // Scenario 2 only — show Continue to Next Pitch
-  if(!allPlayed&&nextIdx!==undefined){
-    const nextS=seq[nextIdx];
-    const nextCol='#'+PITCHES[nextS.pk].color.toString(16).padStart(6,'0');
-    const continueBtn=document.createElement('button');
-    continueBtn.textContent='CONTINUE TO PITCH '+(nextIdx+1)+
-      ' ('+PITCHES[nextS.pk].name.toUpperCase()+')';
-    continueBtn.style.cssText=
-      'width:100%;padding:10px;border-radius:5px;'+
-      'border:1px solid '+nextCol+';background:#0d1520;color:'+nextCol+';'+
-      'font-family:DM Mono,monospace;font-size:10px;'+
-      'letter-spacing:1px;cursor:pointer;';
-    continueBtn.onclick=()=>{
-      overlay.remove();
-      orbitEndSolo(false);
-      orbitPitchIndex=nextIdx;
-      orbitHighlightChapter(nextIdx);
-      orbitFocusReleasePoint(nextIdx);
-    };
-    btnCol.appendChild(continueBtn);
-  }
-
   btnCol.appendChild(restoreBtn);
 
-  // Always show Done
+  // Done — dismiss modal, stay as-is
   const doneBtn=document.createElement('button');
   doneBtn.textContent='DONE';
   doneBtn.style.cssText=
