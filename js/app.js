@@ -1561,6 +1561,9 @@ let orbitDrawnPitchIndices=[];
 let orbitPlayedIndices=[];
 let orbitSoloMode=false;
 let orbitLastTunnelPair=[-1,-1];
+let orbitSoloPitchIndex=-1;
+let orbitSoloStaticPaths=[];
+let orbitSoloStaticTunnels=[];
 
 function initOrbitView(){
   const container=document.getElementById('orbitview');
@@ -1612,6 +1615,9 @@ function initOrbitView(){
   orbitIsolation=seq.map((_,i)=>i);
   orbitPlayedIndices=[];
   orbitSoloMode=false;
+  orbitSoloPitchIndex=-1;
+  orbitSoloStaticPaths=[];
+  orbitSoloStaticTunnels=[];
   orbitPitchIndex=-1;
 
   // Detect tunnel clusters (before scene so highlights can render)
@@ -2030,6 +2036,308 @@ function orbitShowKeepPathModal(pitchIdx,onYes,onNo){
   if(container) container.appendChild(overlay);
 }
 
+function orbitShowSoloPrompt(pitchIdx){
+  const existing=document.getElementById('orbitSoloModal');
+  if(existing) existing.remove();
+
+  const s=seq[pitchIdx];
+  if(!s) return;
+  const col='#'+PITCHES[s.pk].color.toString(16).padStart(6,'0');
+  const pitchName=PITCHES[s.pk].name;
+
+  const overlay=document.createElement('div');
+  overlay.id='orbitSoloModal';
+  overlay.style.cssText=
+    'position:absolute;top:0;left:0;width:100%;height:100%;'+
+    'background:rgba(0,0,0,0.72);display:flex;align-items:center;'+
+    'justify-content:center;z-index:999;font-family:DM Mono,monospace;';
+
+  const box=document.createElement('div');
+  box.style.cssText=
+    'background:#0d1520;border:1px solid #1e3a5a;border-radius:8px;'+
+    'padding:24px 28px;max-width:340px;width:90%;text-align:center;'+
+    'box-shadow:0 8px 32px rgba(0,0,0,0.6);';
+
+  const title=document.createElement('div');
+  title.style.cssText='font-size:11px;letter-spacing:2px;color:#3a5a7a;'+
+    'margin-bottom:10px;';
+  title.textContent='SOLO REPLAY';
+
+  const msg=document.createElement('div');
+  msg.style.cssText='font-size:13px;color:#c8d8e8;margin-bottom:20px;'+
+    'line-height:1.6;';
+  msg.innerHTML='Play <span style="color:'+col+'">pitch '+
+    (pitchIdx+1)+' ('+pitchName+')</span> solo?<br>'+
+    '<span style="font-size:10px;color:#3a5a7a;">All other paths and '+
+    'tunnels will be hidden.</span>';
+
+  const btnRow=document.createElement('div');
+  btnRow.style.cssText='display:flex;gap:10px;justify-content:center;';
+
+  const yesBtn=document.createElement('button');
+  yesBtn.textContent='SOLO PLAY';
+  yesBtn.style.cssText=
+    'flex:1;padding:10px;border-radius:5px;border:1px solid '+col+';'+
+    'background:#0d1520;color:'+col+';font-family:DM Mono,monospace;'+
+    'font-size:11px;letter-spacing:1px;cursor:pointer;';
+  yesBtn.onclick=()=>{overlay.remove();orbitStartSolo(pitchIdx);};
+
+  const noBtn=document.createElement('button');
+  noBtn.textContent='CANCEL';
+  noBtn.style.cssText=
+    'flex:1;padding:10px;border-radius:5px;border:1px solid #2a3a4a;'+
+    'background:#0d1520;color:#3a5a7a;font-family:DM Mono,monospace;'+
+    'font-size:11px;letter-spacing:1px;cursor:pointer;';
+  noBtn.onclick=()=>overlay.remove();
+
+  btnRow.appendChild(yesBtn);
+  btnRow.appendChild(noBtn);
+  box.appendChild(title);
+  box.appendChild(msg);
+  box.appendChild(btnRow);
+  overlay.appendChild(box);
+
+  const container=document.getElementById('orbitview');
+  if(container) container.appendChild(overlay);
+}
+
+function orbitShowSoloCompleteModal(pitchIdx){
+  const existing=document.getElementById('orbitSoloCompleteModal');
+  if(existing) existing.remove();
+
+  const s=seq[pitchIdx];
+  if(!s) return;
+  const col='#'+PITCHES[s.pk].color.toString(16).padStart(6,'0');
+  const pitchName=PITCHES[s.pk].name;
+
+  // Determine scenario: have all pitches been played?
+  const allPlayed=seq.every((_,i)=>orbitPlayedIndices.includes(i));
+  const visible=orbitIsolation.slice().sort((a,b)=>a-b);
+  const nextIdx=visible.find(i=>i>pitchIdx&&
+    !orbitPlayedIndices.includes(i));
+
+  const overlay=document.createElement('div');
+  overlay.id='orbitSoloCompleteModal';
+  overlay.style.cssText=
+    'position:absolute;top:0;left:0;width:100%;height:100%;'+
+    'background:rgba(0,0,0,0.72);display:flex;align-items:center;'+
+    'justify-content:center;z-index:999;font-family:DM Mono,monospace;';
+
+  const box=document.createElement('div');
+  box.style.cssText=
+    'background:#0d1520;border:1px solid #1e3a5a;border-radius:8px;'+
+    'padding:24px 28px;max-width:340px;width:90%;text-align:center;'+
+    'box-shadow:0 8px 32px rgba(0,0,0,0.6);';
+
+  const title=document.createElement('div');
+  title.style.cssText='font-size:11px;letter-spacing:2px;color:#3a5a7a;'+
+    'margin-bottom:10px;';
+  title.textContent='PITCH COMPLETE';
+
+  const msg=document.createElement('div');
+  msg.style.cssText='font-size:12px;color:#c8d8e8;margin-bottom:20px;'+
+    'line-height:1.6;';
+  msg.innerHTML='<span style="color:'+col+'">Pitch '+
+    (pitchIdx+1)+' — '+pitchName+'</span><br>'+
+    '<span style="font-size:10px;color:#3a5a7a;">What would you like '+
+    'to do next?</span>';
+
+  const btnCol=document.createElement('div');
+  btnCol.style.cssText='display:flex;flex-direction:column;gap:8px;';
+
+  // Always show Restore Full Sequence
+  const restoreBtn=document.createElement('button');
+  restoreBtn.textContent='RESTORE FULL SEQUENCE';
+  restoreBtn.style.cssText=
+    'width:100%;padding:10px;border-radius:5px;'+
+    'border:1px solid #4a9a4a;background:#1a2a1a;color:#4ade80;'+
+    'font-family:DM Mono,monospace;font-size:11px;'+
+    'letter-spacing:1px;cursor:pointer;';
+  restoreBtn.onclick=()=>{
+    overlay.remove();
+    orbitEndSolo(true);
+  };
+
+  // Scenario 2 only — show Continue to Next Pitch
+  if(!allPlayed&&nextIdx!==undefined){
+    const nextS=seq[nextIdx];
+    const nextCol='#'+PITCHES[nextS.pk].color.toString(16).padStart(6,'0');
+    const continueBtn=document.createElement('button');
+    continueBtn.textContent='CONTINUE TO PITCH '+(nextIdx+1)+
+      ' ('+PITCHES[nextS.pk].name.toUpperCase()+')';
+    continueBtn.style.cssText=
+      'width:100%;padding:10px;border-radius:5px;'+
+      'border:1px solid '+nextCol+';background:#0d1520;color:'+nextCol+';'+
+      'font-family:DM Mono,monospace;font-size:10px;'+
+      'letter-spacing:1px;cursor:pointer;';
+    continueBtn.onclick=()=>{
+      overlay.remove();
+      orbitEndSolo(false);
+      orbitPitchIndex=nextIdx;
+      orbitHighlightChapter(nextIdx);
+      orbitFocusReleasePoint(nextIdx);
+    };
+    btnCol.appendChild(continueBtn);
+  }
+
+  btnCol.appendChild(restoreBtn);
+
+  // Always show Done
+  const doneBtn=document.createElement('button');
+  doneBtn.textContent='DONE';
+  doneBtn.style.cssText=
+    'width:100%;padding:10px;border-radius:5px;'+
+    'border:1px solid #2a3a4a;background:#0d1520;color:#3a5a7a;'+
+    'font-family:DM Mono,monospace;font-size:11px;'+
+    'letter-spacing:1px;cursor:pointer;';
+  doneBtn.onclick=()=>overlay.remove();
+
+  btnCol.appendChild(doneBtn);
+  box.appendChild(title);
+  box.appendChild(msg);
+  box.appendChild(btnCol);
+  overlay.appendChild(box);
+
+  const container=document.getElementById('orbitview');
+  if(container) container.appendChild(overlay);
+}
+
+function orbitStartSolo(pitchIdx){
+  orbitStopPlay();
+  orbitSoloMode=true;
+  orbitSoloPitchIndex=pitchIdx;
+
+  // Save current scene state — store references to all existing
+  // static paths, orbs and tunnels so we can restore them
+  orbitSoloStaticPaths=[...orbitStaticPaths];
+  orbitSoloStaticTunnels=[...orbitStaticTunnels];
+
+  // Hide all existing paths, orbs and tunnels
+  [...orbitStaticPaths,...orbitStaticOrbs,...orbitStaticTunnels]
+    .forEach(o=>{if(o) o.visible=false;});
+
+  // Focus camera on release point
+  orbitPitchIndex=pitchIdx;
+  orbitHighlightChapter(pitchIdx);
+  orbitFocusReleasePoint(pitchIdx);
+
+  // Play the pitch
+  orbitPlaying=true;
+  const btn=document.getElementById('orbitPlayBtn');
+  if(btn){
+    btn.textContent='PAUSE';
+    btn.style.borderColor='#e05a5a';
+    btn.style.color='#e05a5a';
+    btn.style.background='#1a0a0a';
+  }
+
+  const s=seq[pitchIdx];
+  if(!s||!s.pts3d||!s.pts3d.length){orbitStopPlay();return;}
+  const pts=s.pts3d.map(v=>new THREE.Vector3(v.x,v.y,v.z));
+  const col=PITCHES[s.pk].color;
+  const totalFrames=pts.length;
+  const ms=(PITCHES[s.pk].ms||1000)*1.5;
+  const msPerFrame=ms/totalFrames;
+
+  // Create ball
+  if(orbitBallMesh){orbitScene.remove(orbitBallMesh);orbitBallMesh=null;}
+  const geo=new THREE.SphereGeometry(0.055,10,10);
+  const mat=new THREE.MeshBasicMaterial({color:col,depthTest:false});
+  orbitBallMesh=new THREE.Mesh(geo,mat);
+  orbitBallMesh.renderOrder=999;
+  orbitScene.add(orbitBallMesh);
+
+  // Track tunnel reveal state
+  let tunnelRevealed=false;
+  const tunnelStartFrac=0.15;
+  const tunnelEndFrac=0.72;
+  const tunnelStartFrame=Math.floor(totalFrames*tunnelStartFrac);
+  const tunnelEndFrame=Math.floor(totalFrames*tunnelEndFrac);
+
+  // Draw path incrementally as ball moves
+  const pathPts=[];
+  let pathLine=null;
+
+  let frameIdx=0;
+  let done=false;
+
+  function soloStep(){
+    if(done) return;
+    if(!orbitPlaying){
+      done=true;
+      orbitStopPlay();
+      return;
+    }
+
+    if(orbitBallMesh) orbitBallMesh.position.copy(pts[frameIdx]);
+
+    // Draw incremental path
+    pathPts.push(pts[frameIdx].clone());
+    if(pathLine) orbitScene.remove(pathLine);
+    if(pathPts.length>=2){
+      const lineGeo=new THREE.BufferGeometry().setFromPoints(pathPts);
+      const lineMat=new THREE.LineBasicMaterial({
+        color:col,transparent:true,opacity:0.85,linewidth:2
+      });
+      pathLine=new THREE.Line(lineGeo,lineMat);
+      orbitScene.add(pathLine);
+    }
+
+    // Reveal tunnel when ball enters tunnel zone
+    if(!tunnelRevealed&&frameIdx>=tunnelStartFrame&&
+      frameIdx<=tunnelEndFrame){
+      // Check if this pitch has a tunnel with any previously played pitch
+      orbitPlayedIndices.forEach(prevIdx=>{
+        if(prevIdx===pitchIdx) return;
+        orbitDrawTunnelBetween(
+          Math.min(prevIdx,pitchIdx),
+          Math.max(prevIdx,pitchIdx)
+        );
+      });
+      tunnelRevealed=true;
+    }
+
+    frameIdx++;
+    if(frameIdx<totalFrames){
+      orbitBallAnimTimer=setTimeout(
+        ()=>requestAnimationFrame(soloStep),msPerFrame
+      );
+    } else {
+      done=true;
+      // Mark as played
+      if(!orbitPlayedIndices.includes(pitchIdx)){
+        orbitPlayedIndices.push(pitchIdx);
+      }
+      // Keep final path line in static paths
+      if(pathLine) orbitStaticPaths.push(pathLine);
+      orbitBallAnimTimer=setTimeout(()=>{
+        orbitStopPlay();
+        orbitShowSoloCompleteModal(pitchIdx);
+      },400);
+    }
+  }
+  requestAnimationFrame(soloStep);
+}
+
+function orbitEndSolo(restoreAll){
+  orbitSoloMode=false;
+  if(restoreAll){
+    // Restore all previously hidden paths, orbs and tunnels
+    [...orbitStaticPaths,...orbitStaticOrbs,...orbitStaticTunnels]
+      .forEach(o=>{if(o) o.visible=true;});
+    // Also restore solo saved objects
+    [...orbitSoloStaticPaths,...orbitSoloStaticTunnels]
+      .forEach(o=>{if(o) o.visible=true;});
+  } else {
+    // Restore only previously played paths and their tunnels
+    // Leave unplayed pitches hidden
+    orbitSoloStaticPaths.forEach(o=>{if(o) o.visible=true;});
+    orbitSoloStaticTunnels.forEach(o=>{if(o) o.visible=true;});
+  }
+  orbitSoloStaticPaths=[];
+  orbitSoloStaticTunnels=[];
+}
+
 function orbitRemovePitchPath(pitchIdx){
   // Remove static path lines and orbs for this pitch index
   // We identify them by rebuilding — simpler than tagging every object
@@ -2124,7 +2432,12 @@ function buildOrbitToolbar(){
       'background:#0d1520;color:'+col+';font-family:DM Mono,monospace;font-size:8px;'+
       'cursor:pointer;transition:all 0.15s;min-height:28px;';
     btn.textContent=(i+1)+' '+PITCHES[s.pk].name.split(' ')[0];
+    btn.title='Click to jump to pitch — double-click to solo replay';
     btn.onclick=()=>orbitJumpToPitch(i);
+    btn.ondblclick=(e)=>{
+      e.stopPropagation();
+      orbitShowSoloPrompt(i);
+    };
     scrubber.appendChild(btn);
   });
 }
