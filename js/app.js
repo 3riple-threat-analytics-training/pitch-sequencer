@@ -1633,6 +1633,7 @@ function initOrbitView(){
   orbitFrameStepLine=null;
   orbitFrameStepPitchIdx=-1;
   orbitFrameStepTunnelRevealed=false;
+  orbitHideMobileFrameButtons();
   orbitPitchIndex=-1;
 
   // Detect tunnel clusters (before scene so highlights can render)
@@ -2558,14 +2559,17 @@ function orbitTogglePlay(){
       btn.style.color='#4a9a4a';
       btn.style.background='#1a2a1a';
     }
+    // Show frame step buttons on mobile
+    orbitShowMobileFrameButtons();
   } else if(orbitFrameStepMode){
     // Resume from current frame step position
+    orbitHideMobileFrameButtons();
     const pitchIdx=orbitFrameStepPitchIdx;
     const resumeFrame=orbitFrameStepIndex;
     orbitExitFrameStep();
-    // Rebuild animation from resume frame
     orbitResumeFromFrame(pitchIdx,resumeFrame);
   } else {
+    orbitHideMobileFrameButtons();
     orbitStartPlay();
   }
 }
@@ -2663,6 +2667,7 @@ function orbitStopPlay(){
     btn.style.color='#4a9a4a';
     btn.style.background='#1a2a1a';
   }
+  orbitHideMobileFrameButtons();
   // NOTE: orbitPitchIndex is intentionally NOT reset here
   // so the selected pitch is remembered after stopping
 }
@@ -2919,6 +2924,64 @@ function orbitStepFrame(delta){
   }
 }
 
+function orbitShowMobileFrameButtons(){
+  if(window.innerWidth>600) return;
+  // Remove any existing buttons first
+  orbitHideMobileFrameButtons();
+  const container=document.getElementById('orbitview');
+  if(!container) return;
+
+  const btnStyle=(side)=>
+    'position:absolute;bottom:12px;'+side+':12px;'+
+    'width:52px;height:52px;border-radius:8px;'+
+    'background:rgba(10,14,26,0.82);'+
+    'border:1px solid rgba(126,200,227,0.4);'+
+    'color:#7ec8e3;font-size:22px;'+
+    'display:flex;align-items:center;justify-content:center;'+
+    'cursor:pointer;z-index:200;touch-action:manipulation;'+
+    '-webkit-tap-highlight-color:transparent;'+
+    'user-select:none;font-family:DM Mono,monospace;';
+
+  const backBtn=document.createElement('button');
+  backBtn.id='orbitMobileStepBack';
+  backBtn.style.cssText=btnStyle('left');
+  backBtn.textContent='◀◀';
+  backBtn.setAttribute('aria-label','Step back one frame');
+  backBtn.addEventListener('touchend',(e)=>{
+    e.preventDefault();
+    e.stopPropagation();
+    if(orbitFrameStepMode){
+      orbitStepFrame(-1);
+    }
+  },{passive:false});
+
+  const fwdBtn=document.createElement('button');
+  fwdBtn.id='orbitMobileStepFwd';
+  fwdBtn.style.cssText=btnStyle('right');
+  fwdBtn.textContent='▶▶';
+  fwdBtn.setAttribute('aria-label','Step forward one frame');
+  fwdBtn.addEventListener('touchend',(e)=>{
+    e.preventDefault();
+    e.stopPropagation();
+    if(orbitFrameStepMode){
+      orbitStepFrame(1);
+    } else if(orbitPitchIndex>=0){
+      orbitEnterFrameStep(orbitPitchIndex,0);
+      orbitStepFrame(1);
+    }
+  },{passive:false});
+
+  container.appendChild(backBtn);
+  container.appendChild(fwdBtn);
+}
+
+function orbitHideMobileFrameButtons(){
+  const back=document.getElementById('orbitMobileStepBack');
+  const fwd=document.getElementById('orbitMobileStepFwd');
+  if(back) back.remove();
+  if(fwd) fwd.remove();
+}
+
 function orbitTunnelZoom(){
   if(!orbitTunnelClusters||!orbitTunnelClusters.length){
     const ind=document.getElementById('tunnelIndicator');
@@ -3125,21 +3188,9 @@ window.addEventListener('load',()=>{
           return;
         }
 
-        // Swipe — frame step (only when paused)
-        if(!orbitPlaying&&dist>30&&Math.abs(dx)>Math.abs(dy)){
-          if(dx>0){
-            // Swipe right — step forward
-            if(orbitFrameStepMode){
-              orbitStepFrame(1);
-            } else if(orbitPitchIndex>=0){
-              orbitEnterFrameStep(orbitPitchIndex,0);
-              orbitStepFrame(1);
-            }
-          } else {
-            // Swipe left — step backward
-            if(orbitFrameStepMode) orbitStepFrame(-1);
-          }
-        }
+        // Swipe gestures removed — frame stepping handled by
+        // floating ◀◀ ▶▶ buttons to avoid conflict with
+        // OrbitControls single-finger rotate gesture
       }
     },{passive:true});
   }
