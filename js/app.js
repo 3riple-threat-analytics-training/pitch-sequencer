@@ -89,8 +89,13 @@ function setView(v){
   document.getElementById('c').style.display=v==='catcher'?'block':'none';
   document.getElementById('sideview').style.display=v==='side'?'block':'none';
   document.getElementById('orbitview').style.display=v==='orbit'?'block':'none';
+  if(v==='orbit'){
+    orbitEnterFullscreen();
+    initOrbitView();
+  } else {
+    orbitExitFullscreen();
+  }
   if(v==='side') drawSideView();
-  if(v==='orbit') initOrbitView();
 }
 function toggleExtendAtBat(){
   extendedAtBat=!extendedAtBat;
@@ -1633,7 +1638,6 @@ function initOrbitView(){
   orbitFrameStepLine=null;
   orbitFrameStepPitchIdx=-1;
   orbitFrameStepTunnelRevealed=false;
-  orbitHideMobileFrameButtons();
   orbitPitchIndex=-1;
 
   // Detect tunnel clusters (before scene so highlights can render)
@@ -1644,6 +1648,12 @@ function initOrbitView(){
 
   // Build toolbar
   buildOrbitToolbar();
+
+  if(window.innerWidth<=600){
+    orbitUpdateMobileHUD();
+    orbitUpdateMobilePlayBtn();
+    orbitUpdateMobileStepBtns();
+  }
 
   // Start render loop
   if(orbitAnimFrame) cancelAnimationFrame(orbitAnimFrame);
@@ -2482,8 +2492,161 @@ function orbitHighlightChapter(idx){
       btn.style.color=col;
       btn.style.borderColor='#1e2a3a';
     }
+    const mbtn=document.getElementById('orbitchaptermobile'+i);
+    if(mbtn){
+      if(i===idx){
+        mbtn.style.background=col;
+        mbtn.style.color='#ffffff';
+        mbtn.style.borderColor=col;
+      } else {
+        mbtn.style.background='#0d1520';
+        mbtn.style.color=col;
+        mbtn.style.borderColor='#1e2a3a';
+      }
+    }
   });
 }
+
+function orbitEnterFullscreen(){
+  if(window.innerWidth>600) return;
+  document.body.classList.add('orbit-fullscreen');
+  orbitUpdateMobileHUD();
+  orbitUpdateMobilePlayBtn();
+  orbitUpdateMobileStepBtns();
+}
+
+function orbitExitFullscreen(){
+  document.body.classList.remove('orbit-fullscreen');
+}
+
+function orbitToggleShowRow(){
+  const row=document.getElementById('orbitShowRowMobile');
+  const btn=document.getElementById('orbitShowToggle');
+  if(!row||!btn) return;
+  const open=row.style.display==='flex';
+  row.style.display=open?'none':'flex';
+  btn.textContent=open?'SHOW ▸':'SHOW ▾';
+}
+
+function orbitUpdateMobileHUD(){
+  if(window.innerWidth>600) return;
+  // Sync isolation checkboxes into mobile SHOW row
+  const mobileRow=document.getElementById('orbitShowRowMobile');
+  if(!mobileRow) return;
+  mobileRow.innerHTML='';
+  seq.forEach((s,i)=>{
+    const col='#'+PITCHES[s.pk].color.toString(16).padStart(6,'0');
+    const label=document.createElement('label');
+    label.style.cssText='display:flex;align-items:center;gap:3px;'+
+      'cursor:pointer;font-size:8px;color:#8aabb8;'+
+      'touch-action:manipulation;';
+    const cb=document.createElement('input');
+    cb.type='checkbox';cb.checked=orbitIsolation.includes(i);
+    cb.style.accentColor=col;
+    cb.onchange=()=>{
+      if(cb.checked){
+        if(!orbitIsolation.includes(i)) orbitIsolation.push(i);
+      } else {
+        orbitIsolation=orbitIsolation.filter(x=>x!==i);
+      }
+      orbitPlayMode=false;
+      buildOrbitScene();
+    };
+    const dot=document.createElement('span');
+    dot.style.cssText='width:6px;height:6px;border-radius:50%;'+
+      'background:'+col+';display:inline-block;';
+    const txt=document.createElement('span');
+    txt.textContent=(i+1)+'. '+PITCHES[s.pk].name.split(' ')[0];
+    label.appendChild(cb);
+    label.appendChild(dot);
+    label.appendChild(txt);
+    mobileRow.appendChild(label);
+  });
+
+  // Sync mobile scrubber chapter buttons
+  const mobileScrubber=document.getElementById('orbitScrubberMobile');
+  if(mobileScrubber){
+    mobileScrubber.innerHTML='';
+    seq.forEach((s,i)=>{
+      const col='#'+PITCHES[s.pk].color.toString(16).padStart(6,'0');
+      const btn=document.createElement('button');
+      btn.id='orbitchaptermobile'+i;
+      btn.style.cssText='flex:1;padding:4px 2px;border-radius:4px;'+
+        'border:0.5px solid #1e2a3a;background:#0d1520;color:'+col+';'+
+        'font-family:DM Mono,monospace;font-size:8px;cursor:pointer;'+
+        'min-height:36px;touch-action:manipulation;';
+      btn.textContent=(i+1)+' '+PITCHES[s.pk].name.split(' ')[0];
+      btn.title='Tap to jump · double-tap to solo replay';
+      btn.onclick=()=>orbitJumpToPitch(i);
+      btn.ondblclick=(e)=>{
+        e.stopPropagation();
+        orbitShowSoloPrompt(i);
+      };
+      mobileScrubber.appendChild(btn);
+    });
+  }
+
+  // Update at-bat label
+  const label=document.getElementById('orbitAtBatLabel');
+  const meta=document.getElementById('orbitAtBatMeta');
+  if(label) label.textContent='CURRENT AT-BAT';
+  if(meta) meta.textContent=
+    seq.length+' PITCH'+(seq.length!==1?'ES':'');
+}
+
+function orbitUpdateMobilePlayBtn(){
+  if(window.innerWidth>600) return;
+  const btn=document.getElementById('orbitPlayBtnMobile');
+  if(!btn) return;
+  if(orbitPlaying){
+    btn.textContent='PAUSE';
+    btn.style.borderColor='#e05a5a';
+    btn.style.color='#e05a5a';
+    btn.style.background='#1a0a0a';
+  } else {
+    btn.textContent='PLAY';
+    btn.style.borderColor='#4a9a4a';
+    btn.style.color='#4a9a4a';
+    btn.style.background='#1a2a1a';
+  }
+}
+
+function orbitUpdateMobileStepBtns(){
+  if(window.innerWidth>600) return;
+  const back=document.getElementById('orbitStepBackBtn');
+  const fwd=document.getElementById('orbitStepFwdBtn');
+  const active=!orbitPlaying;
+  const activeStyle='border:0.5px solid #7ec8e3;color:#7ec8e3;'+
+    'background:#0d1824;';
+  const dimStyle='border:0.5px solid #2a3a4a;color:#3a5a7a;'+
+    'background:#0d1520;';
+  const base='flex:1;padding:8px;border-radius:4px;font-family:DM Mono,monospace;'+
+    'font-size:11px;letter-spacing:1px;cursor:pointer;min-height:44px;'+
+    'touch-action:manipulation;';
+  if(back) back.style.cssText=base+(active?activeStyle:dimStyle);
+  if(fwd) fwd.style.cssText=base+(active?activeStyle:dimStyle);
+}
+
+function orbitMobileStepBack(){
+  if(orbitPlaying) return;
+  if(orbitFrameStepMode){
+    orbitStepFrame(-1);
+  }
+}
+
+function orbitMobileStepFwd(){
+  if(orbitPlaying) return;
+  if(orbitFrameStepMode){
+    orbitStepFrame(1);
+  } else if(orbitPitchIndex>=0){
+    orbitEnterFrameStep(orbitPitchIndex,0);
+    orbitStepFrame(1);
+  }
+}
+
+// Placeholder at-bat nav — wired up fully in Commit 9
+function orbitPrevAtBat(){ /* wired in Commit 9 */ }
+function orbitNextAtBat(){ /* wired in Commit 9 */ }
 
 function orbitJumpToPitch(idx){
   orbitStopPlay();
@@ -2550,7 +2713,6 @@ function orbitNextPitch(){
 
 function orbitTogglePlay(){
   if(orbitPlaying){
-    // Pause — orbitAnimateBallAlongPath will hand off to frame step
     orbitPlaying=false;
     const btn=document.getElementById('orbitPlayBtn');
     if(btn){
@@ -2559,18 +2721,19 @@ function orbitTogglePlay(){
       btn.style.color='#4a9a4a';
       btn.style.background='#1a2a1a';
     }
-    // Show frame step buttons on mobile
-    orbitShowMobileFrameButtons();
+    orbitUpdateMobilePlayBtn();
+    orbitUpdateMobileStepBtns();
   } else if(orbitFrameStepMode){
-    // Resume from current frame step position
-    orbitHideMobileFrameButtons();
     const pitchIdx=orbitFrameStepPitchIdx;
     const resumeFrame=orbitFrameStepIndex;
     orbitExitFrameStep();
     orbitResumeFromFrame(pitchIdx,resumeFrame);
+    orbitUpdateMobilePlayBtn();
+    orbitUpdateMobileStepBtns();
   } else {
-    orbitHideMobileFrameButtons();
     orbitStartPlay();
+    orbitUpdateMobilePlayBtn();
+    orbitUpdateMobileStepBtns();
   }
 }
 
@@ -2667,7 +2830,8 @@ function orbitStopPlay(){
     btn.style.color='#4a9a4a';
     btn.style.background='#1a2a1a';
   }
-  orbitHideMobileFrameButtons();
+  orbitUpdateMobilePlayBtn();
+  orbitUpdateMobileStepBtns();
   // NOTE: orbitPitchIndex is intentionally NOT reset here
   // so the selected pitch is remembered after stopping
 }
@@ -2922,64 +3086,6 @@ function orbitStepFrame(delta){
       });
     orbitStopPlay();
   }
-}
-
-function orbitShowMobileFrameButtons(){
-  if(window.innerWidth>600) return;
-  // Remove any existing buttons first
-  orbitHideMobileFrameButtons();
-  const container=document.getElementById('orbitview');
-  if(!container) return;
-
-  const btnStyle=(side)=>
-    'position:absolute;bottom:12px;'+side+':12px;'+
-    'width:52px;height:52px;border-radius:8px;'+
-    'background:rgba(10,14,26,0.82);'+
-    'border:1px solid rgba(126,200,227,0.4);'+
-    'color:#7ec8e3;font-size:22px;'+
-    'display:flex;align-items:center;justify-content:center;'+
-    'cursor:pointer;z-index:200;touch-action:manipulation;'+
-    '-webkit-tap-highlight-color:transparent;'+
-    'user-select:none;font-family:DM Mono,monospace;';
-
-  const backBtn=document.createElement('button');
-  backBtn.id='orbitMobileStepBack';
-  backBtn.style.cssText=btnStyle('left');
-  backBtn.textContent='◀◀';
-  backBtn.setAttribute('aria-label','Step back one frame');
-  backBtn.addEventListener('touchend',(e)=>{
-    e.preventDefault();
-    e.stopPropagation();
-    if(orbitFrameStepMode){
-      orbitStepFrame(-1);
-    }
-  },{passive:false});
-
-  const fwdBtn=document.createElement('button');
-  fwdBtn.id='orbitMobileStepFwd';
-  fwdBtn.style.cssText=btnStyle('right');
-  fwdBtn.textContent='▶▶';
-  fwdBtn.setAttribute('aria-label','Step forward one frame');
-  fwdBtn.addEventListener('touchend',(e)=>{
-    e.preventDefault();
-    e.stopPropagation();
-    if(orbitFrameStepMode){
-      orbitStepFrame(1);
-    } else if(orbitPitchIndex>=0){
-      orbitEnterFrameStep(orbitPitchIndex,0);
-      orbitStepFrame(1);
-    }
-  },{passive:false});
-
-  container.appendChild(backBtn);
-  container.appendChild(fwdBtn);
-}
-
-function orbitHideMobileFrameButtons(){
-  const back=document.getElementById('orbitMobileStepBack');
-  const fwd=document.getElementById('orbitMobileStepFwd');
-  if(back) back.remove();
-  if(fwd) fwd.remove();
 }
 
 function orbitTunnelZoom(){

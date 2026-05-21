@@ -328,8 +328,8 @@
           background:rgba(10,14,26,0.85);border:0.5px solid #eab308;border-radius:6px;
           padding:6px 16px;font-family:DM Mono,monospace;font-size:10px;letter-spacing:2px;
           color:#eab308;pointer-events:none;">TUNNEL 1 of 1</div>
-        <!-- Top right controls -->
-        <div style="position:absolute;top:12px;right:12px;display:flex;flex-direction:column;gap:6px;">
+        <!-- Top right controls — hidden on mobile, shown in HUD instead -->
+        <div id="orbitTopControls" style="position:absolute;top:12px;right:12px;display:flex;flex-direction:column;gap:6px;">
           <button id="tunnelZoomBtn" onclick="orbitTunnelZoom()" style="padding:6px 12px;border-radius:4px;
             border:0.5px solid #eab308;background:rgba(10,14,26,0.85);color:#eab308;
             font-family:DM Mono,monospace;font-size:9px;letter-spacing:1px;cursor:pointer;">⬡ TUNNEL ZOOM</button>
@@ -337,7 +337,7 @@
             border:0.5px solid #4a7aaa;background:rgba(10,14,26,0.85);color:#7ec8e3;
             font-family:DM Mono,monospace;font-size:9px;letter-spacing:1px;cursor:pointer;">⌖ RESET CAM</button>
         </div>
-        <!-- Bottom playback toolbar -->
+        <!-- Bottom playback toolbar — desktop layout -->
         <div id="orbitToolbar" style="position:absolute;bottom:0;left:0;right:0;
           background:rgba(8,12,20,0.92);border-top:0.5px solid #1e2a3a;
           padding:10px 16px;display:flex;flex-direction:column;gap:8px;">
@@ -361,6 +361,54 @@
               border:0.5px solid #4a9a4a;background:#1a2a1a;color:#4a9a4a;
               font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:2px;
               cursor:pointer;min-width:80px;min-height:36px;">PLAY</button>
+          </div>
+        </div>
+        <!-- Mobile fullscreen HUD — only visible on mobile -->
+        <div id="orbitMobileHUD" style="display:none;position:absolute;bottom:0;left:0;right:0;
+          background:rgba(6,10,18,0.96);border-top:1px solid #1e2a3a;
+          padding:8px 12px;display:none;flex-direction:column;gap:6px;
+          font-family:DM Mono,monospace;">
+          <!-- Row 1: At-bat selector -->
+          <div id="orbitAtBatRow" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+            <button onclick="orbitPrevAtBat()" style="padding:4px 10px;border-radius:4px;border:0.5px solid #1e2a3a;background:#0d1520;
+color:#7ec8e3;font-family:DM Mono,monospace;font-size:14px;cursor:pointer;min-width:36px;min-height:36px;touch-action:manipulation;">◀</button>
+            <div style="flex:1;text-align:center;">
+              <div id="orbitAtBatLabel" style="font-size:9px;letter-spacing:2px;color:#3a5a7a;">CURRENT AT-BAT</div>
+              <div id="orbitAtBatMeta" style="font-size:9px;color:#7ec8e3;margin-top:1px;"></div>
+            </div>
+            <button onclick="orbitNextAtBat()" style="padding:4px 10px;border-radius:4px;border:0.5px solid #1e2a3a;background:#0d1520;
+color:#7ec8e3;font-family:DM Mono,monospace;font-size:14px;cursor:pointer;min-width:36px;min-height:36px;touch-action:manipulation;">▶</button>
+            <button onclick="orbitTunnelZoom()" style="padding:4px 8px;border-radius:4px;border:0.5px solid #eab308;background:rgba(10,14,26,0.9);
+color:#eab308;font-family:DM Mono,monospace;font-size:8px;cursor:pointer;min-height:36px;touch-action:manipulation;">⬡ TUNNEL</button>
+            <button onclick="orbitResetCamera()" style="padding:4px 8px;border-radius:4px;border:0.5px solid #4a7aaa;background:rgba(10,14,26,0.9);
+color:#7ec8e3;font-family:DM Mono,monospace;font-size:8px;cursor:pointer;min-height:36px;touch-action:manipulation;">⌖ CAM</button>
+          </div>
+          <!-- Row 2: SHOW collapsible -->
+          <div>
+            <button onclick="orbitToggleShowRow()" id="orbitShowToggle" style="padding:3px 10px;border-radius:4px;border:0.5px solid #1e2a3a;
+background:#0d1520;color:#5a8aaa;font-family:DM Mono,monospace;font-size:8px;letter-spacing:1px;cursor:pointer;touch-action:manipulation;">
+SHOW ▸</button>
+            <div id="orbitShowRowMobile" style="display:none;margin-top:4px;flex-wrap:wrap;gap:6px;align-items:center;"></div>
+          </div>
+          <!-- Row 3: Pitch nav + Play -->
+          <div style="display:flex;align-items:center;gap:6px;">
+            <button onclick="orbitPrevPitch()" style="padding:6px 10px;border-radius:4px;border:0.5px solid #1e2a3a;background:#0d1520;
+color:#7ec8e3;font-family:DM Mono,monospace;font-size:14px;cursor:pointer;min-width:44px;min-height:44px;touch-action:manipulation;">◀</button>
+            <div id="orbitScrubberMobile" style="flex:1;display:flex;gap:3px;align-items:center;overflow-x:auto;"></div>
+            <button onclick="orbitNextPitch()" style="padding:6px 10px;border-radius:4px;border:0.5px solid #1e2a3a;background:#0d1520;
+color:#7ec8e3;font-family:DM Mono,monospace;font-size:14px;cursor:pointer;min-width:44px;min-height:44px;touch-action:manipulation;">▶</button>
+            <button id="orbitPlayBtnMobile" onclick="orbitTogglePlay()" style="padding:6px 16px;border-radius:4px;border:0.5px solid #4a9a4a;
+background:#1a2a1a;color:#4a9a4a;font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:2px;cursor:pointer;min-width:80px;
+min-height:44px;touch-action:manipulation;">PLAY</button>
+          </div>
+          <!-- Row 4: Frame step buttons — always visible -->
+          <div style="display:flex;gap:6px;align-items:center;">
+            <button id="orbitStepBackBtn" onclick="orbitMobileStepBack()" style="flex:1;padding:8px;border-radius:4px;border:0.5px solid #2a3a4a;
+background:#0d1520;color:#3a5a7a;font-family:DM Mono,monospace;font-size:11px;letter-spacing:1px;cursor:pointer;min-height:44px;touch-action:manipulation;">
+◀◀ STEP BACK</button>
+            <button id="orbitStepFwdBtn" onclick="orbitMobileStepFwd()" style="flex:1;padding:8px;border-radius:4px;border:0.5px solid #2a3a4a;
+background:#0d1520;color:#3a5a7a;font-family:DM Mono,monospace;font-size:11px;letter-spacing:1px;cursor:pointer;min-height:44px;touch-action:manipulation;">
+STEP FWD ▶▶</button>
           </div>
         </div>
       </div>

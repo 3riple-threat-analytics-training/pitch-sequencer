@@ -633,6 +633,30 @@ body[data-theme="light"] .sim-l-reveal{
   #outcome-flash {
     display: block;
   }
+
+  /* Orbit fullscreen on mobile */
+  body.orbit-fullscreen #orbitview{
+    position:fixed!important;
+    top:0!important;left:0!important;
+    width:100vw!important;height:100vh!important;
+    z-index:500!important;
+    display:block!important;
+  }
+  body.orbit-fullscreen #orbitcanvas{
+    width:100%!important;
+    height:calc(100vh - 200px)!important;
+  }
+  body.orbit-fullscreen #orbitTopControls{
+    display:none!important;
+  }
+  body.orbit-fullscreen #orbitToolbar{
+    display:none!important;
+  }
+  body.orbit-fullscreen #orbitMobileHUD{
+    display:flex!important;
+    height:200px;
+    overflow-y:auto;
+  }
 }
 
 .zc-disabled{opacity:0.25;pointer-events:none;cursor:not-allowed;}
