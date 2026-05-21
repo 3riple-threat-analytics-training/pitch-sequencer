@@ -1588,6 +1588,7 @@ let orbitTouchStartTime=0;
 let orbitAtBatHistory=[];
 let orbitAtBatHistoryIndex=-1;
 const ORBIT_MAX_AT_BATS=5;
+let orbitDisplaySeq=[];
 
 function initOrbitView(){
   const container=document.getElementById('orbitview');
@@ -1617,8 +1618,10 @@ function initOrbitView(){
 
   // OrbitControls
   orbitControls=new THREE.OrbitControls(orbitCamera,canvas);
-  const initTarget=(seq&&seq.length&&seq[0].pts3d&&seq[0].pts3d.length)
-    ? seq[0].pts3d[0]
+  orbitDisplaySeq=seq;
+  const initTarget=(orbitDisplaySeq&&orbitDisplaySeq.length&&
+    orbitDisplaySeq[0].pts3d&&orbitDisplaySeq[0].pts3d.length)
+    ? orbitDisplaySeq[0].pts3d[0]
     : {x:0,y:1.5,z:17};
   orbitControls.target.set(initTarget.x,initTarget.y,initTarget.z);
   orbitControls.enableDamping=true;
@@ -1636,7 +1639,7 @@ function initOrbitView(){
   orbitControls.update();
 
   // Initialize isolation to all pitches visible
-  orbitIsolation=seq.map((_,i)=>i);
+  orbitIsolation=orbitDisplaySeq.map((_,i)=>i);
   orbitPlayedIndices=[];
   orbitSoloMode=false;
   orbitSoloPitchIndex=-1;
@@ -1808,8 +1811,8 @@ function buildOrbitBatter(){
 }
 
 function buildOrbitPitchPaths(){
-  if(!seq.length) return;
-  seq.forEach((s,i)=>{
+  if(!orbitDisplaySeq.length) return;
+  orbitDisplaySeq.forEach((s,i)=>{
     if(!orbitIsolation.includes(i)) return;
     const col=PITCHES[s.pk].color;
     const pts=s.pts3d.map(v=>new THREE.Vector3(v.x,v.y,v.z));
@@ -1820,8 +1823,8 @@ function buildOrbitPitchPaths(){
 }
 
 function buildOrbitLandingOrbs(){
-  if(!seq.length) return;
-  seq.forEach((s,i)=>{
+  if(!orbitDisplaySeq.length) return;
+  orbitDisplaySeq.forEach((s,i)=>{
     if(!orbitIsolation.includes(i)) return;
     const col=PITCHES[s.pk].color;
     const pts=s.pts3d;
@@ -1854,7 +1857,7 @@ function buildOrbitLandingOrbs(){
 
 function orbitDrawSinglePath(pitchIdx){
   if(!orbitScene) return;
-  const s=seq[pitchIdx];
+  const s=orbitDisplaySeq[pitchIdx];
   if(!s||!s.pts3d||!s.pts3d.length) return;
   const col=PITCHES[s.pk].color;
   const pts=s.pts3d.map(v=>new THREE.Vector3(v.x,v.y,v.z));
@@ -1889,8 +1892,8 @@ function orbitDrawSinglePath(pitchIdx){
 
 function orbitDrawTunnelBetween(idxA,idxB){
   if(!orbitScene) return;
-  const ptsA=seq[idxA]&&seq[idxA].pts3d;
-  const ptsB=seq[idxB]&&seq[idxB].pts3d;
+  const ptsA=orbitDisplaySeq[idxA]&&orbitDisplaySeq[idxA].pts3d;
+  const ptsB=orbitDisplaySeq[idxB]&&orbitDisplaySeq[idxB].pts3d;
   if(!ptsA||!ptsB) return;
   const n=Math.min(ptsA.length,ptsB.length);
   const s0=Math.floor(n*0.15);
@@ -1980,11 +1983,11 @@ function buildOrbitTunnelHighlights(){
 
 function detectOrbitTunnels(){
   orbitTunnelClusters=[];
-  if(!seq||seq.length<2) return;
-  for(let a=0;a<seq.length-1;a++){
-    for(let b=a+1;b<seq.length;b++){
-      const ptsA=seq[a].pts3d;
-      const ptsB=seq[b].pts3d;
+  if(!orbitDisplaySeq||orbitDisplaySeq.length<2) return;
+  for(let a=0;a<orbitDisplaySeq.length-1;a++){
+    for(let b=a+1;b<orbitDisplaySeq.length;b++){
+      const ptsA=orbitDisplaySeq[a].pts3d;
+      const ptsB=orbitDisplaySeq[b].pts3d;
       if(!ptsA||!ptsB) continue;
       const n=Math.min(ptsA.length,ptsB.length);
       const s0=Math.floor(n*0.15);
@@ -2015,7 +2018,7 @@ function orbitShowKeepPathModal(pitchIdx,onYes,onNo){
   const existing=document.getElementById('orbitKeepPathModal');
   if(existing) existing.remove();
 
-  const s=seq[pitchIdx];
+  const s=orbitDisplaySeq[pitchIdx];
   if(!s) return;
   const col='#'+PITCHES[s.pk].color.toString(16).padStart(6,'0');
   const pitchName=PITCHES[s.pk].name;
@@ -2078,7 +2081,7 @@ function orbitShowSoloPrompt(pitchIdx){
   const existing=document.getElementById('orbitSoloModal');
   if(existing) existing.remove();
 
-  const s=seq[pitchIdx];
+  const s=orbitDisplaySeq[pitchIdx];
   if(!s) return;
   const col='#'+PITCHES[s.pk].color.toString(16).padStart(6,'0');
   const pitchName=PITCHES[s.pk].name;
@@ -2143,7 +2146,7 @@ function orbitShowSoloCompleteModal(pitchIdx){
   const existing=document.getElementById('orbitSoloCompleteModal');
   if(existing) existing.remove();
 
-  const s=seq[pitchIdx];
+  const s=orbitDisplaySeq[pitchIdx];
   if(!s) return;
   const col='#'+PITCHES[s.pk].color.toString(16).padStart(6,'0');
   const pitchName=PITCHES[s.pk].name;
@@ -2154,7 +2157,7 @@ function orbitShowSoloCompleteModal(pitchIdx){
   const isLastPitch=currentPos===visible.length-1;
   // Next pitch — wraps to first if on last pitch
   const nextIdx=isLastPitch ? visible[0] : visible[currentPos+1];
-  const nextS=seq[nextIdx];
+  const nextS=orbitDisplaySeq[nextIdx];
   const nextCol=nextS
     ? '#'+PITCHES[nextS.pk].color.toString(16).padStart(6,'0')
     : '#7ec8e3';
@@ -2279,7 +2282,7 @@ function orbitStartSolo(pitchIdx){
     btn.style.background='#1a0a0a';
   }
 
-  const s=seq[pitchIdx];
+  const s=orbitDisplaySeq[pitchIdx];
   if(!s||!s.pts3d||!s.pts3d.length){orbitStopPlay();return;}
   const pts=s.pts3d.map(v=>new THREE.Vector3(v.x,v.y,v.z));
   const col=PITCHES[s.pk].color;
@@ -2434,7 +2437,7 @@ function buildOrbitToolbar(){
   const row=document.getElementById('orbitIsolationRow');
   if(!row) return;
   row.innerHTML='<span style="color:#3a5a7a;font-size:8px;letter-spacing:2px;">SHOW:</span>';
-  seq.forEach((s,i)=>{
+  orbitDisplaySeq.forEach((s,i)=>{
     const col='#'+PITCHES[s.pk].color.toString(16).padStart(6,'0');
     const label=document.createElement('label');
     label.style.cssText='display:flex;align-items:center;gap:3px;cursor:pointer;font-size:8px;color:#8aabb8;';
@@ -2468,11 +2471,11 @@ function buildOrbitToolbar(){
   const scrubber=document.getElementById('orbitScrubber');
   if(!scrubber) return;
   scrubber.innerHTML='';
-  if(!seq.length){
+  if(!orbitDisplaySeq.length){
     scrubber.innerHTML='<span style="color:#3a5a7a;font-size:9px;font-family:DM Mono,monospace;">No pitches — throw pitches in catcher view first</span>';
     return;
   }
-  seq.forEach((s,i)=>{
+  orbitDisplaySeq.forEach((s,i)=>{
     const col='#'+PITCHES[s.pk].color.toString(16).padStart(6,'0');
     const btn=document.createElement('button');
     btn.id='orbitchapter'+i;
@@ -2491,10 +2494,11 @@ function buildOrbitToolbar(){
 }
 
 function orbitHighlightChapter(idx){
-  seq.forEach((_,i)=>{
+  orbitDisplaySeq.forEach((_,i)=>{
     const btn=document.getElementById('orbitchapter'+i);
     if(!btn) return;
-    const col='#'+PITCHES[seq[i].pk].color.toString(16).padStart(6,'0');
+    const col='#'+PITCHES[orbitDisplaySeq[i].pk].color
+      .toString(16).padStart(6,'0');
     if(i===idx){
       btn.style.background=col;
       btn.style.color='#ffffff';
@@ -2553,7 +2557,7 @@ function orbitUpdateMobileHUD(){
   const mobileRow=document.getElementById('orbitShowRowMobile');
   if(!mobileRow) return;
   mobileRow.innerHTML='';
-  seq.forEach((s,i)=>{
+  orbitDisplaySeq.forEach((s,i)=>{
     const col='#'+PITCHES[s.pk].color.toString(16).padStart(6,'0');
     const row=document.createElement('div');
     row.style.cssText=
@@ -2622,7 +2626,7 @@ function orbitUpdateMobileHUD(){
   const mobileScrubber=document.getElementById('orbitScrubberMobile');
   if(mobileScrubber){
     mobileScrubber.innerHTML='';
-    seq.forEach((s,i)=>{
+    orbitDisplaySeq.forEach((s,i)=>{
       const col='#'+PITCHES[s.pk].color.toString(16).padStart(6,'0');
       const btn=document.createElement('button');
       btn.id='orbitchaptermobile'+i;
@@ -2736,9 +2740,7 @@ function orbitLoadAtBat(historyIdx){
     pts3d:p.pts3d.map(v=>new THREE.Vector3(v.x,v.y,v.z))
   }));
 
-  // Temporarily swap seq for orbit rendering
-  const liveSeq=seq;
-  seq=savedSeq;
+  orbitDisplaySeq=savedSeq;
   orbitPlayedIndices=[];
   orbitSoloMode=false;
   orbitSoloPitchIndex=-1;
@@ -2751,14 +2753,12 @@ function orbitLoadAtBat(historyIdx){
   orbitFrameStepPitchIdx=-1;
   orbitFrameStepTunnelRevealed=false;
   orbitPitchIndex=-1;
-  orbitIsolation=seq.map((_,i)=>i);
+  orbitIsolation=orbitDisplaySeq.map((_,i)=>i);
   detectOrbitTunnels();
   buildOrbitScene();
   buildOrbitToolbar();
   orbitUpdateMobileHUD();
   orbitUpdateAtBatSelector();
-  // Restore live seq
-  seq=liveSeq;
 }
 
 function orbitUpdateAtBatSelector(){
@@ -2768,7 +2768,8 @@ function orbitUpdateAtBatSelector(){
     // Showing current live at-bat
     if(label) label.textContent='CURRENT AT-BAT';
     if(meta) meta.textContent=
-      seq.length+' PITCH'+(seq.length!==1?'ES':'');
+      orbitDisplaySeq.length+' PITCH'+
+      (orbitDisplaySeq.length!==1?'ES':'');
   } else {
     const snap=orbitAtBatHistory[orbitAtBatHistoryIndex];
     const total=orbitAtBatHistory.length;
@@ -2824,7 +2825,7 @@ function orbitShowReplayPrompt(){
     orbitPitchIndex=-1;
     orbitPlayedIndices=[];
     orbitSoloMode=false;
-    orbitIsolation=seq.map((_,i)=>i);
+    orbitIsolation=orbitDisplaySeq.map((_,i)=>i);
     detectOrbitTunnels();
     buildOrbitScene();
     buildOrbitToolbar();
@@ -2865,10 +2866,11 @@ function orbitNextAtBat(){
   if(orbitAtBatHistoryIndex<=0){
     // Already at newest — return to live at-bat
     orbitAtBatHistoryIndex=-1;
+    orbitDisplaySeq=seq;
     orbitPlayedIndices=[];
     orbitSoloMode=false;
     orbitPitchIndex=-1;
-    orbitIsolation=seq.map((_,i)=>i);
+    orbitIsolation=orbitDisplaySeq.map((_,i)=>i);
     detectOrbitTunnels();
     buildOrbitScene();
     buildOrbitToolbar();
@@ -2881,6 +2883,7 @@ function orbitNextAtBat(){
 
 function orbitJumpToPitch(idx){
   orbitStopPlay();
+  if(idx<0||idx>=orbitDisplaySeq.length) return;
   orbitPitchIndex=idx;
   orbitHighlightChapter(idx);
   orbitFocusReleasePoint(idx);
@@ -2972,11 +2975,11 @@ function orbitTogglePlay(){
 }
 
 function orbitStartPlay(){
-  if(!seq.length) return;
+  if(!orbitDisplaySeq.length) return;
   if(orbitBallMesh){orbitScene.remove(orbitBallMesh);orbitBallMesh=null;}
 
   // SINGLE PITCH MODE — a specific pitch has been selected via arrows
-  if(orbitPitchIndex>=0&&orbitPitchIndex<seq.length){
+  if(orbitPitchIndex>=0&&orbitPitchIndex<orbitDisplaySeq.length){
     const pitchIdx=orbitPitchIndex;
 
     // Do NOT clear the scene — all existing paths/tunnels remain
@@ -3073,7 +3076,7 @@ function orbitStopPlay(){
 
 function orbitAnimateBallAlongPath(pitchIdx,onDone){
   if(orbitBallMesh){orbitScene.remove(orbitBallMesh);orbitBallMesh=null;}
-  const s=seq[pitchIdx];
+  const s=orbitDisplaySeq[pitchIdx];
   if(!s||!s.pts3d||!s.pts3d.length){if(onDone)onDone();return;}
   const pts=s.pts3d.map(v=>new THREE.Vector3(v.x,v.y,v.z));
   const col=PITCHES[s.pk].color;
@@ -3131,7 +3134,7 @@ function orbitResetCamera(){
 
 function orbitFocusReleasePoint(pitchIdx){
   if(!orbitCamera||!orbitControls) return;
-  const s=seq[pitchIdx];
+  const s=orbitDisplaySeq[pitchIdx];
   if(!s||!s.pts3d||!s.pts3d.length) return;
   const rp=s.pts3d[0];
   // Point camera toward mound from slightly behind catcher position
@@ -3142,7 +3145,7 @@ function orbitFocusReleasePoint(pitchIdx){
 
 function orbitEnterFrameStep(pitchIdx,startFrame){
   // Enter frame step mode for the given pitch at the given frame
-  const s=seq[pitchIdx];
+  const s=orbitDisplaySeq[pitchIdx];
   if(!s||!s.pts3d||!s.pts3d.length) return;
   orbitFrameStepMode=true;
   orbitFrameStepPitchIdx=pitchIdx;
@@ -3179,7 +3182,7 @@ function orbitExitFrameStep(){
 }
 
 function orbitResumeFromFrame(pitchIdx,startFrame){
-  const s=seq[pitchIdx];
+  const s=orbitDisplaySeq[pitchIdx];
   if(!s||!s.pts3d||!s.pts3d.length) return;
   const pts=s.pts3d.map(v=>new THREE.Vector3(v.x,v.y,v.z));
   const col=PITCHES[s.pk].color;
@@ -3263,7 +3266,7 @@ function orbitRedrawFrameStepPath(){
     orbitFrameStepLine=null;
   }
   if(orbitFrameStepIndex<1) return;
-  const s=seq[orbitFrameStepPitchIdx];
+  const s=orbitDisplaySeq[orbitFrameStepPitchIdx];
   if(!s) return;
   const col=PITCHES[s.pk].color;
   const pts=orbitFrameStepPts.slice(0,orbitFrameStepIndex+1);
