@@ -1324,8 +1324,15 @@ function commitPitch(pts3d,pk,zk,spd,bd,rl,ct,outcome){
     }
     tunnelData=bestTunnel;
   }
-  seq.push({pk,zk,spd,bd,role:rl,count:ct,outcome:outcome||'',pts3d:pts3d.map(v=>v.clone()),tunnelData});
+  seq.push({pk,zk,spd,bd,role:rl,count:ct,outcome:outcome||'',
+    pts3d:pts3d.map(v=>v.clone()),tunnelData});
   updateSeqUI();buildTunnels();
+  // Save at-bat to orbit history when at-bat ends
+  const AT_BAT_ENDINGS=['STRIKEOUT','WALK','SINGLE','DOUBLE',
+    'TRIPLE','HOME RUN','GROUND OUT','POP FLY'];
+  if(outcome&&AT_BAT_ENDINGS.includes(outcome)){
+    orbitSaveAtBat();
+  }
   if(currentView==='side') drawSideView();
   saveSimState();
 }
@@ -2698,7 +2705,7 @@ function orbitSaveAtBat(){
       role:s.role,
       count:s.count,
       outcome:s.outcome||'',
-      pts3d:s.pts3d.map(v=>new THREE.Vector3(v.x,v.y,v.z))
+      pts3d:(s.pts3d||[]).map(v=>new THREE.Vector3(v.x,v.y,v.z))
     })),
     batterType:typeof batter!=='undefined'?batter:'',
     inning:typeof inningNumber!=='undefined'?inningNumber:1,
@@ -2870,13 +2877,6 @@ function orbitNextAtBat(){
     return;
   }
   orbitLoadAtBat(orbitAtBatHistoryIndex-1);
-}
-
-// Save at-bat snapshot when diamond result modal opens (defined in sim.js)
-const _openDiamondModal=openDiamondModal;
-function openDiamondModal(){
-  orbitSaveAtBat();
-  _openDiamondModal();
 }
 
 function orbitJumpToPitch(idx){
