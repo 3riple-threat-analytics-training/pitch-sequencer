@@ -1578,6 +1578,9 @@ let orbitFrameStepTunnelRevealed=false;
 let orbitTouchStartX=0;
 let orbitTouchStartY=0;
 let orbitTouchStartTime=0;
+let orbitAtBatHistory=[];
+let orbitAtBatHistoryIndex=-1;
+const ORBIT_MAX_AT_BATS=5;
 
 function initOrbitView(){
   const container=document.getElementById('orbitview');
@@ -1638,6 +1641,8 @@ function initOrbitView(){
   orbitFrameStepLine=null;
   orbitFrameStepPitchIdx=-1;
   orbitFrameStepTunnelRevealed=false;
+  orbitAtBatHistoryIndex=-1;
+  orbitUpdateAtBatSelector();
   orbitPitchIndex=-1;
 
   // Detect tunnel clusters (before scene so highlights can render)
@@ -2510,13 +2515,20 @@ function orbitHighlightChapter(idx){
 function orbitEnterFullscreen(){
   if(window.innerWidth>600) return;
   document.body.classList.add('orbit-fullscreen');
+  const exitBtn=document.getElementById('orbitExitBtn');
+  if(exitBtn) exitBtn.style.display='block';
   orbitUpdateMobileHUD();
   orbitUpdateMobilePlayBtn();
   orbitUpdateMobileStepBtns();
+  orbitUpdateAtBatSelector();
 }
 
 function orbitExitFullscreen(){
   document.body.classList.remove('orbit-fullscreen');
+  const exitBtn=document.getElementById('orbitExitBtn');
+  if(exitBtn) exitBtn.style.display='none';
+  // Return to live at-bat when exiting orbit
+  orbitAtBatHistoryIndex=-1;
 }
 
 function orbitToggleShowRow(){
@@ -2525,24 +2537,28 @@ function orbitToggleShowRow(){
   if(!row||!btn) return;
   const open=row.style.display==='flex';
   row.style.display=open?'none':'flex';
-  btn.textContent=open?'SHOW ▸':'SHOW ▾';
+  btn.textContent=open?'PITCH LOG ▸':'PITCH LOG ▾';
 }
 
 function orbitUpdateMobileHUD(){
   if(window.innerWidth>600) return;
-  // Sync isolation checkboxes into mobile SHOW row
+  // Build pitch log — vertical list with name, velocity, outcome, checkbox
   const mobileRow=document.getElementById('orbitShowRowMobile');
   if(!mobileRow) return;
   mobileRow.innerHTML='';
   seq.forEach((s,i)=>{
     const col='#'+PITCHES[s.pk].color.toString(16).padStart(6,'0');
-    const label=document.createElement('label');
-    label.style.cssText='display:flex;align-items:center;gap:3px;'+
-      'cursor:pointer;font-size:8px;color:#8aabb8;'+
-      'touch-action:manipulation;';
+    const row=document.createElement('div');
+    row.style.cssText=
+      'display:flex;align-items:center;gap:8px;padding:5px 6px;'+
+      'border-radius:4px;background:#0a1018;border:0.5px solid #1e2a3a;';
+
+    // Checkbox
     const cb=document.createElement('input');
-    cb.type='checkbox';cb.checked=orbitIsolation.includes(i);
+    cb.type='checkbox';
+    cb.checked=orbitIsolation.includes(i);
     cb.style.accentColor=col;
+    cb.style.flexShrink='0';
     cb.onchange=()=>{
       if(cb.checked){
         if(!orbitIsolation.includes(i)) orbitIsolation.push(i);
@@ -2552,15 +2568,47 @@ function orbitUpdateMobileHUD(){
       orbitPlayMode=false;
       buildOrbitScene();
     };
+
+    // Colored dot + number
     const dot=document.createElement('span');
-    dot.style.cssText='width:6px;height:6px;border-radius:50%;'+
+    dot.style.cssText=
+      'width:8px;height:8px;border-radius:50%;flex-shrink:0;'+
       'background:'+col+';display:inline-block;';
-    const txt=document.createElement('span');
-    txt.textContent=(i+1)+'. '+PITCHES[s.pk].name.split(' ')[0];
-    label.appendChild(cb);
-    label.appendChild(dot);
-    label.appendChild(txt);
-    mobileRow.appendChild(label);
+
+    const num=document.createElement('span');
+    num.style.cssText=
+      'font-size:9px;color:'+col+';font-weight:bold;flex-shrink:0;';
+    num.textContent=String(i+1);
+
+    // Pitch name
+    const name=document.createElement('span');
+    name.style.cssText='font-size:9px;color:#c8d8e8;flex:1;';
+    name.textContent=PITCHES[s.pk].name;
+
+    // Velocity
+    const vel=document.createElement('span');
+    vel.style.cssText='font-size:9px;color:#5a8aaa;flex-shrink:0;';
+    vel.textContent=s.spd+'mph';
+
+    // Outcome
+    const out=document.createElement('span');
+    out.style.cssText='font-size:8px;flex-shrink:0;min-width:60px;'+
+      'text-align:right;';
+    const outcomeText=s.outcome&&s.outcome.length?s.outcome:'—';
+    const isGood=['SWING & MISS','STRIKEOUT','CALLED STRIKE',
+      'GROUND OUT','POP FLY'].includes(s.outcome);
+    const isBad=['BALL','WALK','SINGLE','DOUBLE',
+      'TRIPLE','HOME RUN'].includes(s.outcome);
+    out.style.color=isGood?'#4ade80':isBad?'#f87171':'#5a8aaa';
+    out.textContent=outcomeText;
+
+    row.appendChild(cb);
+    row.appendChild(dot);
+    row.appendChild(num);
+    row.appendChild(name);
+    row.appendChild(vel);
+    row.appendChild(out);
+    mobileRow.appendChild(row);
   });
 
   // Sync mobile scrubber chapter buttons
@@ -2586,12 +2634,7 @@ function orbitUpdateMobileHUD(){
     });
   }
 
-  // Update at-bat label
-  const label=document.getElementById('orbitAtBatLabel');
-  const meta=document.getElementById('orbitAtBatMeta');
-  if(label) label.textContent='CURRENT AT-BAT';
-  if(meta) meta.textContent=
-    seq.length+' PITCH'+(seq.length!==1?'ES':'');
+  orbitUpdateAtBatSelector();
 }
 
 function orbitUpdateMobilePlayBtn(){
@@ -2644,9 +2687,197 @@ function orbitMobileStepFwd(){
   }
 }
 
-// Placeholder at-bat nav — wired up fully in Commit 9
-function orbitPrevAtBat(){ /* wired in Commit 9 */ }
-function orbitNextAtBat(){ /* wired in Commit 9 */ }
+function orbitSaveAtBat(){
+  if(!seq||!seq.length) return;
+  const snapshot={
+    pitches:seq.map(s=>({
+      pk:s.pk,
+      zk:s.zk,
+      spd:s.spd,
+      bd:s.bd,
+      role:s.role,
+      count:s.count,
+      outcome:s.outcome||'',
+      pts3d:s.pts3d.map(v=>new THREE.Vector3(v.x,v.y,v.z))
+    })),
+    batterType:typeof batter!=='undefined'?batter:'',
+    inning:typeof inningNumber!=='undefined'?inningNumber:1,
+    half:typeof simHalfTop!=='undefined'?(simHalfTop?'TOP':'BOT'):'',
+    finalOutcome:seq.length?seq[seq.length-1].outcome:''
+  };
+  orbitAtBatHistory.unshift(snapshot);
+  if(orbitAtBatHistory.length>ORBIT_MAX_AT_BATS){
+    orbitAtBatHistory=orbitAtBatHistory.slice(0,ORBIT_MAX_AT_BATS);
+  }
+}
+
+function orbitLoadAtBat(historyIdx){
+  if(historyIdx<0||historyIdx>=orbitAtBatHistory.length) return;
+  const snap=orbitAtBatHistory[historyIdx];
+  if(!snap||!snap.pitches||!snap.pitches.length) return;
+  orbitAtBatHistoryIndex=historyIdx;
+
+  // Rebuild seq from snapshot for orbit display only
+  const savedSeq=snap.pitches.map(p=>({
+    pk:p.pk,
+    zk:p.zk,
+    spd:p.spd,
+    bd:p.bd,
+    role:p.role,
+    count:p.count,
+    outcome:p.outcome,
+    pts3d:p.pts3d.map(v=>new THREE.Vector3(v.x,v.y,v.z))
+  }));
+
+  // Temporarily swap seq for orbit rendering
+  const liveSeq=seq;
+  seq=savedSeq;
+  orbitPlayedIndices=[];
+  orbitSoloMode=false;
+  orbitSoloPitchIndex=-1;
+  orbitSoloStaticPaths=[];
+  orbitSoloStaticTunnels=[];
+  orbitFrameStepMode=false;
+  orbitFrameStepPts=[];
+  orbitFrameStepIndex=0;
+  orbitFrameStepLine=null;
+  orbitFrameStepPitchIdx=-1;
+  orbitFrameStepTunnelRevealed=false;
+  orbitPitchIndex=-1;
+  orbitIsolation=seq.map((_,i)=>i);
+  detectOrbitTunnels();
+  buildOrbitScene();
+  buildOrbitToolbar();
+  orbitUpdateMobileHUD();
+  orbitUpdateAtBatSelector();
+  // Restore live seq
+  seq=liveSeq;
+}
+
+function orbitUpdateAtBatSelector(){
+  const label=document.getElementById('orbitAtBatLabel');
+  const meta=document.getElementById('orbitAtBatMeta');
+  if(orbitAtBatHistoryIndex<0){
+    // Showing current live at-bat
+    if(label) label.textContent='CURRENT AT-BAT';
+    if(meta) meta.textContent=
+      seq.length+' PITCH'+(seq.length!==1?'ES':'');
+  } else {
+    const snap=orbitAtBatHistory[orbitAtBatHistoryIndex];
+    const total=orbitAtBatHistory.length;
+    const num=orbitAtBatHistoryIndex+1;
+    if(label) label.textContent=
+      'AT-BAT '+num+' OF '+total+
+      (snap.half?' · '+snap.half+' '+snap.inning:'');
+    if(meta) meta.textContent=
+      (snap.batterType||'')+
+      (snap.finalOutcome?' · '+snap.finalOutcome:'');
+  }
+}
+
+function orbitShowReplayPrompt(){
+  const existing=document.getElementById('orbitReplayModal');
+  if(existing) existing.remove();
+
+  const overlay=document.createElement('div');
+  overlay.id='orbitReplayModal';
+  overlay.style.cssText=
+    'position:absolute;top:0;left:0;width:100%;height:100%;'+
+    'background:rgba(0,0,0,0.72);display:flex;align-items:center;'+
+    'justify-content:center;z-index:999;font-family:DM Mono,monospace;';
+
+  const box=document.createElement('div');
+  box.style.cssText=
+    'background:#0d1520;border:1px solid #1e3a5a;border-radius:8px;'+
+    'padding:24px 28px;max-width:300px;width:90%;text-align:center;'+
+    'box-shadow:0 8px 32px rgba(0,0,0,0.6);';
+
+  const title=document.createElement('div');
+  title.style.cssText='font-size:11px;letter-spacing:2px;color:#3a5a7a;'+
+    'margin-bottom:10px;';
+  title.textContent='SEQUENCE COMPLETE';
+
+  const msg=document.createElement('div');
+  msg.style.cssText='font-size:12px;color:#c8d8e8;margin-bottom:20px;'+
+    'line-height:1.5;';
+  msg.textContent='Replay sequence from the beginning?';
+
+  const btnCol=document.createElement('div');
+  btnCol.style.cssText='display:flex;flex-direction:column;gap:8px;';
+
+  const yesBtn=document.createElement('button');
+  yesBtn.textContent='REPLAY';
+  yesBtn.style.cssText=
+    'width:100%;padding:10px;border-radius:5px;'+
+    'border:1px solid #4a9a4a;background:#1a2a1a;color:#4ade80;'+
+    'font-family:DM Mono,monospace;font-size:11px;'+
+    'letter-spacing:1px;cursor:pointer;touch-action:manipulation;';
+  yesBtn.onclick=()=>{
+    overlay.remove();
+    orbitPitchIndex=-1;
+    orbitPlayedIndices=[];
+    orbitSoloMode=false;
+    orbitIsolation=seq.map((_,i)=>i);
+    detectOrbitTunnels();
+    buildOrbitScene();
+    buildOrbitToolbar();
+    orbitUpdateMobileHUD();
+    orbitStartPlay();
+  };
+
+  const doneBtn=document.createElement('button');
+  doneBtn.textContent='DONE';
+  doneBtn.style.cssText=
+    'width:100%;padding:10px;border-radius:5px;'+
+    'border:1px solid #2a3a4a;background:#0d1520;color:#3a5a7a;'+
+    'font-family:DM Mono,monospace;font-size:11px;'+
+    'letter-spacing:1px;cursor:pointer;touch-action:manipulation;';
+  doneBtn.onclick=()=>overlay.remove();
+
+  btnCol.appendChild(yesBtn);
+  btnCol.appendChild(doneBtn);
+  box.appendChild(title);
+  box.appendChild(msg);
+  box.appendChild(btnCol);
+  overlay.appendChild(box);
+
+  const container=document.getElementById('orbitview');
+  if(container) container.appendChild(overlay);
+}
+
+function orbitPrevAtBat(){
+  // Move to older at-bat (higher index = older)
+  if(!orbitAtBatHistory.length) return;
+  const next=orbitAtBatHistoryIndex+1;
+  if(next>=orbitAtBatHistory.length) return;
+  orbitLoadAtBat(next);
+}
+
+function orbitNextAtBat(){
+  // Move to newer at-bat (lower index = newer)
+  if(orbitAtBatHistoryIndex<=0){
+    // Already at newest — return to live at-bat
+    orbitAtBatHistoryIndex=-1;
+    orbitPlayedIndices=[];
+    orbitSoloMode=false;
+    orbitPitchIndex=-1;
+    orbitIsolation=seq.map((_,i)=>i);
+    detectOrbitTunnels();
+    buildOrbitScene();
+    buildOrbitToolbar();
+    orbitUpdateMobileHUD();
+    orbitUpdateAtBatSelector();
+    return;
+  }
+  orbitLoadAtBat(orbitAtBatHistoryIndex-1);
+}
+
+// Save at-bat snapshot when diamond result modal opens (defined in sim.js)
+const _openDiamondModal=openDiamondModal;
+function openDiamondModal(){
+  orbitSaveAtBat();
+  _openDiamondModal();
+}
 
 function orbitJumpToPitch(idx){
   orbitStopPlay();
@@ -2703,12 +2934,15 @@ function orbitNextPitch(){
   if(!visible.length) return;
   const cur=orbitPitchIndex;
   const nextList=visible.filter(i=>i>cur);
-  if(!nextList.length) return; // already at last pitch, do nothing
+  if(!nextList.length){
+    // Already at last pitch — show replay prompt
+    orbitShowReplayPrompt();
+    return;
+  }
   const targetIdx=nextList[0];
   orbitPitchIndex=targetIdx;
   orbitHighlightChapter(targetIdx);
   orbitFocusReleasePoint(targetIdx);
-  // No ball, no path — user must hit Play
 }
 
 function orbitTogglePlay(){
@@ -2809,6 +3043,7 @@ function orbitStartPlay(){
         orbitPlayTimer=setTimeout(playNext,500);
       } else {
         orbitStopPlay();
+        orbitShowReplayPrompt();
       }
     });
   }
@@ -3295,7 +3530,7 @@ window.addEventListener('load',()=>{
         }
 
         // Swipe gestures removed — frame stepping handled by
-        // floating ◀◀ ▶▶ buttons to avoid conflict with
+        // HUD STEP BACK / STEP FWD buttons to avoid conflict with
         // OrbitControls single-finger rotate gesture
       }
     },{passive:true});

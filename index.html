@@ -328,6 +328,14 @@
           background:rgba(10,14,26,0.85);border:0.5px solid #eab308;border-radius:6px;
           padding:6px 16px;font-family:DM Mono,monospace;font-size:10px;letter-spacing:2px;
           color:#eab308;pointer-events:none;">TUNNEL 1 of 1</div>
+        <!-- Exit button — mobile only, top-left of canvas -->
+        <button id="orbitExitBtn" onclick="setView('catcher')"
+style="display:none;position:absolute;top:12px;left:12px;z-index:600;
+width:44px;height:44px;border-radius:8px;
+background:rgba(10,14,26,0.85);border:1px solid #2a3a4a;
+color:#7ec8e3;font-size:20px;cursor:pointer;
+font-family:DM Mono,monospace;touch-action:manipulation;
+-webkit-tap-highlight-color:transparent;">✕</button>
         <!-- Top right controls — hidden on mobile, shown in HUD instead -->
         <div id="orbitTopControls" style="position:absolute;top:12px;right:12px;display:flex;flex-direction:column;gap:6px;">
           <button id="tunnelZoomBtn" onclick="orbitTunnelZoom()" style="padding:6px 12px;border-radius:4px;
@@ -383,12 +391,13 @@ color:#eab308;font-family:DM Mono,monospace;font-size:8px;cursor:pointer;min-hei
             <button onclick="orbitResetCamera()" style="padding:4px 8px;border-radius:4px;border:0.5px solid #4a7aaa;background:rgba(10,14,26,0.9);
 color:#7ec8e3;font-family:DM Mono,monospace;font-size:8px;cursor:pointer;min-height:36px;touch-action:manipulation;">⌖ CAM</button>
           </div>
-          <!-- Row 2: SHOW collapsible -->
+          <!-- Row 2: SHOW collapsible pitch log -->
           <div>
             <button onclick="orbitToggleShowRow()" id="orbitShowToggle" style="padding:3px 10px;border-radius:4px;border:0.5px solid #1e2a3a;
 background:#0d1520;color:#5a8aaa;font-family:DM Mono,monospace;font-size:8px;letter-spacing:1px;cursor:pointer;touch-action:manipulation;">
-SHOW ▸</button>
-            <div id="orbitShowRowMobile" style="display:none;margin-top:4px;flex-wrap:wrap;gap:6px;align-items:center;"></div>
+PITCH LOG ▸</button>
+            <div id="orbitShowRowMobile" style="display:none;margin-top:6px;
+flex-direction:column;gap:4px;"></div>
           </div>
           <!-- Row 3: Pitch nav + Play -->
           <div style="display:flex;align-items:center;gap:6px;">
