@@ -2764,10 +2764,16 @@ function orbitLoadAtBat(historyIdx){
 function orbitUpdateAtBatSelector(){
   const label=document.getElementById('orbitAtBatLabel');
   const meta=document.getElementById('orbitAtBatMeta');
+  const labelD=document.getElementById('orbitAtBatLabelDesktop');
+  const metaD=document.getElementById('orbitAtBatMetaDesktop');
   if(orbitAtBatHistoryIndex<0){
     // Showing current live at-bat
     if(label) label.textContent='CURRENT AT-BAT';
     if(meta) meta.textContent=
+      orbitDisplaySeq.length+' PITCH'+
+      (orbitDisplaySeq.length!==1?'ES':'');
+    if(labelD) labelD.textContent='CURRENT AT-BAT';
+    if(metaD) metaD.textContent=
       orbitDisplaySeq.length+' PITCH'+
       (orbitDisplaySeq.length!==1?'ES':'');
   } else {
@@ -2778,6 +2784,12 @@ function orbitUpdateAtBatSelector(){
       'AT-BAT '+num+' OF '+total+
       (snap.half?' · '+snap.half+' '+snap.inning:'');
     if(meta) meta.textContent=
+      (snap.batterType||'')+
+      (snap.finalOutcome?' · '+snap.finalOutcome:'');
+    if(labelD) labelD.textContent=
+      'AT-BAT '+num+' OF '+total+
+      (snap.half?' · '+snap.half+' '+snap.inning:'');
+    if(metaD) metaD.textContent=
       (snap.batterType||'')+
       (snap.finalOutcome?' · '+snap.finalOutcome:'');
   }
