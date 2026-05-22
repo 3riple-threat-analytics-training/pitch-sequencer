@@ -3146,12 +3146,12 @@ function orbitResetCamera(){
 
 function orbitFocusReleasePoint(pitchIdx){
   if(!orbitCamera||!orbitControls) return;
-  const s=orbitDisplaySeq[pitchIdx];
-  if(!s||!s.pts3d||!s.pts3d.length) return;
-  const rp=s.pts3d[0];
-  // Point camera toward mound from slightly behind catcher position
-  orbitControls.target.set(rp.x,rp.y,rp.z);
-  orbitCamera.position.set(rp.x,rp.y+0.8,rp.z-2.5);
+  // Always reset to catcher position first — same as RESET CAM
+  // This gives user a consistent orientation on every pitch navigation
+  // User can freely rotate/zoom from this known starting point
+  orbitCamera.position.set(0,1.06,-1.2);
+  orbitCamera.lookAt(0,1.06,10);
+  orbitControls.target.set(0,1.06,5);
   orbitControls.update();
 }
 
