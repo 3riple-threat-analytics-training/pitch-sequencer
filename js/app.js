@@ -1625,13 +1625,14 @@ function initOrbitView(){
     : {x:0,y:1.5,z:17};
   orbitControls.target.set(initTarget.x,initTarget.y,initTarget.z);
   orbitControls.enableDamping=true;
-  orbitControls.dampingFactor=0.08;
+  orbitControls.dampingFactor=0.18;
   orbitControls.minDistance=0.5;
   orbitControls.maxDistance=25;
   orbitControls.enablePan=true;
-  orbitControls.panSpeed=0.8;
-  orbitControls.rotateSpeed=0.6;
-  orbitControls.zoomSpeed=1.0;
+  orbitControls.panSpeed=0.5;
+  orbitControls.rotateSpeed=window.innerWidth<=600?0.35:0.45;
+  orbitControls.zoomSpeed=window.innerWidth<=600?0.35:0.5;
+  orbitControls.screenSpacePanning=true;
   orbitControls.touches={
     ONE:THREE.TOUCH.ROTATE,
     TWO:THREE.TOUCH.DOLLY_PAN
