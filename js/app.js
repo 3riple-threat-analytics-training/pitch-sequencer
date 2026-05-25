@@ -1630,7 +1630,7 @@ function initOrbitView(){
   orbitControls.maxDistance=25;
   orbitControls.enablePan=true;
   orbitControls.panSpeed=0.5;
-  orbitControls.rotateSpeed=window.innerWidth<=600?0.35:0.45;
+  orbitControls.rotateSpeed=window.innerWidth<=600?0.35:0.28;
   orbitControls.zoomSpeed=window.innerWidth<=600?0.35:0.5;
   orbitControls.screenSpacePanning=true;
   orbitControls.touches={
