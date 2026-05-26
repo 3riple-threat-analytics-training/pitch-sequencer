@@ -559,7 +559,7 @@ function buildBatterSilhouette(add,isRHB){
   const groundY=-0.273;
 
   // Sprite dimensions — image is 203x661px, ratio 0.307
-  const spriteH=2.2;
+  const spriteH=2.6;
   const spriteW=spriteH*(203/661);
 
   // Load PNG texture — already has transparent background
