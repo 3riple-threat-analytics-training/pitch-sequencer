@@ -633,7 +633,7 @@ function buildBatterSilhouette(add,isRHB){
 
   // ── HIPS ──
   const hips=new THREE.Mesh(
-    new THREE.CylinderGeometry(0.13,0.12,0.14,8),pantsMat
+    new THREE.CylinderGeometry(0.10,0.09,0.14,8),pantsMat
   );
   hips.position.set(0,0.30,0.05);
   group.add(hips);
@@ -648,7 +648,7 @@ function buildBatterSilhouette(add,isRHB){
 
   // ── TORSO / JERSEY ──
   const torso=new THREE.Mesh(
-    new THREE.CylinderGeometry(0.115,0.13,0.52,8),jerseyMat
+    new THREE.CylinderGeometry(0.09,0.10,0.55,8),jerseyMat
   );
   torso.position.set(0,0.65,0.05);
   group.add(torso);
@@ -669,19 +669,12 @@ function buildBatterSilhouette(add,isRHB){
   neck.position.set(0,0.98,0.05);
   group.add(neck);
 
-  // ── HEAD ──
-  const head=new THREE.Mesh(
-    new THREE.SphereGeometry(0.098,10,10),skinMat
-  );
-  head.position.set(0,1.12,0.05);
-  group.add(head);
-
-  // ── HELMET ──
+  // ── HEAD + HELMET — full helmet covers entire head ──
   const helmetDome=new THREE.Mesh(
-    new THREE.SphereGeometry(0.112,10,8),helmetMat
+    new THREE.SphereGeometry(0.13,10,8),helmetMat
   );
-  helmetDome.position.set(0,1.16,0.05);
-  helmetDome.scale.set(1,1.05,1);
+  helmetDome.position.set(0,1.14,0.05);
+  helmetDome.scale.set(1,1.1,1);
   group.add(helmetDome);
 
   // Helmet brim — extends toward plate (negative Z after rotation)
@@ -713,17 +706,20 @@ function buildBatterSilhouette(add,isRHB){
   frontArm.rotation.z=isRHB?0.5:-0.5;
   group.add(frontArm);
 
-  // ── HANDS ──
+  // ── HANDS — dark glove color ──
+  const gloveMat=new THREE.MeshBasicMaterial({
+    color:0x1a1a1a,transparent:true,opacity:0.88
+  });
   const handR=new THREE.Mesh(
-    new THREE.SphereGeometry(0.045,8,8),skinMat
+    new THREE.SphereGeometry(0.042,8,8),gloveMat
   );
-  handR.position.set(isRHB?0.18:-0.18,0.68,0.05);
+  handR.position.set(isRHB?0.16:-0.16,0.72,0.05);
   group.add(handR);
 
   const handL=new THREE.Mesh(
-    new THREE.SphereGeometry(0.045,8,8),skinMat
+    new THREE.SphereGeometry(0.042,8,8),gloveMat
   );
-  handL.position.set(isRHB?0.22:-0.22,0.72,0.05);
+  handL.position.set(isRHB?0.20:-0.20,0.76,0.05);
   group.add(handL);
 
   // ── BAT ──
@@ -760,9 +756,9 @@ function buildBatterSilhouette(add,isRHB){
   batGroup.add(endCap);
 
   // Position bat at hands, angle up and back
-  batGroup.position.set(isRHB?0.20:-0.20,0.82,0.05);
-  batGroup.rotation.z=isRHB?-Math.PI/3:Math.PI/3;
-  batGroup.rotation.x=-Math.PI/6;
+  batGroup.position.set(isRHB?0.22:-0.22,0.95,0.05);
+  batGroup.rotation.z=isRHB?-Math.PI/2.8:Math.PI/2.8;
+  batGroup.rotation.x=-Math.PI/8;
   group.add(batGroup);
 
   // ── ROTATE GROUP ──
@@ -774,7 +770,7 @@ function buildBatterSilhouette(add,isRHB){
   // Position group in world space
   // xOff places batter left (RHB) or right (LHB) of strike zone
   // y offset to place feet at ground level
-  group.position.set(xOff,groundY+0.55,0.3);
+  group.position.set(xOff,groundY+0.52,0.8);
 
   add(group);
 
