@@ -559,7 +559,7 @@ function buildBatterSilhouette(add,isRHB){
   const groundY=-0.273;
 
   // Sprite dimensions — image is 203x661px, ratio 0.307
-  const spriteH=2.8;
+  const spriteH=2.2;
   const spriteW=spriteH*(203/661);
 
   // Load PNG texture — already has transparent background
@@ -587,7 +587,7 @@ function buildBatterSilhouette(add,isRHB){
 
       // xOff positions batter beside strike zone
       // RHB left side (xOff=-0.52), LHB right side (xOff=0.52)
-      sprite.position.set(xOff,centerY,0.14);
+      sprite.position.set(xOff*1.4,centerY,0.5);
       add(sprite);
     },
     undefined,
@@ -623,7 +623,11 @@ function buildStatic(){
   const rub=new THREE.Mesh(new THREE.BoxGeometry(0.61,0.05,0.15),new THREE.MeshBasicMaterial({color:0xffffff}));
   rub.position.set(0,0.45,17.5);add(rub);
   const rp=getRP();
-  const rdot=new THREE.Mesh(new THREE.SphereGeometry(0.06,10,10),new THREE.MeshBasicMaterial({color:hand==='R'?0xc084fc:0x7ec8e3}));
+  const rdot=new THREE.Mesh(new THREE.SphereGeometry(0.03,10,10),
+    new THREE.MeshBasicMaterial({
+      color:hand==='R'?0xc084fc:0x7ec8e3,
+      transparent:true,opacity:0.3
+    }));
   rdot.position.set(rp.x,rp.y,rp.z);add(rdot);
   const plateY=CLO_Y-0.08;
   const pp=[
