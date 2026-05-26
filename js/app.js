@@ -559,14 +559,14 @@ function buildBatterSilhouette(add,isRHB){
   const groundY=-0.273;
 
   // Sprite dimensions — image is 203x661px, ratio 0.307
-  const spriteH=1.8;
+  const spriteH=2.8;
   const spriteW=spriteH*(203/661);
 
   // Load PNG texture — already has transparent background
   const loader=new THREE.TextureLoader();
   const imgPath=isRHB
-    ?'assets/batter-rhb.png'
-    :'assets/batter-lhb.png';
+    ?'assets/batter-lhb.png'
+    :'assets/batter-rhb.png';
 
   loader.load(
     imgPath,
