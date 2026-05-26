@@ -770,7 +770,7 @@ function buildBatterSilhouette(add,isRHB){
   // Position group in world space
   // xOff places batter left (RHB) or right (LHB) of strike zone
   // y offset to place feet at ground level
-  group.position.set(xOff,groundY+0.52,0.8);
+  group.position.set(xOff*1.5,groundY+0.35,1.0);
 
   add(group);
 
