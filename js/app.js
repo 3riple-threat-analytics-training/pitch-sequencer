@@ -558,43 +558,225 @@ function buildBatterSilhouette(add,isRHB){
   const zOff=0.15;
   const groundY=-0.273;
 
-  // Sprite dimensions — image is 203x661px, ratio 0.307
-  const spriteH=2.6;
-  const spriteW=spriteH*(203/661);
+  // Materials with color differentiation
+  const jerseyMat=new THREE.MeshBasicMaterial({
+    color:0x1e3a8a,transparent:true,opacity:0.88,
+    side:THREE.DoubleSide
+  });
+  const helmetMat=new THREE.MeshBasicMaterial({
+    color:0x152d6e,transparent:true,opacity:0.92,
+    side:THREE.DoubleSide
+  });
+  const skinMat=new THREE.MeshBasicMaterial({
+    color:0x8B5E3C,transparent:true,opacity:0.88,
+    side:THREE.DoubleSide
+  });
+  const pantsMat=new THREE.MeshBasicMaterial({
+    color:0x111122,transparent:true,opacity:0.88,
+    side:THREE.DoubleSide
+  });
+  const batWoodMat=new THREE.MeshBasicMaterial({
+    color:0x8b4513,transparent:true,opacity:0.92,
+    side:THREE.DoubleSide
+  });
+  const batBarrelMat=new THREE.MeshBasicMaterial({
+    color:0x1a1a1a,transparent:true,opacity:0.95,
+    side:THREE.DoubleSide
+  });
+  const shoeMat=new THREE.MeshBasicMaterial({
+    color:0x0a0a0a,transparent:true,opacity:0.95,
+    side:THREE.DoubleSide
+  });
 
-  // Load PNG texture — already has transparent background
-  const loader=new THREE.TextureLoader();
-  const imgPath=isRHB
-    ?'assets/batter-lhb.png'
-    :'assets/batter-rhb.png';
+  // Group to hold all batter parts
+  const group=new THREE.Group();
 
-  loader.load(
-    imgPath,
-    (tex)=>{
-      tex.needsUpdate=true;
-      const mat=new THREE.SpriteMaterial({
-        map:tex,
-        transparent:true,
-        alphaTest:0.1,
-        depthWrite:false,
-        blending:THREE.AdditiveBlending
-      });
-      const sprite=new THREE.Sprite(mat);
-      sprite.scale.set(spriteW,spriteH,1);
+  // All positions relative to group center
+  // Batter stands facing along Z axis (toward plate)
+  // We rotate group so side faces catcher camera
 
-      // Bottom of sprite at ground level
-      const centerY=groundY+(spriteH/2);
+  // ── SHOES ──
+  [-0.05,0.05].forEach(ox=>{
+    const shoe=new THREE.Mesh(
+      new THREE.BoxGeometry(0.08,0.04,0.18),shoeMat
+    );
+    shoe.position.set(ox,-0.52,0.05);
+    group.add(shoe);
+  });
 
-      // xOff positions batter beside strike zone
-      // RHB left side (xOff=-0.52), LHB right side (xOff=0.52)
-      sprite.position.set(xOff*1.4,centerY,0.5);
-      add(sprite);
-    },
-    undefined,
-    (err)=>{
-      console.warn('Batter sprite failed to load:',imgPath,err);
-    }
+  // ── LOWER LEGS ──
+  [-0.05,0.05].forEach(ox=>{
+    const leg=new THREE.Mesh(
+      new THREE.CylinderGeometry(0.045,0.04,0.38,8),pantsMat
+    );
+    leg.position.set(ox,-0.28,0.05);
+    group.add(leg);
+  });
+
+  // ── KNEES ──
+  [-0.05,0.05].forEach(ox=>{
+    const knee=new THREE.Mesh(
+      new THREE.SphereGeometry(0.052,8,8),pantsMat
+    );
+    knee.position.set(ox,-0.08,0.05);
+    group.add(knee);
+  });
+
+  // ── UPPER LEGS / THIGHS ──
+  [-0.05,0.05].forEach(ox=>{
+    const thigh=new THREE.Mesh(
+      new THREE.CylinderGeometry(0.058,0.05,0.38,8),pantsMat
+    );
+    thigh.position.set(ox,0.12,0.05);
+    group.add(thigh);
+  });
+
+  // ── HIPS ──
+  const hips=new THREE.Mesh(
+    new THREE.CylinderGeometry(0.13,0.12,0.14,8),pantsMat
   );
+  hips.position.set(0,0.30,0.05);
+  group.add(hips);
+
+  // ── BELT ──
+  const belt=new THREE.Mesh(
+    new THREE.CylinderGeometry(0.132,0.132,0.04,8),
+    new THREE.MeshBasicMaterial({color:0x222244,transparent:true,opacity:0.95})
+  );
+  belt.position.set(0,0.375,0.05);
+  group.add(belt);
+
+  // ── TORSO / JERSEY ──
+  const torso=new THREE.Mesh(
+    new THREE.CylinderGeometry(0.115,0.13,0.52,8),jerseyMat
+  );
+  torso.position.set(0,0.65,0.05);
+  group.add(torso);
+
+  // ── SHOULDERS ──
+  [-0.13,0.13].forEach(ox=>{
+    const shoulder=new THREE.Mesh(
+      new THREE.SphereGeometry(0.072,8,8),jerseyMat
+    );
+    shoulder.position.set(ox,0.89,0.05);
+    group.add(shoulder);
+  });
+
+  // ── NECK ──
+  const neck=new THREE.Mesh(
+    new THREE.CylinderGeometry(0.042,0.048,0.12,8),skinMat
+  );
+  neck.position.set(0,0.98,0.05);
+  group.add(neck);
+
+  // ── HEAD ──
+  const head=new THREE.Mesh(
+    new THREE.SphereGeometry(0.098,10,10),skinMat
+  );
+  head.position.set(0,1.12,0.05);
+  group.add(head);
+
+  // ── HELMET ──
+  const helmetDome=new THREE.Mesh(
+    new THREE.SphereGeometry(0.112,10,8),helmetMat
+  );
+  helmetDome.position.set(0,1.16,0.05);
+  helmetDome.scale.set(1,1.05,1);
+  group.add(helmetDome);
+
+  // Helmet brim — extends toward plate (negative Z after rotation)
+  const brimMat=new THREE.MeshBasicMaterial({
+    color:0x0d1e4a,transparent:true,opacity:0.95
+  });
+  const brim=new THREE.Mesh(
+    new THREE.CylinderGeometry(0.11,0.11,0.025,8),brimMat
+  );
+  // Position brim in front (toward plate direction)
+  brim.position.set(0,1.10,-0.10);
+  brim.rotation.x=Math.PI/2;
+  group.add(brim);
+
+  // ── ARMS ──
+  // Back arm (right arm for RHB — faces catcher after rotation)
+  const backArm=new THREE.Mesh(
+    new THREE.CylinderGeometry(0.038,0.032,0.32,8),jerseyMat
+  );
+  backArm.position.set(0.13,0.80,0.05);
+  backArm.rotation.z=isRHB?-0.5:0.5;
+  group.add(backArm);
+
+  // Front arm (left arm for RHB — faces pitcher after rotation)
+  const frontArm=new THREE.Mesh(
+    new THREE.CylinderGeometry(0.035,0.030,0.30,8),jerseyMat
+  );
+  frontArm.position.set(-0.13,0.80,0.05);
+  frontArm.rotation.z=isRHB?0.5:-0.5;
+  group.add(frontArm);
+
+  // ── HANDS ──
+  const handR=new THREE.Mesh(
+    new THREE.SphereGeometry(0.045,8,8),skinMat
+  );
+  handR.position.set(isRHB?0.18:-0.18,0.68,0.05);
+  group.add(handR);
+
+  const handL=new THREE.Mesh(
+    new THREE.SphereGeometry(0.045,8,8),skinMat
+  );
+  handL.position.set(isRHB?0.22:-0.22,0.72,0.05);
+  group.add(handL);
+
+  // ── BAT ──
+  // Handle — wood color
+  const batHandle=new THREE.Mesh(
+    new THREE.CylinderGeometry(0.018,0.022,0.48,6),batWoodMat
+  );
+  // Barrel — dark
+  const batBarrel=new THREE.Mesh(
+    new THREE.CylinderGeometry(0.022,0.038,0.42,6),batBarrelMat
+  );
+
+  // Bat angles up and back toward catcher
+  // For RHB: bat goes up-right (positive X) toward catcher
+  // Rotate bat: tilted up ~60 degrees, angled back
+  const batGroup=new THREE.Group();
+  batHandle.position.set(0,-0.24,0);
+  batBarrel.position.set(0,0.24,0);
+  batGroup.add(batHandle);
+  batGroup.add(batBarrel);
+
+  // Knob
+  const knob=new THREE.Mesh(
+    new THREE.SphereGeometry(0.028,8,8),batBarrelMat
+  );
+  knob.position.set(0,-0.48,0);
+  batGroup.add(knob);
+
+  // End cap
+  const endCap=new THREE.Mesh(
+    new THREE.SphereGeometry(0.042,8,8),batBarrelMat
+  );
+  endCap.position.set(0,0.46,0);
+  batGroup.add(endCap);
+
+  // Position bat at hands, angle up and back
+  batGroup.position.set(isRHB?0.20:-0.20,0.82,0.05);
+  batGroup.rotation.z=isRHB?-Math.PI/3:Math.PI/3;
+  batGroup.rotation.x=-Math.PI/6;
+  group.add(batGroup);
+
+  // ── ROTATE GROUP ──
+  // Rotate so batter's side faces catcher camera
+  // RHB: right shoulder toward catcher (positive X rotation)
+  // LHB: left shoulder toward catcher (negative X rotation)
+  group.rotation.y=isRHB?Math.PI/2:-Math.PI/2;
+
+  // Position group in world space
+  // xOff places batter left (RHB) or right (LHB) of strike zone
+  // y offset to place feet at ground level
+  group.position.set(xOff,groundY+0.55,0.3);
+
+  add(group);
 
   // Batter's box outline — unchanged
   const boxW=0.48,boxD=0.78,boxY=groundY+0.01;
