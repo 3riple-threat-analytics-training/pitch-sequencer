@@ -559,15 +559,19 @@ function buildBatterSilhouette(add,isRHB){
   const groundY=-0.273;
 
   // World Y coordinates — geometry placed at exact world positions
-  const FEET_Y=groundY+0.04;     // -0.233 — just above ground
-  const KNEE_Y=ZLO;              // 0.75 — bottom of strike zone
-  const HIP_Y=ZLO+0.18;         // 0.93
-  const BELT_Y=ZLO+0.24;        // 0.99
-  const CHEST_Y=(ZLO+ZHI)/2;    // 1.06 — mid zone
-  const SHOULDER_Y=ZHI;         // 1.37 — top of strike zone
-  const NECK_Y=ZHI+0.08;        // 1.45
-  const HEAD_Y=ZHI+0.20;        // 1.57
-  const HELMET_Y=ZHI+0.22;      // 1.59
+  // Perspective compensation factor: camera at z=-1.2,
+  // batter at z=1.0, zone at z=0
+  // Factor = (1.0+1.2)/(0+1.2) = 2.2/1.2 = 1.833
+  const PF=2.2/1.2;
+  const FEET_Y=groundY*PF;           // -0.500
+  const KNEE_Y=ZLO*PF;              // 1.375
+  const HIP_Y=(ZLO+0.18)*PF;        // 1.705
+  const BELT_Y=(ZLO+0.24)*PF;       // 1.815
+  const CHEST_Y=((ZLO+ZHI)/2)*PF;   // 1.944
+  const SHOULDER_Y=ZHI*PF;          // 2.512
+  const NECK_Y=(ZHI+0.08)*PF;       // 2.659
+  const HEAD_Y=(ZHI+0.20)*PF;       // 2.879
+  const HELMET_Y=(ZHI+0.22)*PF;     // 2.916
 
   const OP=0.42;
   const OP_BAT=0.72;
