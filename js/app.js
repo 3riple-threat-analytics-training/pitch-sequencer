@@ -558,11 +558,20 @@ function buildBatterSilhouette(add,isRHB){
   const zOff=0.15;
   const groundY=-0.273;
 
-  // Ghost opacity — subtle silhouette, bat more visible
-  const OP=0.35;
-  const OP_BAT=0.70;
+  // World Y coordinates — geometry placed at exact world positions
+  const FEET_Y=groundY+0.04;     // -0.233 — just above ground
+  const KNEE_Y=ZLO;              // 0.75 — bottom of strike zone
+  const HIP_Y=ZLO+0.18;         // 0.93
+  const BELT_Y=ZLO+0.24;        // 0.99
+  const CHEST_Y=(ZLO+ZHI)/2;    // 1.06 — mid zone
+  const SHOULDER_Y=ZHI;         // 1.37 — top of strike zone
+  const NECK_Y=ZHI+0.08;        // 1.45
+  const HEAD_Y=ZHI+0.20;        // 1.57
+  const HELMET_Y=ZHI+0.22;      // 1.59
 
-  // Single material color set — all same opacity
+  const OP=0.42;
+  const OP_BAT=0.72;
+
   function mat(col,op){
     return new THREE.MeshBasicMaterial({
       color:col,transparent:true,opacity:op||OP,
@@ -576,107 +585,110 @@ function buildBatterSilhouette(add,isRHB){
   // ── SHOES ──
   [-0.05,0.05].forEach(ox=>{
     const shoe=new THREE.Mesh(
-      new THREE.BoxGeometry(0.07,0.06,0.18),mat(0x0a0a0a)
+      new THREE.BoxGeometry(0.07,0.05,0.16),mat(0x0a0a0a)
     );
-    shoe.position.set(ox,-1.10,0.05);
+    shoe.position.set(ox,FEET_Y,0.05);
     group.add(shoe);
   });
 
-  // ── LOWER LEGS — very long to reach ground ──
+  // ── LOWER LEGS — from feet to knees ──
+  const lowerLegH=KNEE_Y-FEET_Y-0.05;  // ~0.963
   [-0.05,0.05].forEach(ox=>{
     const leg=new THREE.Mesh(
-      new THREE.CylinderGeometry(0.038,0.034,0.72,8),mat(0x0d0d1a)
+      new THREE.CylinderGeometry(0.038,0.034,lowerLegH,8),mat(0x0d0d1a)
     );
-    leg.position.set(ox,-0.68,0.05);
+    leg.position.set(ox,FEET_Y+lowerLegH/2+0.025,0.05);
     group.add(leg);
   });
 
-  // ── KNEES — at local y=−0.30 ──
+  // ── KNEES ──
   [-0.05,0.05].forEach(ox=>{
     const knee=new THREE.Mesh(
       new THREE.SphereGeometry(0.044,8,8),mat(0x0d0d1a)
     );
-    knee.position.set(ox,-0.30,0.05);
+    knee.position.set(ox,KNEE_Y,0.05);
     group.add(knee);
   });
 
-  // ── UPPER LEGS / THIGHS ──
+  // ── UPPER LEGS — from knees to hips ──
+  const upperLegH=HIP_Y-KNEE_Y-0.04;  // ~0.14
   [-0.05,0.05].forEach(ox=>{
     const thigh=new THREE.Mesh(
-      new THREE.CylinderGeometry(0.050,0.042,0.46,8),mat(0x0d0d1a)
+      new THREE.CylinderGeometry(0.050,0.042,upperLegH,8),mat(0x0d0d1a)
     );
-    thigh.position.set(ox,-0.05,0.05);
+    thigh.position.set(ox,KNEE_Y+upperLegH/2+0.02,0.05);
     group.add(thigh);
   });
 
   // ── HIPS ──
   const hips=new THREE.Mesh(
-    new THREE.CylinderGeometry(0.095,0.088,0.16,8),mat(0x0d0d1a)
+    new THREE.CylinderGeometry(0.095,0.088,0.14,8),mat(0x0d0d1a)
   );
-  hips.position.set(0,0.20,0.05);
+  hips.position.set(0,HIP_Y,0.05);
   group.add(hips);
 
   // ── BELT ──
   const belt=new THREE.Mesh(
-    new THREE.CylinderGeometry(0.097,0.097,0.04,8),mat(0x222244,0.45)
+    new THREE.CylinderGeometry(0.097,0.097,0.04,8),mat(0x222244,0.50)
   );
-  belt.position.set(0,0.285,0.05);
+  belt.position.set(0,BELT_Y,0.05);
   group.add(belt);
 
-  // ── TORSO / JERSEY ──
+  // ── TORSO — from belt to shoulders ──
+  const torsoH=SHOULDER_Y-BELT_Y;  // ~0.38
   const torso=new THREE.Mesh(
-    new THREE.CylinderGeometry(0.085,0.095,0.58,8),mat(0x1e3a8a)
+    new THREE.CylinderGeometry(0.082,0.092,torsoH,8),mat(0x1e3a8a)
   );
-  torso.position.set(0,0.65,0.05);
+  torso.position.set(0,BELT_Y+torsoH/2,0.05);
   group.add(torso);
 
   // ── SHOULDERS ──
   [-0.10,0.10].forEach(ox=>{
     const shoulder=new THREE.Mesh(
-      new THREE.SphereGeometry(0.060,8,8),mat(0x1e3a8a)
+      new THREE.SphereGeometry(0.058,8,8),mat(0x1e3a8a)
     );
-    shoulder.position.set(ox,0.89,0.05);
+    shoulder.position.set(ox,SHOULDER_Y,0.05);
     group.add(shoulder);
   });
 
   // ── NECK ──
   const neck=new THREE.Mesh(
-    new THREE.CylinderGeometry(0.032,0.038,0.10,8),mat(0x2a2a3a)
+    new THREE.CylinderGeometry(0.030,0.036,0.09,8),mat(0x2a2a3a)
   );
-  neck.position.set(0,0.98,0.05);
+  neck.position.set(0,NECK_Y,0.05);
   group.add(neck);
 
-  // ── HELMET — dark charcoal ──
+  // ── HELMET ──
   const helmetDome=new THREE.Mesh(
-    new THREE.SphereGeometry(0.112,12,10),mat(0x2a2a3a,0.42)
+    new THREE.SphereGeometry(0.110,12,10),mat(0x2a2a3a,0.45)
   );
-  helmetDome.position.set(0,1.06,0.05);
+  helmetDome.position.set(0,HELMET_Y,0.05);
   helmetDome.scale.set(1,1.08,1);
   group.add(helmetDome);
 
   // Helmet brim
   const brim=new THREE.Mesh(
-    new THREE.CylinderGeometry(0.095,0.095,0.020,10),
-    mat(0x1a1a2a,0.45)
+    new THREE.CylinderGeometry(0.092,0.092,0.018,10),
+    mat(0x1a1a2a,0.48)
   );
-  brim.position.set(0,0.99,-0.08);
+  brim.position.set(0,HELMET_Y-0.07,-0.08);
   brim.rotation.x=Math.PI/2;
   group.add(brim);
 
   // ── BACK ARM ──
   const backArm=new THREE.Mesh(
-    new THREE.CylinderGeometry(0.028,0.024,0.26,8),mat(0x1e3a8a)
+    new THREE.CylinderGeometry(0.026,0.022,0.22,8),mat(0x1e3a8a)
   );
-  backArm.position.set(isRHB?0.10:-0.10,0.76,0.05);
-  backArm.rotation.z=isRHB?-0.5:0.5;
+  backArm.position.set(isRHB?0.09:-0.09,SHOULDER_Y-0.06,0.05);
+  backArm.rotation.z=isRHB?-0.50:0.50;
   group.add(backArm);
 
   // ── FRONT ARM ──
   const frontArm=new THREE.Mesh(
-    new THREE.CylinderGeometry(0.026,0.022,0.24,8),mat(0x1e3a8a)
+    new THREE.CylinderGeometry(0.024,0.020,0.20,8),mat(0x1e3a8a)
   );
-  frontArm.position.set(isRHB?-0.10:0.10,0.76,0.05);
-  frontArm.rotation.z=isRHB?0.5:-0.5;
+  frontArm.position.set(isRHB?-0.09:0.09,SHOULDER_Y-0.06,0.05);
+  frontArm.rotation.z=isRHB?0.50:-0.50;
   group.add(frontArm);
 
   // ── BAT — knob at bottom, barrel at top ──
@@ -720,20 +732,21 @@ function buildBatterSilhouette(add,isRHB){
   endCap.position.set(0,0.46,0);
   batGroup.add(endCap);
 
-  // Bat positioned at shoulder, angled up toward catcher
-  batGroup.position.set(isRHB?0.16:-0.16,0.92,0.05);
+  // Bat at shoulder height, angled up toward catcher
+  batGroup.position.set(
+    isRHB?0.14:-0.14,
+    SHOULDER_Y+0.05,
+    0.05
+  );
   batGroup.rotation.z=isRHB?-Math.PI/2.5:Math.PI/2.5;
   batGroup.rotation.x=-Math.PI/10;
   group.add(batGroup);
 
-  // ── SCALE GROUP so chest=ZHI, knees=ZLO ──
-  // Knees at local y=−0.30, chest/shoulders at local y=0.88
-  // Target: knees at ZLO=0.75, chest at ZHI=1.37
-  // Scale = (ZHI-ZLO)/(0.88-(-0.30)) = 0.62/1.18 = 0.525
-  // group.y = ZLO - (−0.30 * scale) = 0.75 + 0.158 = 0.908
-  group.scale.set(1,0.525,1);
+  // ── GROUP ROTATION AND POSITION ──
+  // No scale — geometry already at correct world Y coordinates
   group.rotation.y=isRHB?Math.PI/2:-Math.PI/2;
-  group.position.set(xOff*1.5,0.908,1.0);
+  // group.position.y=0 since geometry is already in world space
+  group.position.set(xOff*1.5,0,1.0);
 
   add(group);
 
