@@ -747,7 +747,7 @@ function buildBatterSilhouette(add,isRHB){
   // No scale — geometry already at correct world Y coordinates
   group.rotation.y=isRHB?Math.PI/2:-Math.PI/2;
   // group.position.y=0 since geometry is already in world space
-  group.position.set(xOff*1.5,0,0.15);
+  group.position.set(xOff*0.73,0,0.15);
 
   add(group);
 
