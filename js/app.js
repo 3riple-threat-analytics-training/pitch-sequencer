@@ -559,19 +559,16 @@ function buildBatterSilhouette(add,isRHB){
   const groundY=-0.273;
 
   // World Y coordinates — geometry placed at exact world positions
-  // Perspective compensation factor: camera at z=-1.2,
-  // batter at z=1.0, zone at z=0
-  // Factor = (1.0+1.2)/(0+1.2) = 2.2/1.2 = 1.833
-  const PF=2.2/1.2;
-  const FEET_Y=groundY*PF;           // -0.500
-  const KNEE_Y=ZLO*PF;              // 1.375
-  const HIP_Y=(ZLO+0.18)*PF;        // 1.705
-  const BELT_Y=(ZLO+0.24)*PF;       // 1.815
-  const CHEST_Y=((ZLO+ZHI)/2)*PF;   // 1.944
-  const SHOULDER_Y=ZHI*PF;          // 2.512
-  const NECK_Y=(ZHI+0.08)*PF;       // 2.659
-  const HEAD_Y=(ZHI+0.20)*PF;       // 2.879
-  const HELMET_Y=(ZHI+0.22)*PF;     // 2.916
+  // Exact values from app code
+  const FEET_Y=groundY;         // -0.273 — ground plane
+  const KNEE_Y=ZLO;             // 0.75  — bottom of zone
+  const HIP_Y=ZLO+0.08;         // 0.83
+  const BELT_Y=ZLO+0.13;        // 0.88
+  const CHEST_Y=(ZLO+ZHI)/2;    // 1.06  — mid zone
+  const SHOULDER_Y=ZHI;         // 1.37  — top of zone
+  const NECK_Y=ZHI+0.08;        // 1.45
+  const HEAD_Y=ZHI+0.16;        // 1.53
+  const HELMET_Y=ZHI+0.20;      // 1.57
 
   const OP=0.42;
   const OP_BAT=0.72;
@@ -750,7 +747,7 @@ function buildBatterSilhouette(add,isRHB){
   // No scale — geometry already at correct world Y coordinates
   group.rotation.y=isRHB?Math.PI/2:-Math.PI/2;
   // group.position.y=0 since geometry is already in world space
-  group.position.set(xOff*1.5,0,1.0);
+  group.position.set(xOff*1.5,0,0.15);
 
   add(group);
 
