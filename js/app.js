@@ -745,17 +745,17 @@ function buildBatterSilhouette(add,isRHB){
   batGroup.add(batTaper);
 
   // Barrel
-  const batBarrel=new THREE.Mesh(
-    new THREE.CylinderGeometry(0.032,0.018,0.14,12),
-    mat(0x1a1a1a,OP_BAT)
-  );
+    const batBarrel=new THREE.Mesh(
+      new THREE.CylinderGeometry(0.032,0.018,0.14,12),
+      mat(0x6b3a1f,OP_BAT)
+    );
   batBarrel.position.set(0,0.10,0);
   batGroup.add(batBarrel);
 
   // End cap
-  const endCap=new THREE.Mesh(
-    new THREE.SphereGeometry(0.034,10,10),mat(0x1a1a1a,OP_BAT)
-  );
+    const endCap=new THREE.Mesh(
+      new THREE.SphereGeometry(0.034,10,10),mat(0x6b3a1f,OP_BAT)
+    );
   endCap.position.set(0,0.17,0);
   batGroup.add(endCap);
 
