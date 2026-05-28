@@ -668,20 +668,20 @@ function buildBatterSilhouette(add,isRHB){
   helmetDome.scale.set(1,1.05,1);
   group.add(helmetDome);
 
-  // Visor/brim — flat disc extending toward plate (neg Z)
-  // After group.rotation.y, neg Z becomes toward plate
+  // Visor — horizontal half-disc at forehead level
+  // Using BoxGeometry for clean flat brim shape
   const visorMat=new THREE.MeshBasicMaterial({
-    color:0x152d6e,transparent:true,opacity:0.85,
+    color:0x152d6e,transparent:true,opacity:0.90,
     side:THREE.DoubleSide
   });
+  // Main brim — flat horizontal box extending toward plate
   const visor=new THREE.Mesh(
-    new THREE.CylinderGeometry(0.005,0.088,0.018,8),visorMat
+    new THREE.BoxGeometry(0.10,0.015,0.08),visorMat
   );
-  // After group.rotation.y, local -Z faces plate
-  // Visor positioned at front of helmet facing plate
-  visor.position.set(0,HELMET_Y-0.072,0.075);
-  visor.rotation.x=Math.PI/1.6;
-  visor.rotation.y=0;
+  // Position at forehead — slightly below helmet dome center
+  // local +Z faces plate after group.rotation.y
+  visor.position.set(0,HELMET_Y-0.04,0.06);
+  // Perfectly horizontal — no rotation
   group.add(visor);
 
   // Hair — dark patch at back of head
