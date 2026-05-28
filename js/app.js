@@ -681,17 +681,9 @@ function buildBatterSilhouette(add,isRHB){
   // Position at forehead — slightly below helmet dome center
   // local +Z faces plate after group.rotation.y
   visor.position.set(0,HELMET_Y-0.04,0.06);
-  // Perfectly horizontal — no rotation
+  // Rotate visor to stay horizontal after group.rotation.y
+  visor.rotation.y=Math.PI/2;
   group.add(visor);
-
-  // Hair — dark patch at back of head
-  const hair=new THREE.Mesh(
-    new THREE.SphereGeometry(0.060,8,6),
-    mat(0x111111,0.65)
-  );
-  hair.position.set(0,HELMET_Y-0.02,-0.06);
-  hair.scale.set(0.8,0.7,0.5);
-  group.add(hair);
 
   // Jaw/chin hint — skin tone facing plate side
   const jaw=new THREE.Mesh(
