@@ -671,17 +671,13 @@ function buildBatterSilhouette(add,isRHB){
   // Visor — horizontal half-disc at forehead level
   // Using BoxGeometry for clean flat brim shape
   const visorMat=new THREE.MeshBasicMaterial({
-    color:0x152d6e,transparent:true,opacity:0.90,
+    color:0xff0000,transparent:false,
     side:THREE.DoubleSide
   });
-  // Main brim — flat horizontal box extending toward plate
   const visor=new THREE.Mesh(
-    new THREE.BoxGeometry(0.10,0.015,0.08),visorMat
+    new THREE.BoxGeometry(0.30,0.04,0.20),visorMat
   );
-  // Position at forehead — slightly below helmet dome center
-  // local +Z faces plate after group.rotation.y
-  visor.position.set(0,HELMET_Y-0.04,0.06);
-  // Rotate visor to stay horizontal after group.rotation.y
+  visor.position.set(0,HELMET_Y,0.06);
   visor.rotation.y=Math.PI/2;
   group.add(visor);
 
