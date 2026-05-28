@@ -675,10 +675,13 @@ function buildBatterSilhouette(add,isRHB){
     side:THREE.DoubleSide
   });
   const visor=new THREE.Mesh(
-    new THREE.CylinderGeometry(0.005,0.075,0.015,8),visorMat
+    new THREE.CylinderGeometry(0.005,0.088,0.018,8),visorMat
   );
-  visor.position.set(0,HELMET_Y-0.055,-0.065);
-  visor.rotation.x=Math.PI/2.2;
+  // After group.rotation.y, local -Z faces plate
+  // Visor positioned at front of helmet facing plate
+  visor.position.set(0,HELMET_Y-0.06,-0.06);
+  visor.rotation.x=Math.PI/2.8;
+  visor.rotation.y=0;
   group.add(visor);
 
   // Hair — dark patch at back of head
@@ -756,11 +759,13 @@ function buildBatterSilhouette(add,isRHB){
   endCap.position.set(0,0.46,0);
   batGroup.add(endCap);
 
-  // Bat at shoulder height, angled up toward catcher
+  // After group.rotation.y=PI/2:
+  // local -X becomes world toward catcher (behind shoulder)
+  // local -Z becomes world toward plate
   batGroup.position.set(
-    isRHB?0.14:-0.14,
-    SHOULDER_Y+0.05,
-    0.05
+    isRHB?-0.12:0.12,
+    SHOULDER_Y-0.18+0.46,
+    -0.08
   );
   batGroup.rotation.z=isRHB?-Math.PI/3.2:Math.PI/3.2;
   batGroup.rotation.x=-Math.PI/7;
