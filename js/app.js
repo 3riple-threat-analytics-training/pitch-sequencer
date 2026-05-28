@@ -740,10 +740,10 @@ function buildBatterSilhouette(add,isRHB){
   // Long shaft — tapers from handle width to thin at top
   // This section exits the canvas frame
   const batShaft=new THREE.Mesh(
-    new THREE.CylinderGeometry(0.006,0.013,0.80,10),
+    new THREE.CylinderGeometry(0.002,0.013,1.60,10),
     mat(0x6b3a1f,OP_BAT)
   );
-  batShaft.position.set(0,0.25,0);
+  batShaft.position.set(0,0.65,0);
   batGroup.add(batShaft);
 
   // After group.rotation.y=PI/2:
