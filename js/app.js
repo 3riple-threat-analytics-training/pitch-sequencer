@@ -764,11 +764,11 @@ function buildBatterSilhouette(add,isRHB){
   // local -Z becomes world toward plate
   batGroup.position.set(
     isRHB?0.18:-0.18,
-    SHOULDER_Y-0.18+0.46,
+    SHOULDER_Y-0.05,
     0.12
   );
-  batGroup.rotation.z=isRHB?-Math.PI/3.2:Math.PI/3.2;
-  batGroup.rotation.x=-Math.PI/7;
+  batGroup.rotation.z=isRHB?-Math.PI/4.5:Math.PI/4.5;
+  batGroup.rotation.x=-Math.PI/12;
   group.add(batGroup);
 
   // ── GROUP ROTATION AND POSITION ──
