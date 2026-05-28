@@ -679,8 +679,8 @@ function buildBatterSilhouette(add,isRHB){
   );
   // After group.rotation.y, local -Z faces plate
   // Visor positioned at front of helmet facing plate
-  visor.position.set(0,HELMET_Y-0.06,0.06);
-  visor.rotation.x=Math.PI/2.8;
+  visor.position.set(0,HELMET_Y-0.072,0.075);
+  visor.rotation.x=Math.PI/1.6;
   visor.rotation.y=0;
   group.add(visor);
 
@@ -763,9 +763,9 @@ function buildBatterSilhouette(add,isRHB){
   // local -X becomes world toward catcher (behind shoulder)
   // local -Z becomes world toward plate
   batGroup.position.set(
-    isRHB?0.12:-0.12,
+    isRHB?0.18:-0.18,
     SHOULDER_Y-0.18+0.46,
-    0.06
+    0.12
   );
   batGroup.rotation.z=isRHB?-Math.PI/3.2:Math.PI/3.2;
   batGroup.rotation.x=-Math.PI/7;
