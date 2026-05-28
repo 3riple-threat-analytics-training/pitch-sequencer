@@ -680,7 +680,7 @@ function buildBatterSilhouette(add,isRHB){
   );
   // Position at forehead — slightly below helmet dome center
   // local +Z faces plate after group.rotation.y
-  visor.position.set(0,HELMET_Y-0.04,-0.06);
+  visor.position.set(0,HELMET_Y-0.04,0.06);
   // Rotate visor to stay horizontal after group.rotation.y
   visor.rotation.y=Math.PI/2;
   group.add(visor);
@@ -690,7 +690,7 @@ function buildBatterSilhouette(add,isRHB){
     new THREE.SphereGeometry(0.032,8,6),
     mat(0x8B5E3C,0.55)
   );
-  jaw.position.set(0,HELMET_Y-0.10,-0.055);
+  jaw.position.set(0,HELMET_Y-0.06,0.055);
   jaw.scale.set(0.8,0.7,0.6);
   group.add(jaw);
 
