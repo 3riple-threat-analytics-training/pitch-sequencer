@@ -687,7 +687,7 @@ function buildBatterSilhouette(add,isRHB){
     ),visorMat
   );
   // Position at helmet front boundary, forehead level
-  visor.position.set(0,HELMET_Y-0.03,0.13);
+  visor.position.set(0,HELMET_Y+0.01,0.13);
   group.add(visor);
 
   // Jaw/chin hint — skin tone facing plate side
