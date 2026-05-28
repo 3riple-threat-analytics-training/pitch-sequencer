@@ -659,22 +659,45 @@ function buildBatterSilhouette(add,isRHB){
   neck.position.set(0,NECK_Y,0.05);
   group.add(neck);
 
-  // ── HELMET ──
+  // ── HELMET — navy blue dome with forward visor ──
+  // Main dome
   const helmetDome=new THREE.Mesh(
-    new THREE.SphereGeometry(0.110,12,10),mat(0x2a2a3a,0.45)
+    new THREE.SphereGeometry(0.082,12,10),mat(0x1e3a8a,0.75)
   );
   helmetDome.position.set(0,HELMET_Y,0.05);
-  helmetDome.scale.set(1,1.08,1);
+  helmetDome.scale.set(1,1.05,1);
   group.add(helmetDome);
 
-  // Helmet brim
-  const brim=new THREE.Mesh(
-    new THREE.CylinderGeometry(0.092,0.092,0.018,10),
-    mat(0x1a1a2a,0.48)
+  // Visor/brim — flat disc extending toward plate (neg Z)
+  // After group.rotation.y, neg Z becomes toward plate
+  const visorMat=new THREE.MeshBasicMaterial({
+    color:0x152d6e,transparent:true,opacity:0.85,
+    side:THREE.DoubleSide
+  });
+  const visor=new THREE.Mesh(
+    new THREE.CylinderGeometry(0.005,0.075,0.015,8),visorMat
   );
-  brim.position.set(0,HELMET_Y-0.07,-0.08);
-  brim.rotation.x=Math.PI/2;
-  group.add(brim);
+  visor.position.set(0,HELMET_Y-0.055,-0.065);
+  visor.rotation.x=Math.PI/2.2;
+  group.add(visor);
+
+  // Hair — dark patch at back of head
+  const hair=new THREE.Mesh(
+    new THREE.SphereGeometry(0.060,8,6),
+    mat(0x111111,0.65)
+  );
+  hair.position.set(0,HELMET_Y-0.02,0.06);
+  hair.scale.set(0.8,0.7,0.5);
+  group.add(hair);
+
+  // Jaw/chin hint — skin tone facing plate side
+  const jaw=new THREE.Mesh(
+    new THREE.SphereGeometry(0.032,8,6),
+    mat(0x8B5E3C,0.55)
+  );
+  jaw.position.set(0,HELMET_Y-0.10,-0.055);
+  jaw.scale.set(0.8,0.7,0.6);
+  group.add(jaw);
 
   // ── BACK ARM ──
   const backArm=new THREE.Mesh(
@@ -739,8 +762,8 @@ function buildBatterSilhouette(add,isRHB){
     SHOULDER_Y+0.05,
     0.05
   );
-  batGroup.rotation.z=isRHB?-Math.PI/2.5:Math.PI/2.5;
-  batGroup.rotation.x=-Math.PI/10;
+  batGroup.rotation.z=isRHB?-Math.PI/3.2:Math.PI/3.2;
+  batGroup.rotation.x=-Math.PI/7;
   group.add(batGroup);
 
   // ── GROUP ROTATION AND POSITION ──
