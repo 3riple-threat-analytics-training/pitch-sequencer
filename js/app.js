@@ -675,10 +675,9 @@ function buildBatterSilhouette(add,isRHB){
     side:THREE.DoubleSide
   });
   const visor=new THREE.Mesh(
-    new THREE.BoxGeometry(0.30,0.04,0.20),visorMat
+    new THREE.BoxGeometry(0.10,0.012,0.06),visorMat
   );
-  visor.position.set(0,HELMET_Y,0.06);
-  visor.rotation.y=Math.PI/2;
+  visor.position.set(0,HELMET_Y-0.07,0.17);
   group.add(visor);
 
   // Jaw/chin hint — skin tone facing plate side
