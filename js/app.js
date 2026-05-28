@@ -718,46 +718,33 @@ function buildBatterSilhouette(add,isRHB){
   frontArm.rotation.z=isRHB?0.50:-0.50;
   group.add(frontArm);
 
-  // ── BAT — knob at bottom, barrel at top ──
+  // ── BAT — extends off canvas top corner
+  // Only handle and lower shaft visible — barrel off screen ──
   const batGroup=new THREE.Group();
 
-  // Knob
+  // Knob — dark, at bottom
   const knob=new THREE.Mesh(
     new THREE.SphereGeometry(0.018,8,8),mat(0x1a1a1a,OP_BAT)
   );
   knob.position.set(0,-0.17,0);
   batGroup.add(knob);
 
-  // Handle
+  // Handle — wood color, thicker at bottom
   const batHandle=new THREE.Mesh(
-    new THREE.CylinderGeometry(0.012,0.015,0.14,10),
+    new THREE.CylinderGeometry(0.013,0.016,0.16,10),
     mat(0x6b3a1f,OP_BAT)
   );
-  batHandle.position.set(0,-0.08,0);
+  batHandle.position.set(0,-0.07,0);
   batGroup.add(batHandle);
 
-  // Taper
-  const batTaper=new THREE.Mesh(
-    new THREE.CylinderGeometry(0.018,0.012,0.06,10),
+  // Long shaft — tapers from handle width to thin at top
+  // This section exits the canvas frame
+  const batShaft=new THREE.Mesh(
+    new THREE.CylinderGeometry(0.006,0.013,0.80,10),
     mat(0x6b3a1f,OP_BAT)
   );
-  batTaper.position.set(0,0.01,0);
-  batGroup.add(batTaper);
-
-  // Barrel
-    const batBarrel=new THREE.Mesh(
-      new THREE.CylinderGeometry(0.032,0.018,0.14,12),
-      mat(0x6b3a1f,OP_BAT)
-    );
-  batBarrel.position.set(0,0.10,0);
-  batGroup.add(batBarrel);
-
-  // End cap
-    const endCap=new THREE.Mesh(
-      new THREE.SphereGeometry(0.034,10,10),mat(0x6b3a1f,OP_BAT)
-    );
-  endCap.position.set(0,0.17,0);
-  batGroup.add(endCap);
+  batShaft.position.set(0,0.25,0);
+  batGroup.add(batShaft);
 
   // After group.rotation.y=PI/2:
   // local -X becomes world toward catcher (behind shoulder)
