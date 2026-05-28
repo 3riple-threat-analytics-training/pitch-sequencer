@@ -723,22 +723,22 @@ function buildBatterSilhouette(add,isRHB){
 
   // Knob
   const knob=new THREE.Mesh(
-    new THREE.SphereGeometry(0.020,8,8),mat(0x1a1a1a,OP_BAT)
+    new THREE.SphereGeometry(0.018,8,8),mat(0x1a1a1a,OP_BAT)
   );
-  knob.position.set(0,-0.30,0);
+  knob.position.set(0,-0.17,0);
   batGroup.add(knob);
 
   // Handle
   const batHandle=new THREE.Mesh(
-    new THREE.CylinderGeometry(0.013,0.016,0.24,10),
+    new THREE.CylinderGeometry(0.012,0.015,0.14,10),
     mat(0x6b3a1f,OP_BAT)
   );
-  batHandle.position.set(0,-0.15,0);
+  batHandle.position.set(0,-0.08,0);
   batGroup.add(batHandle);
 
   // Taper
   const batTaper=new THREE.Mesh(
-    new THREE.CylinderGeometry(0.020,0.013,0.08,10),
+    new THREE.CylinderGeometry(0.018,0.012,0.06,10),
     mat(0x6b3a1f,OP_BAT)
   );
   batTaper.position.set(0,0.01,0);
@@ -746,17 +746,17 @@ function buildBatterSilhouette(add,isRHB){
 
   // Barrel
   const batBarrel=new THREE.Mesh(
-    new THREE.CylinderGeometry(0.036,0.020,0.26,12),
+    new THREE.CylinderGeometry(0.032,0.018,0.14,12),
     mat(0x1a1a1a,OP_BAT)
   );
-  batBarrel.position.set(0,0.17,0);
+  batBarrel.position.set(0,0.10,0);
   batGroup.add(batBarrel);
 
   // End cap
   const endCap=new THREE.Mesh(
-    new THREE.SphereGeometry(0.038,10,10),mat(0x1a1a1a,OP_BAT)
+    new THREE.SphereGeometry(0.034,10,10),mat(0x1a1a1a,OP_BAT)
   );
-  endCap.position.set(0,0.30,0);
+  endCap.position.set(0,0.17,0);
   batGroup.add(endCap);
 
   // After group.rotation.y=PI/2:
