@@ -668,16 +668,26 @@ function buildBatterSilhouette(add,isRHB){
   helmetDome.scale.set(1,1.05,1);
   group.add(helmetDome);
 
-  // Visor — horizontal half-disc at forehead level
-  // Using BoxGeometry for clean flat brim shape
   const visorMat=new THREE.MeshBasicMaterial({
-    color:0xff0000,transparent:false,
+    color:0x152d6e,transparent:true,opacity:0.95,
     side:THREE.DoubleSide
   });
+  // Half-disc visor — horizontal, faces plate direction (+Z)
+  // thetaStart=-PI/2, thetaLength=PI gives front-facing half disc
   const visor=new THREE.Mesh(
-    new THREE.BoxGeometry(0.10,0.012,0.06),visorMat
+    new THREE.CylinderGeometry(
+      0.09,  // outer radius
+      0.09,  // inner radius (same = flat disc)
+      0.008, // height — very thin
+      12,    // segments
+      1,     // height segments
+      false, // open ended
+      -Math.PI/2, // thetaStart — faces +Z
+      Math.PI     // thetaLength — half circle only
+    ),visorMat
   );
-  visor.position.set(0,HELMET_Y-0.07,0.17);
+  // Position at helmet front boundary, forehead level
+  visor.position.set(0,HELMET_Y-0.06,0.09);
   group.add(visor);
 
   // Jaw/chin hint — skin tone facing plate side
