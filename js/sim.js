@@ -1652,10 +1652,33 @@ function applySimCountOutcome(outcome,strikesAtStart){
   let display=outcome;
   if(outcome==='BALL'||outcome==='CALLED BALL') ballCount=Math.min(4,ballCount+1);
   else if(outcome==='CHECK SWING'){
-    // Counts as ball but flagged as batter showed interest
-    ballCount=Math.min(4,ballCount+1);
-    display='CHECK SWING';
-    window.__lastCheckSwing={zone:zone,pitch:pitch};
+    // Zone-based ruling
+    // Chase zones → always ball
+    // Edge zones → umpire probability
+    // Strike zones → always strike
+    const umpSetting=getUmpireSetting();
+    let checkSwingStrike=false;
+    if(CHASE_ZONE_KEYS.includes(zone)){
+      checkSwingStrike=false;
+    } else if(EDGE8_ZONE_KEYS.includes(zone)||
+      EDGE_LINE_KEYS.includes(zone)){
+      const prob=EDGE_LINE_KEYS.includes(zone)
+        ?umpSetting.cornerStrikeProb
+        :umpSetting.edgeStrikeProb;
+      checkSwingStrike=Math.random()<prob;
+    } else {
+      // Strike zone — always strike
+      checkSwingStrike=true;
+    }
+    if(checkSwingStrike){
+      strikeCount=Math.min(3,strikeCount+1);
+      display='CHECK SWING (STRIKE)';
+    } else {
+      ballCount=Math.min(4,ballCount+1);
+      display='CHECK SWING (BALL)';
+    }
+    window.__lastCheckSwing={zone,pitch,
+      wasStrike:checkSwingStrike};
   }
   else if(outcome==='STRIKE'||outcome==='SWING & MISS'||outcome==='CALLED STRIKE') strikeCount=Math.min(3,strikeCount+1);
   else if(outcome==='FOUL'&&strikesAtStart<2) strikeCount=Math.min(2,strikeCount+1);

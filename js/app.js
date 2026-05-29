@@ -1270,7 +1270,9 @@ function showOutcomeFlash(outcome){
 
   if(['SWING & MISS','STRIKEOUT','CALLED STRIKE','STRIKE'].includes(outcome)){
     el.style.color='#4ade80';
-  } else if(outcome==='CHECK SWING'){
+  } else if(outcome==='CHECK SWING'||
+    outcome==='CHECK SWING (STRIKE)'||
+    outcome==='CHECK SWING (BALL)'){
     el.style.color='#a78bfa';
   } else if(['BALL','WALK','CALLED BALL'].includes(outcome)){
     el.style.color='#f87171';
@@ -1343,7 +1345,9 @@ function commitPitch(pts3d,pk,zk,spd,bd,rl,ct,outcome){
   }
   const foulType=outcome==='FOUL'?
     (window.__lastFoulType||null):null;
-  const checkSwing=outcome==='CHECK SWING'?
+  const checkSwing=(outcome==='CHECK SWING'||
+    outcome==='CHECK SWING (STRIKE)'||
+    outcome==='CHECK SWING (BALL)')?
     (window.__lastCheckSwing||null):null;
   window.__lastFoulType=null;
   window.__lastCheckSwing=null;
@@ -1390,9 +1394,10 @@ function throwPitch(){
     }
     if(batterType==='RANDOM'&&!batterRevealed){
       const revealByPitch=pitchesInAtBat>=4;
-      const revealByContact=['FOUL','CHECK SWING','GROUND OUT',
-        'POP FLY','SINGLE','DOUBLE','TRIPLE','HOME RUN']
-        .includes(outcome);
+      const revealByContact=['FOUL','CHECK SWING',
+        'CHECK SWING (STRIKE)','CHECK SWING (BALL)',
+        'GROUND OUT','POP FLY','SINGLE','DOUBLE',
+        'TRIPLE','HOME RUN'].includes(outcome);
       const revealByEnd=['WALK','STRIKEOUT'].includes(outcome);
       if(revealByPitch||revealByContact||revealByEnd){
         batterRevealed=true;
