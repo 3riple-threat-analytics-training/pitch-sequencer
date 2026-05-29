@@ -1270,6 +1270,8 @@ function showOutcomeFlash(outcome){
 
   if(['SWING & MISS','STRIKEOUT','CALLED STRIKE','STRIKE'].includes(outcome)){
     el.style.color='#4ade80';
+  } else if(outcome==='CHECK SWING'){
+    el.style.color='#a78bfa';
   } else if(['BALL','WALK','CALLED BALL'].includes(outcome)){
     el.style.color='#f87171';
   } else if(['FOUL'].includes(outcome)){
@@ -1339,7 +1341,14 @@ function commitPitch(pts3d,pk,zk,spd,bd,rl,ct,outcome){
     }
     tunnelData=bestTunnel;
   }
+  const foulType=outcome==='FOUL'?
+    (window.__lastFoulType||null):null;
+  const checkSwing=outcome==='CHECK SWING'?
+    (window.__lastCheckSwing||null):null;
+  window.__lastFoulType=null;
+  window.__lastCheckSwing=null;
   seq.push({pk,zk,spd,bd,role:rl,count:ct,outcome:outcome||'',
+    foulType,checkSwing,
     pts3d:pts3d.map(v=>v.clone()),tunnelData});
   updateSeqUI();buildTunnels();
   // Save at-bat to orbit history when at-bat ends
@@ -1381,7 +1390,9 @@ function throwPitch(){
     }
     if(batterType==='RANDOM'&&!batterRevealed){
       const revealByPitch=pitchesInAtBat>=4;
-      const revealByContact=['FOUL','GROUND OUT','POP FLY','SINGLE','DOUBLE','TRIPLE','HOME RUN'].includes(outcome);
+      const revealByContact=['FOUL','CHECK SWING','GROUND OUT',
+        'POP FLY','SINGLE','DOUBLE','TRIPLE','HOME RUN']
+        .includes(outcome);
       const revealByEnd=['WALK','STRIKEOUT'].includes(outcome);
       if(revealByPitch||revealByContact||revealByEnd){
         batterRevealed=true;

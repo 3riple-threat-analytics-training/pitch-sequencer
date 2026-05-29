@@ -588,6 +588,8 @@ function simSpritePalette(tag){
     return {bg:'#3a2f08',bd:'#fde047',fg:'#fde68a',dark:'#451a03'};
   if(tag==='FOUL')
     return {bg:'#2a2208',bd:'#facc15',fg:'#fef08a',dark:'#422006'};
+  if(tag==='CHECK SWING')
+    return {bg:'#1a1a2a',bd:'#a78bfa',fg:'#ede9fe',dark:'#2e1065'};
   if(tag==='SINGLE')
     return {bg:'#2b1808',bd:'#fb923c',fg:'#ffedd5',dark:'#431407'};
   if(['DOUBLE','TRIPLE'].includes(tag))
@@ -597,6 +599,43 @@ function simSpritePalette(tag){
   if(tag==='INNING OVER')
     return {bg:'#1a1500',bd:'#eab308',fg:'#fef9c3',dark:'#451a03'};
   return {bg:'#12321f',bd:'#4ade80',fg:'#86efac',dark:'#14532d'};
+}
+
+function getRandomFoulType(batterHandedness,pitchZone){
+  // Determine foul type based on batter handedness and pitch location
+  // PULLED: batter ahead of pitch (fast pitch, inner zone)
+  // LATE: batter behind pitch (outer zone, offspeed)
+  // STRAIGHT_BACK: batter squared up (middle zone)
+  const r=Math.random();
+  const isInner=(pitchZone&&(pitchZone.includes('L')&&
+    batterHandedness==='RHB'||
+    pitchZone.includes('R')&&batterHandedness==='LHB'));
+  const isOuter=(pitchZone&&(pitchZone.includes('R')&&
+    batterHandedness==='RHB'||
+    pitchZone.includes('L')&&batterHandedness==='LHB'));
+  if(isInner){
+    // Inner zone — more likely pulled
+    if(r<0.55) return 'PULLED';
+    if(r<0.80) return 'STRAIGHT_BACK';
+    return 'LATE';
+  } else if(isOuter){
+    // Outer zone — more likely late
+    if(r<0.55) return 'LATE';
+    if(r<0.80) return 'STRAIGHT_BACK';
+    return 'PULLED';
+  } else {
+    // Middle zone — more likely straight back
+    if(r<0.50) return 'STRAIGHT_BACK';
+    if(r<0.75) return 'PULLED';
+    return 'LATE';
+  }
+}
+
+function getFoulTypeLabel(foulType){
+  if(foulType==='PULLED') return 'FOUL (PULLED)';
+  if(foulType==='LATE') return 'FOUL (LATE)';
+  if(foulType==='STRAIGHT_BACK') return 'FOUL (STRAIGHT BACK)';
+  return 'FOUL';
 }
 
 function addSimLogEntry(line,tag,prominent){
@@ -1379,12 +1418,14 @@ function buildSimWeights(zk,rl,bd,ct,speed,pitchKey){
     BALL:0,
     STRIKE:30,
     FOUL:18,
+    'CHECK SWING':8,
     'WEAK CONTACT':Math.round(18*weakMult),
     'STRONG CONTACT':Math.round(12*strongMult),
     'SWING & MISS':8
   }:{
     BALL:55,
     FOUL:10,
+    'CHECK SWING':6,
     'WEAK CONTACT':Math.round(8*weakMult),
     'STRONG CONTACT':Math.round(4*strongMult),
     'SWING & MISS':23
@@ -1610,6 +1651,12 @@ function getAnimationDelay(){
 function applySimCountOutcome(outcome,strikesAtStart){
   let display=outcome;
   if(outcome==='BALL'||outcome==='CALLED BALL') ballCount=Math.min(4,ballCount+1);
+  else if(outcome==='CHECK SWING'){
+    // Counts as ball but flagged as batter showed interest
+    ballCount=Math.min(4,ballCount+1);
+    display='CHECK SWING';
+    window.__lastCheckSwing={zone:zone,pitch:pitch};
+  }
   else if(outcome==='STRIKE'||outcome==='SWING & MISS'||outcome==='CALLED STRIKE') strikeCount=Math.min(3,strikeCount+1);
   else if(outcome==='FOUL'&&strikesAtStart<2) strikeCount=Math.min(2,strikeCount+1);
   renderCount();
@@ -1792,7 +1839,25 @@ function handleSimOutcome(pitchName,outcome,speed,pitchKey){
   const prominent=outcome==='WALK'||outcome==='STRIKEOUT';
   const showLbl=(batterType!=='RANDOM')||batterRevealed;
   const takePrefix=(outcome==='CALLED STRIKE'||outcome==='CALLED BALL')?'TAKE: ':'';
-  addSimLogEntry((showLbl?'['+getBatterSimLogLabel()+'] ':'')+pitchName+' → '+takePrefix+outcome,outcome,prominent);
+  let logOutcome=outcome;
+  let foulType=null;
+  if(outcome==='FOUL'){
+    foulType=getRandomFoulType(
+      typeof batter!=='undefined'?batter:'RHB',
+      zone
+    );
+    logOutcome=getFoulTypeLabel(foulType);
+    window.__lastFoulType=foulType;
+  } else if(outcome==='CHECK SWING'){
+    window.__lastCheckSwing={zone,pitch};
+    logOutcome='CHECK SWING — batter showed interest';
+  }
+  addSimLogEntry(
+    (showLbl?'['+getBatterSimLogLabel()+'] ':'')+
+    pitchName+' → '+takePrefix+logOutcome,
+    outcome,
+    prominent
+  );
   if(typeof onSimPitchRecorded==='function') onSimPitchRecorded(zone,pitch,outcome);
 
   // Add courage pitch or danger zone log entry
