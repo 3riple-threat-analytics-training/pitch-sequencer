@@ -1386,6 +1386,10 @@ function getCountLocationModifier(zk,pitchKey){
 
 function buildSimWeights(zk,rl,bd,ct,speed,pitchKey){
   const inStrike=STRIKE_ZONE_KEYS.includes(zk);
+  const isEdge=typeof EDGE8_ZONE_KEYS!=='undefined'&&
+    EDGE8_ZONE_KEYS.includes(zk)||
+    typeof EDGE_LINE_KEYS!=='undefined'&&
+    EDGE_LINE_KEYS.includes(zk);
   const lvl=getBatterLevelConfig();
   const weakMult=lvl.weakContactPct/0.65;
   const strongMult=lvl.strongContactPct/0.35;
@@ -1399,6 +1403,18 @@ function buildSimWeights(zk,rl,bd,ct,speed,pitchKey){
     'WEAK CONTACT':Math.round(18*weakMult),
     'STRONG CONTACT':Math.round(12*strongMult),
     'SWING & MISS':8
+  }:isEdge?{
+    // Edge zones — check swing most likely outcome
+    // Batter starts swing then holds up on boundary pitch
+    BALL:20,
+    STRIKE:8,
+    'FOUL (STRAIGHT BACK)':6,
+    'FOUL (PULLED)':5,
+    'FOUL (LATE)':5,
+    'CHECK SWING':28,
+    'WEAK CONTACT':Math.round(6*weakMult),
+    'STRONG CONTACT':Math.round(3*strongMult),
+    'SWING & MISS':15
   }:{
     BALL:55,
     'FOUL (STRAIGHT BACK)':4,
