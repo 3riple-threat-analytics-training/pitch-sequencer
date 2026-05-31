@@ -1276,7 +1276,8 @@ function showOutcomeFlash(outcome){
     el.style.color='#a78bfa';
   } else if(['BALL','WALK','CALLED BALL'].includes(outcome)){
     el.style.color='#f87171';
-  } else if(['FOUL'].includes(outcome)){
+  } else if(['FOUL','FOUL (PULLED)','FOUL (LATE)',
+    'FOUL (STRAIGHT BACK)'].includes(outcome)){
     el.style.color='#fbbf24';
   } else if(['HOME RUN','TRIPLE','DOUBLE','SINGLE'].includes(outcome)){
     el.style.color='#f87171';
@@ -1343,7 +1344,10 @@ function commitPitch(pts3d,pk,zk,spd,bd,rl,ct,outcome){
     }
     tunnelData=bestTunnel;
   }
-  const foulType=outcome==='FOUL'?
+  const foulType=(outcome==='FOUL'||
+    outcome==='FOUL (PULLED)'||
+    outcome==='FOUL (LATE)'||
+    outcome==='FOUL (STRAIGHT BACK)')?
     (window.__lastFoulType||null):null;
   const checkSwing=(outcome==='CHECK SWING'||
     outcome==='CHECK SWING (STRIKE)'||
@@ -1394,10 +1398,12 @@ function throwPitch(){
     }
     if(batterType==='RANDOM'&&!batterRevealed){
       const revealByPitch=pitchesInAtBat>=4;
-      const revealByContact=['FOUL','CHECK SWING',
-        'CHECK SWING (STRIKE)','CHECK SWING (BALL)',
-        'GROUND OUT','POP FLY','SINGLE','DOUBLE',
-        'TRIPLE','HOME RUN'].includes(outcome);
+      const revealByContact=['FOUL','FOUL (PULLED)',
+        'FOUL (LATE)','FOUL (STRAIGHT BACK)',
+        'CHECK SWING','CHECK SWING (STRIKE)',
+        'CHECK SWING (BALL)','GROUND OUT','POP FLY',
+        'SINGLE','DOUBLE','TRIPLE','HOME RUN']
+        .includes(outcome);
       const revealByEnd=['WALK','STRIKEOUT'].includes(outcome);
       if(revealByPitch||revealByContact||revealByEnd){
         batterRevealed=true;
@@ -1405,6 +1411,9 @@ function throwPitch(){
       }
     }
     if(simInningLogPending){simInningLogPending=false;pushSimInningOver();}
+    if(outcome==='FOUL (PULLED)') window.__lastFoulType='PULLED';
+    else if(outcome==='FOUL (LATE)') window.__lastFoulType='LATE';
+    else if(outcome==='FOUL (STRAIGHT BACK)') window.__lastFoulType='STRAIGHT_BACK';
   }
   commitPitch(makeCurve(pitch,zone,bd).getPoints(90).map(v=>v.clone()),pitch,zone,spd,bd,role,ctBefore,outcome);
 
@@ -1414,7 +1423,8 @@ function throwPitch(){
     console.log('COURAGE DEBUG end of throwPitch: clm=',clm,'outcome=',outcome,'count=',ctBefore);
     if(clm){
       if(clm.isCourage){
-        if(['SWING & MISS','STRIKEOUT','CALLED STRIKE','FOUL'].includes(outcome)){
+        if(['SWING & MISS','STRIKEOUT','CALLED STRIKE','FOUL',
+          'FOUL (PULLED)','FOUL (LATE)','FOUL (STRAIGHT BACK)'].includes(outcome)){
           addSimLogEntry('COURAGE PITCH — unexpected location paid off',outcome,false);
         } else if(outcome==='WALK'){
           addSimLogEntry('COURAGE PITCH — brave call, work on command',outcome,false);

@@ -34,13 +34,17 @@ let pendingRunnerUpdate=null; // suggested runner state after a hit
 let lastSimDiamondBadgeText=null; // terminal outcome when opening modal without pendingRunnerUpdate
 
 const WEAK_CONTACT_TABLE=[
-  {outcome:'FOUL',weight:40},
+  {outcome:'FOUL (STRAIGHT BACK)',weight:14},
+  {outcome:'FOUL (PULLED)',weight:14},
+  {outcome:'FOUL (LATE)',weight:12},
   {outcome:'GROUND OUT',weight:30},
   {outcome:'POP FLY',weight:20},
   {outcome:'SINGLE',weight:10}
 ];
 const STRONG_CONTACT_TABLE=[
-  {outcome:'FOUL',weight:25},
+  {outcome:'FOUL (STRAIGHT BACK)',weight:9},
+  {outcome:'FOUL (PULLED)',weight:9},
+  {outcome:'FOUL (LATE)',weight:7},
   {outcome:'GROUND OUT',weight:20},
   {outcome:'SINGLE',weight:30},
   {outcome:'DOUBLE',weight:15},
@@ -586,7 +590,8 @@ function simSpritePalette(tag){
     return {bg:'#2a1010',bd:'#f87171',fg:'#fecaca',dark:'#7f1d1d'};
   if(tag==='BATTER REVEALED')
     return {bg:'#3a2f08',bd:'#fde047',fg:'#fde68a',dark:'#451a03'};
-  if(tag==='FOUL')
+  if(tag==='FOUL'||tag==='FOUL (PULLED)'||
+    tag==='FOUL (LATE)'||tag==='FOUL (STRAIGHT BACK)')
     return {bg:'#2a2208',bd:'#facc15',fg:'#fef08a',dark:'#422006'};
   if(tag==='CHECK SWING')
     return {bg:'#1a1a2a',bd:'#a78bfa',fg:'#ede9fe',dark:'#2e1065'};
@@ -599,36 +604,6 @@ function simSpritePalette(tag){
   if(tag==='INNING OVER')
     return {bg:'#1a1500',bd:'#eab308',fg:'#fef9c3',dark:'#451a03'};
   return {bg:'#12321f',bd:'#4ade80',fg:'#86efac',dark:'#14532d'};
-}
-
-function getRandomFoulType(batterHandedness,pitchZone){
-  // Determine foul type based on batter handedness and pitch location
-  // PULLED: batter ahead of pitch (fast pitch, inner zone)
-  // LATE: batter behind pitch (outer zone, offspeed)
-  // STRAIGHT_BACK: batter squared up (middle zone)
-  const r=Math.random();
-  const isInner=(pitchZone&&(pitchZone.includes('L')&&
-    batterHandedness==='RHB'||
-    pitchZone.includes('R')&&batterHandedness==='LHB'));
-  const isOuter=(pitchZone&&(pitchZone.includes('R')&&
-    batterHandedness==='RHB'||
-    pitchZone.includes('L')&&batterHandedness==='LHB'));
-  if(isInner){
-    // Inner zone — more likely pulled
-    if(r<0.55) return 'PULLED';
-    if(r<0.80) return 'STRAIGHT_BACK';
-    return 'LATE';
-  } else if(isOuter){
-    // Outer zone — more likely late
-    if(r<0.55) return 'LATE';
-    if(r<0.80) return 'STRAIGHT_BACK';
-    return 'PULLED';
-  } else {
-    // Middle zone — more likely straight back
-    if(r<0.50) return 'STRAIGHT_BACK';
-    if(r<0.75) return 'PULLED';
-    return 'LATE';
-  }
 }
 
 function getFoulTypeLabel(foulType){
@@ -1417,15 +1392,19 @@ function buildSimWeights(zk,rl,bd,ct,speed,pitchKey){
   const w=inStrike?{
     BALL:0,
     STRIKE:30,
-    FOUL:18,
-    'CHECK SWING':8,
+    'FOUL (STRAIGHT BACK)':7,
+    'FOUL (PULLED)':6,
+    'FOUL (LATE)':5,
+    'CHECK SWING':14,
     'WEAK CONTACT':Math.round(18*weakMult),
     'STRONG CONTACT':Math.round(12*strongMult),
     'SWING & MISS':8
   }:{
     BALL:55,
-    FOUL:10,
-    'CHECK SWING':6,
+    'FOUL (STRAIGHT BACK)':4,
+    'FOUL (PULLED)':3,
+    'FOUL (LATE)':3,
+    'CHECK SWING':10,
     'WEAK CONTACT':Math.round(8*weakMult),
     'STRONG CONTACT':Math.round(4*strongMult),
     'SWING & MISS':23
@@ -1438,7 +1417,8 @@ function buildSimWeights(zk,rl,bd,ct,speed,pitchKey){
     w.BALL=Math.max(0,(w.BALL||0)-8);
     w['SWING & MISS']+=10;
     if(w.STRIKE!==undefined) w.STRIKE+=2;
-    w.FOUL+=2;
+    w['FOUL (STRAIGHT BACK)']=(w['FOUL (STRAIGHT BACK)']||0)+1;
+    w['FOUL (PULLED)']=(w['FOUL (PULLED)']||0)+1;
     w['STRONG CONTACT']-=3;
   }
   if(HITTER_COUNTS.includes(ct)){
@@ -1681,7 +1661,12 @@ function applySimCountOutcome(outcome,strikesAtStart){
       wasStrike:checkSwingStrike};
   }
   else if(outcome==='STRIKE'||outcome==='SWING & MISS'||outcome==='CALLED STRIKE') strikeCount=Math.min(3,strikeCount+1);
-  else if(outcome==='FOUL'&&strikesAtStart<2) strikeCount=Math.min(2,strikeCount+1);
+  else if((outcome==='FOUL'||
+    outcome==='FOUL (PULLED)'||
+    outcome==='FOUL (LATE)'||
+    outcome==='FOUL (STRAIGHT BACK)')&&
+    strikesAtStart<2)
+    strikeCount=Math.min(2,strikeCount+1);
   renderCount();
   if(ballCount>=4){
     display='WALK';
@@ -1864,12 +1849,14 @@ function handleSimOutcome(pitchName,outcome,speed,pitchKey){
   const takePrefix=(outcome==='CALLED STRIKE'||outcome==='CALLED BALL')?'TAKE: ':'';
   let logOutcome=outcome;
   let foulType=null;
-  if(outcome==='FOUL'){
-    foulType=getRandomFoulType(
-      typeof batter!=='undefined'?batter:'RHB',
-      zone
-    );
-    logOutcome=getFoulTypeLabel(foulType);
+  if(outcome==='FOUL (PULLED)'){
+    foulType='PULLED';
+    window.__lastFoulType=foulType;
+  } else if(outcome==='FOUL (LATE)'){
+    foulType='LATE';
+    window.__lastFoulType=foulType;
+  } else if(outcome==='FOUL (STRAIGHT BACK)'){
+    foulType='STRAIGHT_BACK';
     window.__lastFoulType=foulType;
   } else if(outcome==='CHECK SWING'){
     window.__lastCheckSwing={zone,pitch};
