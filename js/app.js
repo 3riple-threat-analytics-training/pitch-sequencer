@@ -847,6 +847,8 @@ function buildStatic(){
     if(batter==='LHB') buildBatterSilhouette(add,false);
   }
   add(new THREE.AmbientLight(0xffffff,0.9));
+  // Show feature discovery banner on first visit
+  showFeatureBannerIfNeeded();
 }
 
 function clearTunnels(){tunnelObjs.forEach(o=>scene.remove(o));tunnelObjs=[];}
@@ -3565,8 +3567,6 @@ window.addEventListener('load',()=>{
     const s=document.getElementById('sretoggle');
     if(s) s.checked=true;
   }
-  // Show feature banner if first time
-  showFeatureBannerIfNeeded();
   // Apply velocity for default selected pitch
   if(typeof pitch!=='undefined'&&pitch) applyPitchVelocity(pitch);
   setCamera();
