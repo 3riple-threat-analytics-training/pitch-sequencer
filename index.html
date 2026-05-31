@@ -697,12 +697,51 @@ STEP FWD ▶▶</button>
   </div>
 </div>
 <div id="settingsoverlay">
+  <!-- Feature discovery banner — shown once -->
+  <div id="featurebanner" style="display:none;position:fixed;
+    bottom:80px;left:50%;transform:translateX(-50%);
+    background:#0d1520;border:1px solid #7ec8e3;border-radius:8px;
+    padding:10px 16px;font-family:'DM Mono',monospace;font-size:9px;
+    color:#7ec8e3;letter-spacing:1px;z-index:600;max-width:320px;
+    text-align:center;box-shadow:0 4px 16px rgba(0,0,0,0.5);">
+    ⚾ NEW: Mr. OG batter &amp; 🧠 Smart Role Engine available in
+    Settings ⚙
+    <button onclick="dismissFeatureBanner()" style="display:block;
+      margin:6px auto 0;padding:4px 12px;border-radius:4px;
+      border:0.5px solid #7ec8e3;background:transparent;
+      color:#7ec8e3;font-family:'DM Mono',monospace;font-size:8px;
+      cursor:pointer;">GOT IT</button>
+  </div>
   <div id="settingscard">
     <div id="settingstitle">SETTINGS</div>
     <div class="setting-row">
       <span class="setting-label">🌙 Dark Mode</span>
       <label class="theme-switch">
         <input type="checkbox" id="themetoggle" onchange="toggleTheme(this.checked)">
+        <span class="theme-slider"></span>
+      </label>
+    </div>
+    <div class="setting-row">
+      <div style="display:flex;flex-direction:column;gap:2px;">
+        <span class="setting-label">⚾ Mr. OG</span>
+        <span style="font-family:'DM Mono',monospace;font-size:7px;
+          color:var(--text-muted);">Show/hide batter silhouette</span>
+      </div>
+      <label class="theme-switch">
+        <input type="checkbox" id="mrogtoggle" checked
+          onchange="toggleMrOG(this.checked)">
+        <span class="theme-slider"></span>
+      </label>
+    </div>
+    <div class="setting-row">
+      <div style="display:flex;flex-direction:column;gap:2px;">
+        <span class="setting-label">🧠 Smart Role Engine</span>
+        <span style="font-family:'DM Mono',monospace;font-size:7px;
+          color:var(--text-muted);">Coaching hints after each pitch</span>
+      </div>
+      <label class="theme-switch">
+        <input type="checkbox" id="sretoggle"
+          onchange="toggleSRE(this.checked)">
         <span class="theme-slider"></span>
       </label>
     </div>
@@ -758,6 +797,10 @@ function openSettingsModal(){
   const saved = localStorage.getItem('pitchseq-theme');
   const isDark = saved === 'dark';
   document.getElementById('themetoggle').checked = isDark;
+  const mrogEl=document.getElementById('mrogtoggle');
+  if(mrogEl) mrogEl.checked=mrOGVisible;
+  const sreEl=document.getElementById('sretoggle');
+  if(sreEl) sreEl.checked=sreEnabled;
   const maxVel = typeof getMaxVelocity === 'function' ? getMaxVelocity() : 80;
   const settingsSlider = document.getElementById('settings-maxvel-slider');
   const settingsDisplay = document.getElementById('settings-maxvel-display');

@@ -1,4 +1,6 @@
 let hand='R',pitch='4FB',zone='MM',rubber=0.5;
+let mrOGVisible=true;
+let sreEnabled=false;
 let tunnelOn=false,role='SETUP',batter='RHB';
 let targetMode='ZONE';
 let extendedAtBat=false;
@@ -79,6 +81,37 @@ function setRubber(e){
   buildStatic();rebuildPaths();refreshGhost();
 }
 function toggleTunnel(){tunnelOn=!tunnelOn;const b=document.getElementById('tunnelbtn');b.textContent=tunnelOn?'⬡ TUNNEL ON':'⬡ TUNNEL OFF';b.classList.toggle('on',tunnelOn);buildTunnels();}
+
+function toggleMrOG(on){
+  mrOGVisible=on;
+  localStorage.setItem('pitchseq-mrog',on?'1':'0');
+  buildStatic();
+}
+
+function toggleSRE(on){
+  sreEnabled=on;
+  localStorage.setItem('pitchseq-sre',on?'1':'0');
+}
+
+function dismissFeatureBanner(){
+  const b=document.getElementById('featurebanner');
+  if(b) b.style.display='none';
+  localStorage.setItem('pitchseq-banner-seen','1');
+}
+
+function showFeatureBannerIfNeeded(){
+  const seen=localStorage.getItem('pitchseq-banner-seen');
+  if(!seen){
+    const b=document.getElementById('featurebanner');
+    if(b){
+      b.style.display='block';
+      // Auto-dismiss after 8 seconds
+      setTimeout(()=>{
+        b.style.display='none';
+      },8000);
+    }
+  }
+}
 function handleSpeedInput(value){document.getElementById('sval').textContent=value+' mph';refreshGhost();}
 function openPrintView(){window.open('print.html','_blank');}
 function setView(v){
@@ -809,8 +842,10 @@ function buildStatic(){
   add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-ZW/2,ZLO,0),new THREE.Vector3(ZW/2,ZLO,0),new THREE.Vector3(ZW/2,ZLO,0),new THREE.Vector3(ZW/2,ZHI,0),new THREE.Vector3(ZW/2,ZHI,0),new THREE.Vector3(-ZW/2,ZHI,0),new THREE.Vector3(-ZW/2,ZHI,0),new THREE.Vector3(-ZW/2,ZLO,0)]),new THREE.LineBasicMaterial({color:0xffffff,linewidth:2})));
   add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-ZW/6,ZLO,0),new THREE.Vector3(-ZW/6,ZHI,0),new THREE.Vector3(ZW/6,ZLO,0),new THREE.Vector3(ZW/6,ZHI,0),new THREE.Vector3(-ZW/2,ZLO+ZH/3,0),new THREE.Vector3(ZW/2,ZLO+ZH/3,0),new THREE.Vector3(-ZW/2,ZLO+ZH*2/3,0),new THREE.Vector3(ZW/2,ZLO+ZH*2/3,0)]),new THREE.LineBasicMaterial({color:0x4a7aaa,opacity:0.4,transparent:true})));
   [[-ZW/2,ZLO],[ZW/2,ZLO],[-ZW/2,ZHI],[ZW/2,ZHI]].forEach(([cx,cy])=>{const m=new THREE.Mesh(new THREE.SphereGeometry(0.022,6,6),new THREE.MeshBasicMaterial({color:0xffdd77}));m.position.set(cx,cy,0.01);add(m);});
-  if(batter==='RHB') buildBatterSilhouette(add,true);
-  if(batter==='LHB') buildBatterSilhouette(add,false);
+  if(mrOGVisible){
+    if(batter==='RHB') buildBatterSilhouette(add,true);
+    if(batter==='LHB') buildBatterSilhouette(add,false);
+  }
   add(new THREE.AmbientLight(0xffffff,0.9));
 }
 
@@ -3516,6 +3551,22 @@ function setStatsColMode(mode){
 window.addEventListener('load',()=>{
   initSplash();
   initStats();
+  // Load Mr. OG preference
+  const savedMrOG=localStorage.getItem('pitchseq-mrog');
+  if(savedMrOG==='0'){
+    mrOGVisible=false;
+    const t=document.getElementById('mrogtoggle');
+    if(t) t.checked=false;
+  }
+  // Load SRE preference
+  const savedSRE=localStorage.getItem('pitchseq-sre');
+  if(savedSRE==='1'){
+    sreEnabled=true;
+    const s=document.getElementById('sretoggle');
+    if(s) s.checked=true;
+  }
+  // Show feature banner if first time
+  showFeatureBannerIfNeeded();
   // Apply velocity for default selected pitch
   if(typeof pitch!=='undefined'&&pitch) applyPitchVelocity(pitch);
   setCamera();
