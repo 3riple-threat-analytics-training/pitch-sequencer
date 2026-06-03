@@ -197,6 +197,22 @@
     </div>
   </div>
 </div>
+<!-- Feature discovery banner — outside all modals -->
+<div id="featurebanner" style="display:none;position:fixed;
+  bottom:100px;left:50%;transform:translateX(-50%);
+  background:#0d1520;border:1px solid #7ec8e3;border-radius:10px;
+  padding:16px 24px;font-family:'DM Mono',monospace;font-size:11px;
+  color:#7ec8e3;letter-spacing:1px;z-index:9999;max-width:380px;
+  width:90%;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,0.6);">
+  ⚾ NEW: Mr. OG batter &amp; 🧠 Smart Role Engine now available!<br>
+  <span style="font-size:9px;opacity:0.8;">Find them in Settings ⚙ to
+  customize your experience.</span>
+  <button onclick="dismissFeatureBanner()" style="display:block;
+    margin:10px auto 0;padding:6px 20px;border-radius:6px;
+    border:1px solid #7ec8e3;background:transparent;
+    color:#7ec8e3;font-family:'DM Mono',monospace;font-size:10px;
+    letter-spacing:1px;cursor:pointer;">GOT IT</button>
+</div>
 <div id="diamondmodal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;
   background:rgba(5,8,18,0.95);z-index:998;align-items:center;justify-content:center;">
   <div style="background:#080c14;border:0.5px solid #1e2a3a;border-radius:12px;
@@ -697,21 +713,6 @@ STEP FWD ▶▶</button>
   </div>
 </div>
 <div id="settingsoverlay">
-  <!-- Feature discovery banner — shown once -->
-  <div id="featurebanner" style="display:none;position:fixed;
-    bottom:80px;left:50%;transform:translateX(-50%);
-    background:#0d1520;border:1px solid #7ec8e3;border-radius:8px;
-    padding:10px 16px;font-family:'DM Mono',monospace;font-size:9px;
-    color:#7ec8e3;letter-spacing:1px;z-index:600;max-width:320px;
-    text-align:center;box-shadow:0 4px 16px rgba(0,0,0,0.5);">
-    ⚾ NEW: Mr. OG batter &amp; 🧠 Smart Role Engine available in
-    Settings ⚙
-    <button onclick="dismissFeatureBanner()" style="display:block;
-      margin:6px auto 0;padding:4px 12px;border-radius:4px;
-      border:0.5px solid #7ec8e3;background:transparent;
-      color:#7ec8e3;font-family:'DM Mono',monospace;font-size:8px;
-      cursor:pointer;">GOT IT</button>
-  </div>
   <div id="settingscard">
     <div id="settingstitle">SETTINGS</div>
     <div class="setting-row">
