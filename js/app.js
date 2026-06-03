@@ -102,8 +102,11 @@ function dismissFeatureBanner(){
 function showFeatureBannerIfNeeded(){
   const seen=localStorage.getItem('pitchseq-banner-seen');
   if(!seen){
-    const b=document.getElementById('featurebanner');
-    if(b) b.style.display='block';
+    // Delay to ensure settings modal and overlays are dismissed
+    setTimeout(()=>{
+      const b=document.getElementById('featurebanner');
+      if(b) b.style.display='block';
+    },2500);
   }
 }
 function handleSpeedInput(value){document.getElementById('sval').textContent=value+' mph';refreshGhost();}
