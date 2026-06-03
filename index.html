@@ -213,6 +213,22 @@
     color:#7ec8e3;font-family:'DM Mono',monospace;font-size:10px;
     letter-spacing:1px;cursor:pointer;">GOT IT</button>
 </div>
+<!-- Sim mode first-use reminder -->
+<div id="simbanner" style="display:none;position:fixed;
+  bottom:100px;left:50%;transform:translateX(-50%);
+  background:#0d1520;border:1px solid #c084fc;border-radius:10px;
+  padding:16px 24px;font-family:'DM Mono',monospace;font-size:11px;
+  color:#c084fc;letter-spacing:1px;z-index:9999;max-width:380px;
+  width:90%;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,0.6);">
+  🧠 Smart Role Engine is available!<br>
+  <span style="font-size:9px;opacity:0.8;">Turn it on in Settings ⚙
+  to get coaching hints after each pitch.</span>
+  <button onclick="dismissSimBanner()" style="display:block;
+    margin:10px auto 0;padding:6px 20px;border-radius:6px;
+    border:1px solid #c084fc;background:transparent;
+    color:#c084fc;font-family:'DM Mono',monospace;font-size:10px;
+    letter-spacing:1px;cursor:pointer;">GOT IT</button>
+</div>
 <div id="diamondmodal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;
   background:rgba(5,8,18,0.95);z-index:998;align-items:center;justify-content:center;">
   <div style="background:#080c14;border:0.5px solid #1e2a3a;border-radius:12px;

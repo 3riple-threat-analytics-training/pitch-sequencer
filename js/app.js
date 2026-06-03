@@ -99,6 +99,24 @@ function dismissFeatureBanner(){
   localStorage.setItem('pitchseq-banner-seen','1');
 }
 
+function dismissSimBanner(){
+  const b=document.getElementById('simbanner');
+  if(b) b.style.display='none';
+  localStorage.setItem('pitchseq-simbanner-seen','1');
+}
+
+function showSimBannerIfNeeded(){
+  const seen=localStorage.getItem('pitchseq-simbanner-seen');
+  const sreOn=localStorage.getItem('pitchseq-sre');
+  // Only show if SRE is not already enabled
+  if(!seen&&sreOn!=='1'){
+    setTimeout(()=>{
+      const b=document.getElementById('simbanner');
+      if(b) b.style.display='block';
+    },1000);
+  }
+}
+
 function showFeatureBannerIfNeeded(){
   const seen=localStorage.getItem('pitchseq-banner-seen');
   if(!seen){
@@ -1622,6 +1640,10 @@ if(typeof toggleSimMode==='function'){
     const result=__origToggleSimMode.apply(this,arguments);
     updateSeqUI();
     if(typeof updateZoneGlows==='function') updateZoneGlows();
+    // Show SRE reminder first time sim mode is turned on
+    if(typeof simMode!=='undefined'&&simMode){
+      showSimBannerIfNeeded();
+    }
     return result;
   };
 }
