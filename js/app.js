@@ -103,13 +103,7 @@ function showFeatureBannerIfNeeded(){
   const seen=localStorage.getItem('pitchseq-banner-seen');
   if(!seen){
     const b=document.getElementById('featurebanner');
-    if(b){
-      b.style.display='block';
-      // Auto-dismiss after 8 seconds
-      setTimeout(()=>{
-        b.style.display='none';
-      },8000);
-    }
+    if(b) b.style.display='block';
   }
 }
 function handleSpeedInput(value){document.getElementById('sval').textContent=value+' mph';refreshGhost();}
