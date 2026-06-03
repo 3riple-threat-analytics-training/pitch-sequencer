@@ -93,6 +93,364 @@ function toggleSRE(on){
   localStorage.setItem('pitchseq-sre',on?'1':'0');
 }
 
+function getAutoRole(count,seq,zk,batter,gameState){
+  const balls=parseInt(count.split('-')[0]||0);
+  const strikes=parseInt(count.split('-')[1]||0);
+  const outs=gameState.outs||0;
+  const runners=gameState.runners||
+    {first:false,second:false,third:false};
+  const runsAllowed=gameState.runsAllowed||0;
+  const isLHB=batter==='LHB';
+
+  // Analyze pitch history
+  const prevPitches=seq.filter(s=>s.outcome);
+  const lastPitch=prevPitches[prevPitches.length-1]||null;
+  const last2=prevPitches.slice(-2);
+  const last3=prevPitches.slice(-3);
+
+  // Check swing detection
+  const lastCheckSwing=prevPitches.slice().reverse().find(
+    s=>s.checkSwing&&s.checkSwing.zone
+  )||null;
+
+  // Foul type detection
+  const lastFoul=prevPitches.slice().reverse().find(
+    s=>s.foulType
+  )||null;
+
+  // Tunnel detection — check if last 2 pitches tunneled
+  const lastTunneled=last2.length===2&&
+    last2[0].tunnelData&&last2[1].tunnelData&&
+    last2[0].tunnelData.hasTunnel&&last2[1].tunnelData.hasTunnel;
+
+  // Speed pattern — detect 2+ same velocity pitches
+  const speeds=last3.map(s=>s.spd||0).filter(Boolean);
+  const avgSpeed=speeds.length?
+    speeds.reduce((a,b)=>a+b,0)/speeds.length:0;
+  const lastSpeed=lastPitch?lastPitch.spd||0:0;
+  const speedDiff=Math.abs(lastSpeed-avgSpeed);
+  const changeOfPaceAvailable=speeds.length>=2&&
+    speeds.every(s=>Math.abs(s-speeds[0])<5);
+
+  // Runner situation analysis
+  const runnersOn=runners.first||runners.second||runners.third;
+  const basesLoaded=runners.first&&runners.second&&runners.third;
+  const runnerOn3rd=runners.third;
+  const runnerOn1st=runners.first&&!runners.second&&!runners.third;
+  const dpSituation=runnerOn1st&&outs<2;
+  const conservative=runsAllowed===0;
+
+  // Foul type coaching analysis
+  let foulHint='';
+  if(lastFoul){
+    if(lastFoul.foulType==='STRAIGHT_BACK'){
+      foulHint='Batter squared up on that pitch — change location and/or pitch type.';
+    } else if(lastFoul.foulType==='LATE'){
+      foulHint=isLHB
+        ?'Batter was late — sitting on something slower. Throw fastball or cutter.'
+        :'Batter was late — sitting on something slower. Throw fastball or cutter.';
+    } else if(lastFoul.foulType==='PULLED'){
+      foulHint=isLHB
+        ?"Batter pulled it — sitting on velocity. Go offspeed or breaking ball."
+        :"Batter pulled it — sitting on velocity. Go offspeed or breaking ball.";
+    }
+  }
+
+  // Check swing coaching analysis
+  let checkSwingHint='';
+  if(lastCheckSwing){
+    checkSwingHint='Batter showed interest in the '+
+      lastCheckSwing.zone+' zone — tunnel your next pitch through there.';
+  }
+
+  // Game situation hint
+  let situationHint='';
+  if(basesLoaded&&outs<2){
+    situationHint='Bases loaded — throw low for force out, high inside to jam for pop fly. Avoid high outside.';
+  } else if(dpSituation){
+    situationHint='Runner on 1st, '+outs+' out'+(outs===1?'':'s')+
+      ' — throw low to induce grounder for double play.';
+  } else if(runnerOn3rd&&outs<2){
+    situationHint=isLHB
+      ?'Runner on 3rd — throw outside to force opposite field grounder. Avoid inside pitches.'
+      :'Runner on 3rd — throw outside to force opposite field grounder. Avoid inside pitches.';
+  }
+
+  // COUNT-BASED LOGIC
+  let primary='SETUP';
+  let secondary=[];
+  let hint='';
+  let options=[];
+
+  if(balls===0&&strikes===0){
+    primary='SETUP';
+    hint='First pitch — establish the zone. First pitch strike changes everything.';
+    options=[
+      {label:'Safe',desc:'Fastball middle — highest strike probability'},
+      {label:'Bold',desc:'Paint a corner early — sets up the at-bat'}
+    ];
+
+  } else if(balls===0&&strikes===1){
+    primary=lastTunneled?'TUNNEL':'SETUP';
+    hint=lastTunneled
+      ?'You established a tunnel — continue it or break out to create confusion.'
+      :'Ahead 0-1 — stay aggressive. Build on pitch 1.';
+    options=[
+      {label:'Tunnel',desc:'Same early flight path, different break'},
+      {label:'Setup',desc:'Set up your best strikeout pitch'}
+    ];
+
+  } else if(balls===0&&strikes===2){
+    primary='PUTAWAY';
+    secondary=['CHASE'];
+    let strikeHint='0-2 — you have control. ';
+    if(lastFoul) strikeHint+=foulHint;
+    else if(lastCheckSwing) strikeHint+=checkSwingHint;
+    else strikeHint+='Expand the zone. Make the batter chase.';
+    hint=strikeHint;
+    options=[
+      {label:'Chase',desc:'Expand off the plate — see if batter is jumpy'},
+      {label:'Tunnel',desc:'Same corridor as previous pitch, different break'},
+      {label:'Putaway',desc:'Best strikeout pitch in the zone'}
+    ];
+
+  } else if(balls===1&&strikes===0){
+    primary='SETUP';
+    hint='1-0 — need a strike. Stay aggressive but smart.';
+    options=[
+      {label:'Safe',desc:'High-probability strike location'},
+      {label:'Tunnel',desc:'Set up next pitch with this one'}
+    ];
+
+  } else if(balls===1&&strikes===1){
+    primary='TUNNEL';
+    hint='Even count — perfect time to tunnel. '+(lastTunneled?
+      'You have a tunnel working — keep building it.':
+      'Set up a tunnel with this pitch.');
+    options=[
+      {label:'Tunnel',desc:'Match early flight path of previous pitch'},
+      {label:'Speed',desc:changeOfPaceAvailable?
+        'Change of pace — batter has seen same speed twice':'Vary your speed'}
+    ];
+
+  } else if(balls===1&&strikes===2){
+    primary='PUTAWAY';
+    secondary=['CHASE'];
+    hint='1-2 — ahead in count. '+
+      (foulHint||checkSwingHint||
+      'Go after the batter. Expand the zone or tunnel to your best pitch.');
+    options=[
+      {label:'Chase',desc:'Off the plate — batter must protect'},
+      {label:'Putaway',desc:'Best strikeout pitch'},
+      {label:'Tunnel',desc:'Tunnel off previous pitch to chase zone'}
+    ];
+
+  } else if(balls===2&&strikes===0){
+    primary='SETUP';
+    hint='2-0 — must throw a strike. Batter is sitting fastball.';
+    options=[
+      {label:'Safe',desc:'Fastball strike zone — highest probability'},
+      {label:'Tunnel',desc:'Disguise your strike with tunnel from previous pitches'},
+      {label:'Courage',desc:'Off-speed strike — batter won\'t expect it at 2-0'}
+    ];
+
+  } else if(balls===2&&strikes===1){
+    primary='TUNNEL';
+    hint='2-1 — key count. '+
+      (lastTunneled?'Tunnel is working — use it to set up putaway pitch.':
+      'Build a tunnel now to set up your strikeout pitch.');
+    if(situationHint) hint+=' '+situationHint;
+    options=[
+      {label:'Tunnel',desc:'Set up your best pitch with a tunnel'},
+      {label:'Speed',desc:changeOfPaceAvailable?
+        'Change of pace — batter has seen same velocity multiple times':
+        'Vary speed to disrupt timing'}
+    ];
+
+  } else if(balls===2&&strikes===2){
+    primary='PUTAWAY';
+    hint='2-2 — even but pitcher has edge. '+
+      (foulHint||checkSwingHint||
+      'Make your best pitch. Batter must protect the plate.');
+    if(situationHint) hint+=' '+situationHint;
+    options=[
+      {label:'Putaway',desc:'Best strikeout pitch — batter must swing'},
+      {label:'Chase',desc:'Expand zone — batter is defensive'},
+      {label:'Tunnel',desc:'Tunnel to chase zone'}
+    ];
+
+  } else if(balls===3&&strikes===0){
+    primary='SETUP';
+    hint='3-0 — must throw a strike. Zone is smallest. '+
+      (lastCheckSwing?checkSwingHint:'Batter likely taking. Make it count.');
+    if(situationHint) hint+=' '+situationHint;
+    options=[
+      {label:'Safe',desc:'Highest strike probability — center zone fastball'},
+      {label:'Tunnel',desc:'Use previous pitch corridor to disguise strike'},
+      {label:'Courage',desc:'Paint a corner — batter may be taking all the way'}
+    ];
+
+  } else if(balls===3&&strikes===1){
+    primary='SETUP';
+    hint='3-1 — batter has advantage but you have info. '+
+      (lastCheckSwing?'Check swing detected — '+checkSwingHint:
+      'Make a quality strike. Don\'t give in.');
+    if(situationHint) hint+=' '+situationHint;
+    options=[
+      {label:'Quality Strike',desc:'Locate your best pitch for a strike'},
+      {label:'Tunnel',desc:'Use previous strikes to tunnel this pitch'},
+      {label:'Courage',desc:'Edge pitch — batter may chase at 3-1'}
+    ];
+
+  } else if(balls===3&&strikes===2){
+    // Full count — most complex situation
+    primary='PUTAWAY';
+    let fullHint='FULL COUNT — ';
+
+    // Psychological state
+    if(prevPitches.length>=5){
+      fullHint+='Long at-bat — batter has seen your arsenal. ';
+    }
+
+    // How we got here matters
+    const prevBalls=prevPitches.filter(
+      s=>s.outcome==='BALL'||s.outcome==='CALLED BALL'
+    ).length;
+    if(prevBalls>=3){
+      fullHint+='You were behind — pendulum swung. Batter may be anxious. ';
+    } else {
+      fullHint+='You fought back from ahead — batter has momentum. ';
+    }
+
+    if(foulHint) fullHint+=foulHint+' ';
+    if(checkSwingHint) fullHint+=checkSwingHint+' ';
+    if(situationHint) fullHint+=situationHint;
+
+    hint=fullHint;
+    options=[
+      {label:'Best Pitch',desc:'Your highest-confidence pitch in the zone'},
+      {label:'Chase',desc:'Expand zone — batter must protect at 3-2'},
+      {label:'Tunnel',desc:lastTunneled?
+        'Tunnel is established — use it now':'Tunnel off best previous pitch'}
+    ];
+    if(basesLoaded) options.push(
+      {label:'Jam',desc:'Inside high — force infield pop fly'}
+    );
+    if(dpSituation) options.push(
+      {label:'Ground Ball',desc:'Low pitch — induce grounder for double play'}
+    );
+  }
+
+  return {primary,secondary,hint,options};
+}
+
+function showSREHint(){
+  if(!sreEnabled) return;
+  // Remove any existing hint button
+  const existing=document.getElementById('srehintbtn');
+  if(existing) existing.remove();
+
+  // Build game state
+  const gameState={
+    outs:typeof outCount!=='undefined'?outCount:0,
+    runners:typeof runners!=='undefined'?runners:
+      {first:false,second:false,third:false},
+    runsAllowed:typeof totalScore!=='undefined'?totalScore:0
+  };
+
+  // Get current count from last seq entry
+  const lastEntry=seq[seq.length-1];
+  const ct=lastEntry?lastEntry.count:'0-0';
+  const zk=lastEntry?lastEntry.zk:'MM';
+  const bat=typeof batter!=='undefined'?batter:'RHB';
+
+  const result=getAutoRole(ct,seq,zk,bat,gameState);
+
+  // Create tap-to-reveal button
+  const btn=document.createElement('button');
+  btn.id='srehintbtn';
+  btn.textContent='🧠 COACHING HINT';
+  btn.style.cssText='position:fixed;bottom:80px;left:50%;'+
+    'transform:translateX(-50%);background:#0d1520;'+
+    'border:1px solid #7ec8e3;border-radius:8px;'+
+    'padding:8px 20px;font-family:\'DM Mono\',monospace;'+
+    'font-size:10px;color:#7ec8e3;letter-spacing:1px;'+
+    'cursor:pointer;z-index:500;'+
+    'box-shadow:0 2px 12px rgba(0,0,0,0.4);';
+  btn.onclick=()=>showSREModal(result,btn);
+  document.body.appendChild(btn);
+
+  // Auto-remove after 15 seconds if not tapped
+  setTimeout(()=>{
+    if(document.getElementById('srehintbtn')) btn.remove();
+  },15000);
+}
+
+function showSREModal(result,btn){
+  if(btn) btn.remove();
+  // Remove existing modal
+  const existing=document.getElementById('sremodal');
+  if(existing) existing.remove();
+
+  const modal=document.createElement('div');
+  modal.id='sremodal';
+  modal.style.cssText='position:fixed;top:50%;left:50%;'+
+    'transform:translate(-50%,-50%);background:#0d1520;'+
+    'border:1px solid #7ec8e3;border-radius:12px;'+
+    'padding:20px 24px;font-family:\'DM Mono\',monospace;'+
+    'z-index:600;max-width:380px;width:90%;'+
+    'box-shadow:0 4px 24px rgba(0,0,0,0.6);';
+
+  // Primary role
+  let html='<div style="font-size:8px;color:var(--text-muted);'+
+    'letter-spacing:1px;margin-bottom:6px;">SMART ROLE ENGINE</div>';
+  html+='<div style="font-size:14px;font-weight:700;color:#7ec8e3;'+
+    'letter-spacing:2px;margin-bottom:8px;">'+result.primary+'</div>';
+
+  // Secondary roles
+  if(result.secondary&&result.secondary.length){
+    html+='<div style="font-size:9px;color:var(--text-muted);'+
+      'margin-bottom:8px;">+ '+result.secondary.join(' + ')+'</div>';
+  }
+
+  // Hint text
+  html+='<div style="font-size:10px;color:var(--text-secondary);'+
+    'line-height:1.6;margin-bottom:12px;border-top:0.5px solid '+
+    'var(--border-panel);padding-top:10px;">'+result.hint+'</div>';
+
+  // Options
+  if(result.options&&result.options.length){
+    html+='<div id="sreoptions" style="display:none;">';
+    result.options.forEach(opt=>{
+      html+='<div style="margin-bottom:6px;padding:6px 10px;'+
+        'border-radius:6px;border:0.5px solid var(--border-panel);">'+
+        '<div style="font-size:9px;color:#7ec8e3;letter-spacing:1px;">'+
+        opt.label+'</div>'+
+        '<div style="font-size:9px;color:var(--text-muted);'+
+        'margin-top:2px;">'+opt.desc+'</div></div>';
+    });
+    html+='</div>';
+    html+='<button onclick="'+
+      'document.getElementById(\'sreoptions\').style.display=\'block\';'+
+      'this.style.display=\'none\';" '+
+      'style="width:100%;padding:6px;border-radius:6px;'+
+      'border:0.5px solid var(--border-panel);background:transparent;'+
+      'color:var(--text-muted);font-family:\'DM Mono\',monospace;'+
+      'font-size:9px;letter-spacing:1px;cursor:pointer;'+
+      'margin-bottom:8px;">SHOW MORE OPTIONS</button>';
+  }
+
+  // Close button
+  html+='<button onclick="document.getElementById(\'sremodal\').remove()" '+
+    'style="width:100%;padding:7px;border-radius:6px;'+
+    'border:0.5px solid #7ec8e3;background:transparent;'+
+    'color:#7ec8e3;font-family:\'DM Mono\',monospace;'+
+    'font-size:9px;letter-spacing:1px;cursor:pointer;">DISMISS</button>';
+
+  modal.innerHTML=html;
+  document.body.appendChild(modal);
+}
+
 function dismissFeatureBanner(){
   const b=document.getElementById('featurebanner');
   if(b) b.style.display='none';
@@ -1407,6 +1765,8 @@ function commitPitch(pts3d,pk,zk,spd,bd,rl,ct,outcome){
     (window.__lastCheckSwing||null):null;
   window.__lastFoulType=null;
   window.__lastCheckSwing=null;
+  // Trigger SRE hint if enabled
+  if(sreEnabled) setTimeout(()=>showSREHint(),800);
   seq.push({pk,zk,spd,bd,role:rl,count:ct,outcome:outcome||'',
     foulType,checkSwing,
     pts3d:pts3d.map(v=>v.clone()),tunnelData});
