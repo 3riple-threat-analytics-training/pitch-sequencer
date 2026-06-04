@@ -102,81 +102,334 @@ function getAutoRole(count,seq,zk,batter,gameState){
   const runsAllowed=gameState.runsAllowed||0;
   const isLHB=batter==='LHB';
 
-  // Analyze pitch history
-  const prevPitches=seq.filter(s=>s.outcome);
+  // ── ARSENAL AWARENESS ──
+  const profile=typeof getProfile==='function'?getProfile():null;
+  const arsenal=profile&&profile.arsenal?profile.arsenal:[];
+
+  // Pitch categories
+  const FASTBALL_FAMILY=['4FB','2FB','SNK','CT'];
+  const BREAKING_FAMILY=['SL','CB','KC','SWP','FK','SLV','SCR'];
+  const OFFSPEED_FAMILY=['CH','SPL','CHP'];
+
+  function getPitchCategory(pk){
+    if(FASTBALL_FAMILY.includes(pk)) return 'fastball';
+    if(BREAKING_FAMILY.includes(pk)) return 'breaking';
+    if(OFFSPEED_FAMILY.includes(pk)) return 'offspeed';
+    return 'other';
+  }
+
+  function getPitchName(pk){
+    const names={
+      '4FB':'4-seam fastball','2FB':'2-seam fastball',
+      'CB':'curveball','SL':'slider','CH':'changeup',
+      'CT':'cutter','SNK':'sinker','SPL':'splitter',
+      'SLV':'slurve','SWP':'sweeper','FK':'forkball',
+      'KC':'knuckle curve','SCR':'screwball','CHP':'circle change'
+    };
+    return names[pk]||pk;
+  }
+
+  // Zone analysis helpers
+  function getZoneRow(zk){
+    if(['TL','TM','TR','TOP-EDG','CUR','CUM','CUL'].includes(zk))
+      return 'up';
+    if(['BL','BM','BR','BOT-EDG','CLO-L','CLO-M','CLO-R'].includes(zk))
+      return 'down';
+    return 'mid';
+  }
+
+  function getZoneCol(zk,isLHB){
+    // From catcher POV — adjust for handedness
+    if(['TL','ML','BL','LFT-EDG','CIN'].includes(zk))
+      return isLHB?'outside':'inside';
+    if(['TR','MR','BR','RGT-EDG','COUT'].includes(zk))
+      return isLHB?'inside':'outside';
+    return 'middle';
+  }
+
+  function zonesAreDifferent(zk1,zk2,isLHB){
+    return getZoneRow(zk1)!==getZoneRow(zk2)||
+      getZoneCol(zk1,isLHB)!==getZoneCol(zk2,isLHB);
+  }
+
+  // ── PITCH HISTORY ANALYSIS ──
+  const prevPitches=seq.filter(s=>s.outcome&&s.pk);
   const lastPitch=prevPitches[prevPitches.length-1]||null;
   const last2=prevPitches.slice(-2);
   const last3=prevPitches.slice(-3);
 
-  // Check swing detection
+  // Exact pitch frequency
+  const pitchFreq={};
+  prevPitches.forEach(s=>{
+    pitchFreq[s.pk]=(pitchFreq[s.pk]||0)+1;
+  });
+
+  // Category frequency
+  const catFreq={fastball:0,breaking:0,offspeed:0};
+  prevPitches.forEach(s=>{
+    const cat=getPitchCategory(s.pk);
+    if(catFreq[cat]!==undefined) catFreq[cat]++;
+  });
+
+  // Speed tier analysis — within 5mph = same tier
+  const speeds=prevPitches.map(s=>s.spd||0).filter(Boolean);
+  const lastSpeed=lastPitch?lastPitch.spd||0:0;
+  const recentSpeeds=prevPitches.slice(-3).map(s=>s.spd||0)
+    .filter(Boolean);
+  const speedTierLocked=recentSpeeds.length>=2&&
+    recentSpeeds.every(s=>Math.abs(s-recentSpeeds[0])<5);
+  const avgRecentSpeed=recentSpeeds.length?
+    recentSpeeds.reduce((a,b)=>a+b,0)/recentSpeeds.length:0;
+
+  // Location pattern — full at-bat
+  const zones=prevPitches.map(s=>s.zk).filter(Boolean);
+  const lastZone=lastPitch?lastPitch.zk:null;
+  const last3Zones=zones.slice(-3);
+  const locationFixation=last3Zones.length>=3&&
+    last3Zones.every(z=>!zonesAreDifferent(z,last3Zones[0],isLHB));
+  const last2SameLocation=last2.length===2&&
+    !zonesAreDifferent(last2[0].zk,last2[1].zk,isLHB);
+
+  // Eye line — has batter been forced to move eyes recently?
+  const eyeLineMoved=last2.length===2&&
+    zonesAreDifferent(last2[0].zk,last2[1].zk,isLHB);
+
+  // Consecutive foul type detection
+  const last2Fouls=prevPitches.slice(-2).filter(s=>s.foulType);
+  const consecutiveSameFoul=last2Fouls.length===2&&
+    last2Fouls[0].foulType===last2Fouls[1].foulType;
+  const lastFoulType=lastPitch?lastPitch.foulType:null;
+
+  // Consecutive same pitch type foul
+  const last2SameCatFoul=last2Fouls.length===2&&
+    getPitchCategory(last2Fouls[0].pk)===
+    getPitchCategory(last2Fouls[1].pk);
+
+  // Check swing
   const lastCheckSwing=prevPitches.slice().reverse().find(
     s=>s.checkSwing&&s.checkSwing.zone
   )||null;
 
-  // Foul type detection
-  const lastFoul=prevPitches.slice().reverse().find(
-    s=>s.foulType
-  )||null;
-
-  // Tunnel detection — check if last 2 pitches tunneled
+  // Tunnel detection
   const lastTunneled=last2.length===2&&
     last2[0].tunnelData&&last2[1].tunnelData&&
     last2[0].tunnelData.hasTunnel&&last2[1].tunnelData.hasTunnel;
 
-  // Speed pattern — detect 2+ same velocity pitches
-  const speeds=last3.map(s=>s.spd||0).filter(Boolean);
-  const avgSpeed=speeds.length?
-    speeds.reduce((a,b)=>a+b,0)/speeds.length:0;
-  const lastSpeed=lastPitch?lastPitch.spd||0:0;
-  const speedDiff=Math.abs(lastSpeed-avgSpeed);
-  const changeOfPaceAvailable=speeds.length>=2&&
-    speeds.every(s=>Math.abs(s-speeds[0])<5);
+  // ── ARSENAL-BASED SUGGESTIONS ──
+  function getContrastCategory(lastCat,foulType){
+    if(foulType==='LATE') return 'fastball';
+    if(foulType==='PULLED'){
+      return lastCat==='fastball'?'offspeed':'breaking';
+    }
+    if(foulType==='STRAIGHT_BACK'){
+      if(lastCat==='fastball') return 'breaking';
+      if(lastCat==='breaking') return 'fastball';
+      return 'fastball';
+    }
+    if(lastCat==='fastball') return 'breaking';
+    if(lastCat==='breaking') return 'offspeed';
+    return 'fastball';
+  }
 
-  // Runner situation analysis
-  const runnersOn=runners.first||runners.second||runners.third;
+  function suggestPitch(priority,lastCat,foulType){
+    const contrastCat=getContrastCategory(lastCat,foulType);
+    const tunnelOptions=arsenal.filter(pk=>
+      getPitchCategory(pk)===lastCat&&pk!==lastPitch?.pk
+    );
+    const contrastOptions=arsenal.filter(pk=>
+      getPitchCategory(pk)===contrastCat
+    );
+    const locationOptions=arsenal.filter(pk=>pk!==lastPitch?.pk);
+    const samePitchOptions=lastPitch?[lastPitch.pk]:[];
+    const unusedOptions=arsenal.filter(pk=>!pitchFreq[pk]);
+
+    if(priority==='tunnel'&&tunnelOptions.length){
+      const pk=tunnelOptions[0];
+      return {pk,name:getPitchName(pk),
+        reason:'tunnels off your last pitch'};
+    }
+    if(contrastOptions.length){
+      const pk=contrastOptions[0];
+      return {pk,name:getPitchName(pk),
+        reason:foulType==='LATE'?
+          'batter is behind — sitting on slow pitch':
+          foulType==='PULLED'?
+          'batter is ahead — sitting on velocity':
+          'contrasts with your last pitch'};
+    }
+    if(locationOptions.length){
+      const pk=locationOptions[0];
+      return {pk,name:getPitchName(pk),
+        reason:'forces batter to move their eyes'};
+    }
+    if(samePitchOptions.length){
+      const pk=samePitchOptions[0];
+      return {pk,name:getPitchName(pk),
+        reason:'same pitch different location — batter won\'t expect it'};
+    }
+    if(unusedOptions.length){
+      const pk=unusedOptions[0];
+      return {pk,name:getPitchName(pk),
+        reason:'batter hasn\'t seen this pitch yet'};
+    }
+    return null;
+  }
+
+  // ── PATTERN FLAGS ──
+  let patternWarning='';
+  if(locationFixation&&lastZone){
+    const row=getZoneRow(lastZone);
+    const col=getZoneCol(lastZone,isLHB);
+    patternWarning='⚠ You\'ve thrown 3+ pitches to the '+
+      col+' '+row+' — batter has locked in. Move the ball.';
+  } else if(last2SameLocation){
+    patternWarning='You\'ve hit the same location twice — '+
+      'consider moving the ball '+(isLHB?'inside or up':'inside or up')+'.';
+  }
+
+  if(speedTierLocked&&avgRecentSpeed>0){
+    const speedWarn='Batter has seen '+recentSpeeds.length+
+      ' pitches in the '+Math.round(avgRecentSpeed-2)+'-'+
+      Math.round(avgRecentSpeed+2)+'mph range — vary your speed.';
+    patternWarning=patternWarning?
+      patternWarning+' '+speedWarn:speedWarn;
+  }
+
+  Object.keys(pitchFreq).forEach(pk=>{
+    if(pitchFreq[pk]>=3){
+      patternWarning=(patternWarning?patternWarning+' ':'')+
+        '⚠ '+pitchFreq[pk]+' '+getPitchName(pk)+
+        's this at-bat — batter has adjusted.';
+    }
+  });
+
+  let foulAdjustment='';
+  if(consecutiveSameFoul&&last2SameCatFoul&&lastFoulType){
+    const lastCat=getPitchCategory(lastPitch?.pk||'');
+    if(lastFoulType==='PULLED'){
+      foulAdjustment='Batter has pulled two consecutive '+
+        getPitchName(lastPitch?.pk||'')+
+        's — they\'ve adjusted to that speed. ';
+      const suggestion=suggestPitch('contrast',lastCat,'PULLED');
+      if(suggestion) foulAdjustment+=
+        'Try your '+suggestion.name+' — '+suggestion.reason+'.';
+    } else if(lastFoulType==='LATE'){
+      foulAdjustment='Batter is late on two consecutive '+
+        getPitchName(lastPitch?.pk||'')+
+        's — they\'re sitting on something slower. ';
+      const suggestion=suggestPitch('contrast',lastCat,'LATE');
+      if(suggestion) foulAdjustment+=
+        'Try your '+suggestion.name+' — '+suggestion.reason+'.';
+    } else if(lastFoulType==='STRAIGHT_BACK'){
+      foulAdjustment='Batter has squared up two consecutive pitches — '+
+        'change both pitch type AND location. ';
+      const suggestion=suggestPitch('contrast',lastCat,'STRAIGHT_BACK');
+      if(suggestion) foulAdjustment+=
+        'Try your '+suggestion.name+' — '+suggestion.reason+'.';
+    }
+  } else if(lastFoulType&&lastPitch){
+    const lastCat=getPitchCategory(lastPitch.pk||'');
+    const suggestion=suggestPitch('tunnel',lastCat,lastFoulType);
+    if(lastFoulType==='PULLED'){
+      foulAdjustment='Batter pulled your '+
+        getPitchName(lastPitch.pk)+' — sitting on velocity. ';
+      if(suggestion) foulAdjustment+=
+        'Consider your '+suggestion.name+' — '+suggestion.reason+'.';
+    } else if(lastFoulType==='LATE'){
+      foulAdjustment='Batter was late on your '+
+        getPitchName(lastPitch.pk)+' — not ready for that speed. ';
+      if(suggestion) foulAdjustment+=
+        'Consider your '+suggestion.name+' — '+suggestion.reason+'.';
+    } else if(lastFoulType==='STRAIGHT_BACK'){
+      foulAdjustment='Batter squared up your '+
+        getPitchName(lastPitch.pk)+' — change location and/or pitch type. ';
+      if(suggestion) foulAdjustment+=
+        'Consider your '+suggestion.name+' — '+suggestion.reason+'.';
+    }
+  }
+
+  let checkSwingHint='';
+  if(lastCheckSwing){
+    const cs=lastCheckSwing.checkSwing;
+    checkSwingHint='Batter showed interest in the '+
+      (cs.zone||'')+' zone on your '+
+      getPitchName(lastCheckSwing.pk||'')+
+      ' — tunnel your next pitch through there.';
+  }
+
   const basesLoaded=runners.first&&runners.second&&runners.third;
   const runnerOn3rd=runners.third;
   const runnerOn1st=runners.first&&!runners.second&&!runners.third;
   const dpSituation=runnerOn1st&&outs<2;
-  const conservative=runsAllowed===0;
-
-  // Foul type coaching analysis
-  let foulHint='';
-  if(lastFoul){
-    if(lastFoul.foulType==='STRAIGHT_BACK'){
-      foulHint='Batter squared up on that pitch — change location and/or pitch type.';
-    } else if(lastFoul.foulType==='LATE'){
-      foulHint=isLHB
-        ?'Batter was late — sitting on something slower. Throw fastball or cutter.'
-        :'Batter was late — sitting on something slower. Throw fastball or cutter.';
-    } else if(lastFoul.foulType==='PULLED'){
-      foulHint=isLHB
-        ?"Batter pulled it — sitting on velocity. Go offspeed or breaking ball."
-        :"Batter pulled it — sitting on velocity. Go offspeed or breaking ball.";
-    }
-  }
-
-  // Check swing coaching analysis
-  let checkSwingHint='';
-  if(lastCheckSwing){
-    checkSwingHint='Batter showed interest in the '+
-      lastCheckSwing.zone+' zone — tunnel your next pitch through there.';
-  }
-
-  // Game situation hint
   let situationHint='';
   if(basesLoaded&&outs<2){
-    situationHint='Bases loaded — throw low for force out, high inside to jam for pop fly. Avoid high outside.';
+    situationHint='Bases loaded — throw low for force out, '+
+      'high inside to jam for infield pop fly.';
   } else if(dpSituation){
-    situationHint='Runner on 1st, '+outs+' out'+(outs===1?'':'s')+
-      ' — throw low to induce grounder for double play.';
+    situationHint='Runner on 1st, '+outs+' out'+
+      (outs===1?'':'s')+' — throw low to induce grounder for double play.';
   } else if(runnerOn3rd&&outs<2){
     situationHint=isLHB
-      ?'Runner on 3rd — throw outside to force opposite field grounder. Avoid inside pitches.'
-      :'Runner on 3rd — throw outside to force opposite field grounder. Avoid inside pitches.';
+      ?'Runner on 3rd — throw outside to force opposite-field grounder. '+
+        'Avoid inside pitches that pull toward 3B line.'
+      :'Runner on 3rd — throw outside to force opposite-field grounder. '+
+        'Avoid inside pitches that pull toward 3B line.';
   }
 
-  // COUNT-BASED LOGIC
+  function buildHint(baseHint){
+    let h=baseHint;
+    if(foulAdjustment) h+=' '+foulAdjustment;
+    if(checkSwingHint&&!foulAdjustment) h+=' '+checkSwingHint;
+    if(patternWarning) h+=' '+patternWarning;
+    if(situationHint) h+=' '+situationHint;
+    return h;
+  }
+
+  function buildOptions(lastCat,foulType){
+    const opts=[];
+    const tunnelPitch=suggestPitch('tunnel',lastCat,foulType);
+    if(tunnelPitch) opts.push({
+      label:'Tunnel — '+tunnelPitch.name,
+      desc:'Match early flight path of your last pitch, '+
+        'let this one break differently'
+    });
+    const contrastPitch=suggestPitch('contrast',lastCat,foulType);
+    if(contrastPitch&&
+      (!tunnelPitch||contrastPitch.pk!==tunnelPitch.pk))
+      opts.push({
+        label:'Contrast — '+contrastPitch.name,
+        desc:contrastPitch.reason+
+          (eyeLineMoved?'':' — force the batter to move their eyes')
+      });
+    if(!eyeLineMoved){
+      const row=lastZone?getZoneRow(lastZone):'mid';
+      const col=lastZone?getZoneCol(lastZone,isLHB):'middle';
+      const moveDir=col==='outside'?'inside':
+        col==='inside'?'outside':
+        row==='up'?'down':'up';
+      opts.push({
+        label:'Location shift',
+        desc:'Move the ball '+moveDir+
+          ' — batter\'s eyes have been '+col+' '+row
+      });
+    }
+    if(lastPitch){
+      const diffLocDesc=isLHB
+        ?'Same '+getPitchName(lastPitch.pk)+
+          ' but opposite location — RHB reads differently'
+        :'Same '+getPitchName(lastPitch.pk)+
+          ' but opposite location — change the feel';
+      opts.push({
+        label:'Same pitch, new location',
+        desc:diffLocDesc
+      });
+    }
+    return opts.slice(0,4);
+  }
+
+  const lastCat=lastPitch?getPitchCategory(lastPitch.pk):'fastball';
+  const lastFoul=lastPitch?lastPitch.foulType:null;
+
   let primary='SETUP';
   let secondary=[];
   let hint='';
@@ -184,165 +437,208 @@ function getAutoRole(count,seq,zk,batter,gameState){
 
   if(balls===0&&strikes===0){
     primary='SETUP';
-    hint='First pitch — establish the zone. First pitch strike changes everything.';
+    const firstSuggestion=arsenal.length?
+      suggestPitch('contrast','fastball',null):null;
+    hint='First pitch — establish the zone. First pitch strike '+
+      'changes the entire at-bat.';
+    if(firstSuggestion) hint+=' Your '+firstSuggestion.name+
+      ' is a strong first pitch — get ahead early.';
     options=[
-      {label:'Safe',desc:'Fastball middle — highest strike probability'},
-      {label:'Bold',desc:'Paint a corner early — sets up the at-bat'}
+      {label:'Strike first',
+        desc:'Highest-probability strike location — '+
+          'set the tone for the at-bat'},
+      {label:'Paint a corner',
+        desc:'Edge pitch early — if it\'s called a strike '+
+          'you\'ve expanded the zone for the rest of the at-bat'}
     ];
 
   } else if(balls===0&&strikes===1){
     primary=lastTunneled?'TUNNEL':'SETUP';
-    hint=lastTunneled
-      ?'You established a tunnel — continue it or break out to create confusion.'
-      :'Ahead 0-1 — stay aggressive. Build on pitch 1.';
-    options=[
-      {label:'Tunnel',desc:'Same early flight path, different break'},
-      {label:'Setup',desc:'Set up your best strikeout pitch'}
-    ];
+    hint=buildHint('Ahead 0-1 — ');
+    if(lastTunneled){
+      hint+='tunnel is working. ';
+      const tp=suggestPitch('tunnel',lastCat,lastFoul);
+      if(tp) hint+='Your '+tp.name+' tunnels well off your last pitch.';
+    } else {
+      hint+='build on pitch 1. ';
+      const cp=suggestPitch('contrast',lastCat,lastFoul);
+      if(cp) hint+='Your '+cp.name+' contrasts well — '+cp.reason+'.';
+    }
+    options=buildOptions(lastCat,lastFoul);
 
   } else if(balls===0&&strikes===2){
     primary='PUTAWAY';
     secondary=['CHASE'];
-    let strikeHint='0-2 — you have control. ';
-    if(lastFoul) strikeHint+=foulHint;
-    else if(lastCheckSwing) strikeHint+=checkSwingHint;
-    else strikeHint+='Expand the zone. Make the batter chase.';
-    hint=strikeHint;
-    options=[
-      {label:'Chase',desc:'Expand off the plate — see if batter is jumpy'},
-      {label:'Tunnel',desc:'Same corridor as previous pitch, different break'},
-      {label:'Putaway',desc:'Best strikeout pitch in the zone'}
-    ];
+    hint=buildHint('0-2 — you have full control. ');
+    if(!foulAdjustment&&!checkSwingHint){
+      const pp=suggestPitch('tunnel',lastCat,lastFoul);
+      if(pp) hint+='Your '+pp.name+' is a strong putaway pitch here — '+
+        pp.reason+'.';
+      hint+=' Expand the zone — batter must protect.';
+    }
+    options=buildOptions(lastCat,lastFoul);
 
   } else if(balls===1&&strikes===0){
     primary='SETUP';
-    hint='1-0 — need a strike. Stay aggressive but smart.';
-    options=[
-      {label:'Safe',desc:'High-probability strike location'},
-      {label:'Tunnel',desc:'Set up next pitch with this one'}
-    ];
+    hint=buildHint('1-0 — need a strike. ');
+    if(lastPitch){
+      hint+='Batter just saw your '+getPitchName(lastPitch.pk)+
+        ' for a ball — ';
+      const cp=suggestPitch('contrast',lastCat,lastFoul);
+      if(cp) hint+='your '+cp.name+' will look different coming out '+
+        'of the same arm slot.';
+    }
+    options=buildOptions(lastCat,lastFoul);
 
   } else if(balls===1&&strikes===1){
     primary='TUNNEL';
-    hint='Even count — perfect time to tunnel. '+(lastTunneled?
-      'You have a tunnel working — keep building it.':
-      'Set up a tunnel with this pitch.');
-    options=[
-      {label:'Tunnel',desc:'Match early flight path of previous pitch'},
-      {label:'Speed',desc:changeOfPaceAvailable?
-        'Change of pace — batter has seen same speed twice':'Vary your speed'}
-    ];
+    hint=buildHint('Even count — ');
+    if(lastTunneled){
+      hint+='tunnel is established. ';
+      const tp=suggestPitch('tunnel',lastCat,lastFoul);
+      if(tp) hint+='Your '+tp.name+' can extend this tunnel — '+
+        tp.reason+'.';
+    } else {
+      hint+='set up a tunnel now. ';
+      const tp=suggestPitch('tunnel',lastCat,lastFoul);
+      if(tp) hint+='Your '+tp.name+' off your last '+
+        getPitchName(lastPitch?.pk||'')+' creates a deceptive tunnel.';
+    }
+    if(speedTierLocked){
+      const cp=suggestPitch('contrast',lastCat,lastFoul);
+      if(cp) hint+=' Speed is locked — your '+cp.name+
+        ' will disrupt the batter\'s timing.';
+    }
+    options=buildOptions(lastCat,lastFoul);
 
   } else if(balls===1&&strikes===2){
     primary='PUTAWAY';
     secondary=['CHASE'];
-    hint='1-2 — ahead in count. '+
-      (foulHint||checkSwingHint||
-      'Go after the batter. Expand the zone or tunnel to your best pitch.');
-    options=[
-      {label:'Chase',desc:'Off the plate — batter must protect'},
-      {label:'Putaway',desc:'Best strikeout pitch'},
-      {label:'Tunnel',desc:'Tunnel off previous pitch to chase zone'}
-    ];
+    hint=buildHint('1-2 — ahead in count. ');
+    const pp=suggestPitch('tunnel',lastCat,lastFoul);
+    if(pp&&!foulAdjustment) hint+='Your '+pp.name+
+      ' is your best option here — '+pp.reason+'.';
+    options=buildOptions(lastCat,lastFoul);
 
   } else if(balls===2&&strikes===0){
     primary='SETUP';
-    hint='2-0 — must throw a strike. Batter is sitting fastball.';
+    hint=buildHint('2-0 — must throw a strike. ');
+    hint+='Batter is sitting fastball. ';
+    const cp=suggestPitch('contrast',lastCat,lastFoul);
+    if(cp&&getPitchCategory(cp.pk)!=='fastball'){
+      hint+='Your '+cp.name+' for a strike at 2-0 — '+
+        'batter will not expect offspeed here.';
+    } else {
+      hint+='Locate your fastball on the edge — '+
+        'give the umpire a chance to expand the zone.';
+    }
     options=[
-      {label:'Safe',desc:'Fastball strike zone — highest probability'},
-      {label:'Tunnel',desc:'Disguise your strike with tunnel from previous pitches'},
-      {label:'Courage',desc:'Off-speed strike — batter won\'t expect it at 2-0'}
+      {label:'Safe strike',
+        desc:'Fastball strike zone — highest probability, '+
+          'locate on the edge not down the middle'},
+      {label:'Surprise offspeed',
+        desc:'Batter sitting fastball at 2-0 — '+
+          'offspeed strike catches them off guard'},
+      {label:'Courage',
+        desc:'Edge pitch — if called a strike you\'ve '+
+          'expanded the zone with a 2-1 count'}
     ];
 
   } else if(balls===2&&strikes===1){
     primary='TUNNEL';
-    hint='2-1 — key count. '+
-      (lastTunneled?'Tunnel is working — use it to set up putaway pitch.':
-      'Build a tunnel now to set up your strikeout pitch.');
-    if(situationHint) hint+=' '+situationHint;
-    options=[
-      {label:'Tunnel',desc:'Set up your best pitch with a tunnel'},
-      {label:'Speed',desc:changeOfPaceAvailable?
-        'Change of pace — batter has seen same velocity multiple times':
-        'Vary speed to disrupt timing'}
-    ];
+    hint=buildHint('2-1 — key count. ');
+    if(lastTunneled){
+      hint+='Tunnel is working — use it to set up your putaway pitch. ';
+      const tp=suggestPitch('tunnel',lastCat,lastFoul);
+      if(tp) hint+='Your '+tp.name+' extends this tunnel perfectly.';
+    } else {
+      hint+='Build a tunnel now. ';
+      const tp=suggestPitch('tunnel',lastCat,lastFoul);
+      if(tp) hint+='Your '+tp.name+' off your last '+
+        getPitchName(lastPitch?.pk||'')+' sets up your strikeout pitch.';
+    }
+    options=buildOptions(lastCat,lastFoul);
 
   } else if(balls===2&&strikes===2){
     primary='PUTAWAY';
-    hint='2-2 — even but pitcher has edge. '+
-      (foulHint||checkSwingHint||
-      'Make your best pitch. Batter must protect the plate.');
-    if(situationHint) hint+=' '+situationHint;
-    options=[
-      {label:'Putaway',desc:'Best strikeout pitch — batter must swing'},
-      {label:'Chase',desc:'Expand zone — batter is defensive'},
-      {label:'Tunnel',desc:'Tunnel to chase zone'}
-    ];
+    hint=buildHint('2-2 — even but pitcher has edge. ');
+    const pp=suggestPitch('tunnel',lastCat,lastFoul);
+    if(pp&&!foulAdjustment) hint+='Your '+pp.name+
+      ' — '+pp.reason+'. Batter must protect the plate.';
+    options=buildOptions(lastCat,lastFoul);
 
   } else if(balls===3&&strikes===0){
     primary='SETUP';
-    hint='3-0 — must throw a strike. Zone is smallest. '+
-      (lastCheckSwing?checkSwingHint:'Batter likely taking. Make it count.');
-    if(situationHint) hint+=' '+situationHint;
+    hint=buildHint('3-0 — must throw a strike. Zone is at its smallest. ');
+    if(lastCheckSwing) hint+=checkSwingHint+' ';
+    else hint+='Batter likely taking. ';
+    const sp=suggestPitch('contrast',lastCat,null);
     options=[
-      {label:'Safe',desc:'Highest strike probability — center zone fastball'},
-      {label:'Tunnel',desc:'Use previous pitch corridor to disguise strike'},
-      {label:'Courage',desc:'Paint a corner — batter may be taking all the way'}
+      {label:'Safe — highest strike probability',
+        desc:'Locate your fastball middle of the zone — '+
+          'do not give in down the middle, hit your spot'},
+      {label:'Tunnel — disguised strike',
+        desc:sp?'Your '+sp.name+' from same arm slot — '+
+          'batter won\'t expect it at 3-0':
+          'Use previous pitch corridor to disguise this strike'},
+      {label:'Courage — paint the corner',
+        desc:'Batter may be taking all the way — '+
+          'edge pitch could expand zone if called'}
     ];
 
   } else if(balls===3&&strikes===1){
     primary='SETUP';
-    hint='3-1 — batter has advantage but you have info. '+
-      (lastCheckSwing?'Check swing detected — '+checkSwingHint:
-      'Make a quality strike. Don\'t give in.');
+    hint=buildHint('3-1 — batter has advantage but you have information. ');
+    if(lastCheckSwing) hint+=checkSwingHint+' ';
+    const qp=suggestPitch('tunnel',lastCat,lastFoul);
+    if(qp) hint+='Locate your '+qp.name+
+      ' for a quality strike — '+qp.reason+'.';
     if(situationHint) hint+=' '+situationHint;
     options=[
-      {label:'Quality Strike',desc:'Locate your best pitch for a strike'},
-      {label:'Tunnel',desc:'Use previous strikes to tunnel this pitch'},
-      {label:'Courage',desc:'Edge pitch — batter may chase at 3-1'}
+      {label:'Quality strike',
+        desc:qp?'Your '+qp.name+' — locate it on the edge, '+
+          'not down the middle':
+          'Locate your best pitch on the edge for a strike'},
+      {label:'Tunnel',
+        desc:'Use your previous strikes to tunnel this pitch — '+
+          'same corridor, different break'},
+      {label:'Courage',
+        desc:'Edge pitch — at 3-1 batter may chase '+
+          'if it looks like a strike out of the hand'}
     ];
 
   } else if(balls===3&&strikes===2){
-    // Full count — most complex situation
     primary='PUTAWAY';
     let fullHint='FULL COUNT — ';
-
-    // Psychological state
-    if(prevPitches.length>=5){
-      fullHint+='Long at-bat — batter has seen your arsenal. ';
-    }
-
-    // How we got here matters
     const prevBalls=prevPitches.filter(
-      s=>s.outcome==='BALL'||s.outcome==='CALLED BALL'
+      s=>s.outcome==='BALL'||s.outcome==='CALLED BALL'||
+        s.outcome==='CHECK SWING (BALL)'
     ).length;
     if(prevBalls>=3){
-      fullHint+='You were behind — pendulum swung. Batter may be anxious. ';
+      fullHint+='You were behind — pendulum has swung. '+
+        'Batter may be anxious and aggressive. ';
     } else {
-      fullHint+='You fought back from ahead — batter has momentum. ';
+      fullHint+='You fought back to even — batter has momentum. ';
     }
-
-    if(foulHint) fullHint+=foulHint+' ';
-    if(checkSwingHint) fullHint+=checkSwingHint+' ';
-    if(situationHint) fullHint+=situationHint;
-
+    fullHint=buildHint(fullHint);
+    const fp=suggestPitch('tunnel',lastCat,lastFoul);
+    if(fp&&!foulAdjustment) fullHint+='Your '+fp.name+
+      ' — '+fp.reason+'. Make your best pitch.';
     hint=fullHint;
-    options=[
-      {label:'Best Pitch',desc:'Your highest-confidence pitch in the zone'},
-      {label:'Chase',desc:'Expand zone — batter must protect at 3-2'},
-      {label:'Tunnel',desc:lastTunneled?
-        'Tunnel is established — use it now':'Tunnel off best previous pitch'}
-    ];
+    options=buildOptions(lastCat,lastFoul);
     if(basesLoaded) options.push(
-      {label:'Jam',desc:'Inside high — force infield pop fly'}
+      {label:'Jam — high and inside',
+        desc:'Force infield pop fly — best outcome with bases loaded'}
     );
     if(dpSituation) options.push(
-      {label:'Ground Ball',desc:'Low pitch — induce grounder for double play'}
+      {label:'Ground ball — throw low',
+        desc:'Low pitch induces grounder — double play ends the inning'}
     );
   }
 
   return {primary,secondary,hint,options};
 }
+
 
 function showSREHint(){
   if(!sreEnabled) return;
