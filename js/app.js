@@ -358,9 +358,11 @@ function showSREHint(){
     runsAllowed:typeof totalScore!=='undefined'?totalScore:0
   };
 
-  // Get current count from last seq entry
+  // Use live count — reflects current state after pitch
+  const liveBalls=typeof ballCount!=='undefined'?ballCount:0;
+  const liveStrikes=typeof strikeCount!=='undefined'?strikeCount:0;
+  const ct=liveBalls+'-'+liveStrikes;
   const lastEntry=seq[seq.length-1];
-  const ct=lastEntry?lastEntry.count:'0-0';
   const zk=lastEntry?lastEntry.zk:'MM';
   const bat=typeof batter!=='undefined'?batter:'RHB';
 
@@ -371,11 +373,11 @@ function showSREHint(){
   btn.id='srehintbtn';
   btn.textContent='🧠 COACHING HINT';
   btn.style.cssText='position:fixed;bottom:80px;left:50%;'+
-    'transform:translateX(-50%);background:#0d1520;'+
-    'border:1px solid #7ec8e3;border-radius:8px;'+
-    'padding:8px 20px;font-family:\'DM Mono\',monospace;'+
-    'font-size:10px;color:#7ec8e3;letter-spacing:1px;'+
-    'cursor:pointer;z-index:500;'+
+    'transform:translateX(-50%);background:#1e3a8a;'+
+    'border:none;border-radius:8px;'+
+    'padding:10px 24px;font-family:\'DM Mono\',monospace;'+
+    'font-size:11px;color:#ffffff;letter-spacing:1px;'+
+    'cursor:pointer;z-index:500;font-weight:600;'+
     'box-shadow:0 2px 12px rgba(0,0,0,0.4);';
   btn.onclick=()=>showSREModal(result,btn);
   document.body.appendChild(btn);
@@ -395,11 +397,12 @@ function showSREModal(result,btn){
   const modal=document.createElement('div');
   modal.id='sremodal';
   modal.style.cssText='position:fixed;top:50%;left:50%;'+
-    'transform:translate(-50%,-50%);background:#ffffff;'+
-    'border:1px solid #1e3a8a;border-radius:12px;'+
+    'transform:translate(-50%,-50%);background:#ffffff !important;'+
+    'border:2px solid #1e3a8a;border-radius:12px;'+
     'padding:20px 24px;font-family:\'DM Mono\',monospace;'+
-    'z-index:600;max-width:380px;width:90%;'+
-    'box-shadow:0 4px 24px rgba(0,0,0,0.4);';
+    'z-index:9999;max-width:380px;width:90%;'+
+    'box-shadow:0 4px 24px rgba(0,0,0,0.4);'+
+    'color:#111111;';
 
   // Primary role
   let html='<div style="font-size:8px;color:#666;'+
