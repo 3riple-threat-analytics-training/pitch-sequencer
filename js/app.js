@@ -252,9 +252,9 @@ function getAutoRole(count,seq,zk,batter,gameState){
       const pk=contrastOptions[0];
       return {pk,name:getPitchName(pk),
         reason:foulType==='LATE'?
-          'batter is behind — sitting on slow pitch':
+          'batter was late — not ready for that speed':
           foulType==='PULLED'?
-          'batter is ahead — sitting on velocity':
+          'batter was out in front — sitting on that velocity':
           'contrasts with your last pitch'};
     }
     if(locationOptions.length){
@@ -307,9 +307,9 @@ function getAutoRole(count,seq,zk,batter,gameState){
   if(consecutiveSameFoul&&last2SameCatFoul&&lastFoulType){
     const lastCat=getPitchCategory(lastPitch?.pk||'');
     if(lastFoulType==='PULLED'){
-      foulAdjustment='Batter has pulled two consecutive '+
+      foulAdjustment='Batter has been out in front of two consecutive '+
         getPitchName(lastPitch?.pk||'')+
-        's — they\'ve adjusted to that speed. ';
+        's — they\'ve locked in on that speed. ';
       const suggestion=suggestPitch('contrast',lastCat,'PULLED');
       if(suggestion) foulAdjustment+=
         'Try your '+suggestion.name+' — '+suggestion.reason+'.';
@@ -331,8 +331,8 @@ function getAutoRole(count,seq,zk,batter,gameState){
     const lastCat=getPitchCategory(lastPitch.pk||'');
     const suggestion=suggestPitch('tunnel',lastCat,lastFoulType);
     if(lastFoulType==='PULLED'){
-      foulAdjustment='Batter pulled your '+
-        getPitchName(lastPitch.pk)+' — sitting on velocity. ';
+      foulAdjustment='Batter was out in front of your '+
+        getPitchName(lastPitch.pk)+' — sitting on that speed. ';
       if(suggestion) foulAdjustment+=
         'Consider your '+suggestion.name+' — '+suggestion.reason+'.';
     } else if(lastFoulType==='LATE'){
@@ -399,7 +399,7 @@ function getAutoRole(count,seq,zk,batter,gameState){
       opts.push({
         label:'Contrast — '+contrastPitch.name,
         desc:contrastPitch.reason+
-          (eyeLineMoved?'':' — force the batter to move their eyes')
+          (eyeLineMoved?'':' — make the batter adjust their timing and eyes')
       });
     if(!eyeLineMoved){
       const row=lastZone?getZoneRow(lastZone):'mid';
