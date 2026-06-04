@@ -395,47 +395,47 @@ function showSREModal(result,btn){
   const modal=document.createElement('div');
   modal.id='sremodal';
   modal.style.cssText='position:fixed;top:50%;left:50%;'+
-    'transform:translate(-50%,-50%);background:#0d1520;'+
-    'border:1px solid #7ec8e3;border-radius:12px;'+
+    'transform:translate(-50%,-50%);background:#ffffff;'+
+    'border:1px solid #1e3a8a;border-radius:12px;'+
     'padding:20px 24px;font-family:\'DM Mono\',monospace;'+
     'z-index:600;max-width:380px;width:90%;'+
-    'box-shadow:0 4px 24px rgba(0,0,0,0.6);';
+    'box-shadow:0 4px 24px rgba(0,0,0,0.4);';
 
   // Primary role
-  let html='<div style="font-size:8px;color:var(--text-muted);'+
+  let html='<div style="font-size:8px;color:#666;'+
     'letter-spacing:1px;margin-bottom:6px;">SMART ROLE ENGINE</div>';
-  html+='<div style="font-size:14px;font-weight:700;color:#7ec8e3;'+
+  html+='<div style="font-size:14px;font-weight:700;color:#1e3a8a;'+
     'letter-spacing:2px;margin-bottom:8px;">'+result.primary+'</div>';
 
   // Secondary roles
   if(result.secondary&&result.secondary.length){
-    html+='<div style="font-size:9px;color:var(--text-muted);'+
+    html+='<div style="font-size:9px;color:#666;'+
       'margin-bottom:8px;">+ '+result.secondary.join(' + ')+'</div>';
   }
 
   // Hint text
-  html+='<div style="font-size:10px;color:var(--text-secondary);'+
+  html+='<div style="font-size:10px;color:#222;'+
     'line-height:1.6;margin-bottom:12px;border-top:0.5px solid '+
-    'var(--border-panel);padding-top:10px;">'+result.hint+'</div>';
+    '#ddd;padding-top:10px;">'+result.hint+'</div>';
 
   // Options
   if(result.options&&result.options.length){
     html+='<div id="sreoptions" style="display:none;">';
-    result.options.forEach(opt=>{
-      html+='<div style="margin-bottom:6px;padding:6px 10px;'+
-        'border-radius:6px;border:0.5px solid var(--border-panel);">'+
-        '<div style="font-size:9px;color:#7ec8e3;letter-spacing:1px;">'+
-        opt.label+'</div>'+
-        '<div style="font-size:9px;color:var(--text-muted);'+
-        'margin-top:2px;">'+opt.desc+'</div></div>';
-    });
+      result.options.forEach(opt=>{
+        html+='<div style="margin-bottom:6px;padding:6px 10px;'+
+          'border-radius:6px;border:0.5px solid #ccc;background:#f8f9fa;">'+
+          '<div style="font-size:9px;color:#1e3a8a;letter-spacing:1px;'+
+          'font-weight:600;">'+opt.label+'</div>'+
+          '<div style="font-size:9px;color:#444;'+
+          'margin-top:2px;">'+opt.desc+'</div></div>';
+      });
     html+='</div>';
     html+='<button onclick="'+
       'document.getElementById(\'sreoptions\').style.display=\'block\';'+
       'this.style.display=\'none\';" '+
       'style="width:100%;padding:6px;border-radius:6px;'+
-      'border:0.5px solid var(--border-panel);background:transparent;'+
-      'color:var(--text-muted);font-family:\'DM Mono\',monospace;'+
+      'border:0.5px solid #1e3a8a;background:transparent;'+
+      'color:#1e3a8a;font-family:\'DM Mono\',monospace;'+
       'font-size:9px;letter-spacing:1px;cursor:pointer;'+
       'margin-bottom:8px;">SHOW MORE OPTIONS</button>';
   }
@@ -443,8 +443,8 @@ function showSREModal(result,btn){
   // Close button
   html+='<button onclick="document.getElementById(\'sremodal\').remove()" '+
     'style="width:100%;padding:7px;border-radius:6px;'+
-    'border:0.5px solid #7ec8e3;background:transparent;'+
-    'color:#7ec8e3;font-family:\'DM Mono\',monospace;'+
+    'border:none;background:#1e3a8a;'+
+    'color:#ffffff;font-family:\'DM Mono\',monospace;'+
     'font-size:9px;letter-spacing:1px;cursor:pointer;">DISMISS</button>';
 
   modal.innerHTML=html;
