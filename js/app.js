@@ -186,6 +186,54 @@ function getAutoRole(count,seq,zk,batter,gameState){
   const avgRecentSpeed=recentSpeeds.length?
     recentSpeeds.reduce((a,b)=>a+b,0)/recentSpeeds.length:0;
 
+  // ── VELOCITY PATTERN DETECTION ──
+  const fastballPitches=prevPitches.filter(s=>
+    FASTBALL_FAMILY.includes(s.pk)&&s.spd>0
+  );
+  const avgFastballSpeed=fastballPitches.length?
+    fastballPitches.reduce((a,b)=>a+b.spd,0)/
+    fastballPitches.length:0;
+  const fastballPatternEstablished=fastballPitches.length>=2;
+  const contrastPitches=arsenal.filter(pk=>{
+    const thrown=prevPitches.filter(s=>s.pk===pk&&s.spd>0);
+    if(thrown.length){
+      const avgSpd=thrown.reduce((a,b)=>a+b.spd,0)/thrown.length;
+      return avgFastballSpeed-avgSpd>=10;
+    }
+    if(OFFSPEED_FAMILY.includes(pk)) return avgFastballSpeed>=78;
+    if(BREAKING_FAMILY.includes(pk)) return avgFastballSpeed>=85;
+    return false;
+  });
+  const bestContrastPitch=contrastPitches.length?
+    contrastPitches[0]:null;
+  const velocityReset=prevPitches.some(s=>
+    avgFastballSpeed>0&&
+    (avgFastballSpeed-s.spd)>=10&&
+    !FASTBALL_FAMILY.includes(s.pk)
+  );
+  const velocityPatternActive=fastballPatternEstablished&&
+    !velocityReset;
+  const overRelianceDetected=Object.keys(pitchFreq).some(
+    pk=>pitchFreq[pk]>=3
+  );
+  const contrastOverridesTunnel=velocityPatternActive&&
+    overRelianceDetected&&bestContrastPitch!==null;
+
+  // ── BACK-FOOT BREAKING BALL DETECTION ──
+  const pitcherHand=typeof hand!=='undefined'?hand:'R';
+  const handMismatch=(pitcherHand==='R'&&batter==='LHB')||
+    (pitcherHand==='L'&&batter==='RHB');
+  const breakingBallsInArsenal=arsenal.filter(pk=>
+    BREAKING_FAMILY.includes(pk)
+  );
+  const backFootAvailable=handMismatch&&
+    breakingBallsInArsenal.length>0;
+  const backFootPitch=backFootAvailable?
+    breakingBallsInArsenal[0]:null;
+  const tunnelEstablished=prevPitches.some(s=>
+    s.tunnelData&&s.tunnelData.hasTunnel
+  );
+
   // Location pattern — full at-bat
   const zones=prevPitches.map(s=>s.zk).filter(Boolean);
   const lastZone=lastPitch?lastPitch.zk:null;
@@ -212,6 +260,21 @@ function getAutoRole(count,seq,zk,batter,gameState){
   const locationWarningRed=exactLast3Same||quadrantLast3Same;
   const locationFixation=locationWarningRed;
   const last2SameLocation=locationWarningYellow&&!locationWarningRed;
+
+  // ── RUBBER POSITION ──
+  const rubberPos=typeof rubber!=='undefined'?rubber:0.5;
+  const rubberSide=rubberPos<0.35?'3B side':
+    rubberPos>0.65?'1B side':'center';
+  const suggestRubberMove=locationWarningYellow||
+    locationWarningRed;
+  let rubberHint='';
+  if(suggestRubberMove){
+    const moveTo=rubberPos<0.35?'1B side':
+      rubberPos>0.65?'3B side':'either side';
+    rubberHint='Consider moving your setup to the '+moveTo+
+      ' of the rubber — attacking from a different angle '+
+      'can freeze a batter who has adjusted to your current position.';
+  }
 
   // Eye line — has batter been forced to move eyes recently?
   const eyeLineMoved=last2.length===2&&
@@ -256,6 +319,15 @@ function getAutoRole(count,seq,zk,batter,gameState){
 
   function suggestPitch(priority,lastCat,foulType){
     const contrastCat=getContrastCategory(lastCat,foulType);
+    if(contrastOverridesTunnel&&bestContrastPitch){
+      if(priority==='tunnel'){
+        return {pk:bestContrastPitch,
+          name:getPitchName(bestContrastPitch),
+          reason:'fastball pattern established — '+
+            'this creates a sharp speed contrast that '+
+            'disrupts the batter\'s timing'};
+      }
+    }
     const tunnelOptions=arsenal.filter(pk=>
       getPitchCategory(pk)===lastCat&&pk!==lastPitch?.pk
     );
@@ -418,22 +490,60 @@ function getAutoRole(count,seq,zk,batter,gameState){
     return h;
   }
 
-  function buildOptions(lastCat,foulType){
-    const opts=[];
-    const tunnelPitch=suggestPitch('tunnel',lastCat,foulType);
-    if(tunnelPitch) opts.push({
-      label:'Tunnel — '+tunnelPitch.name,
-      desc:'Match early flight path of your last pitch, '+
-        'let this one break differently'
-    });
-    const contrastPitch=suggestPitch('contrast',lastCat,foulType);
-    if(contrastPitch&&
-      (!tunnelPitch||contrastPitch.pk!==tunnelPitch.pk))
-      opts.push({
-        label:'Contrast — '+contrastPitch.name,
-        desc:contrastPitch.reason+
-          (eyeLineMoved?'':' — make the batter adjust their timing and eyes')
+  function buildOptions(lastCat,foulType,highLeverage){
+    const primary=[];
+    const secondary=[];
+
+    if(velocityPatternActive&&bestContrastPitch&&
+      (strikes>=2||highLeverage)){
+      primary.push({
+        label:'Tunnel + Speed Contrast — '+
+          getPitchName(bestContrastPitch),
+        desc:'Fastball pattern established — '+
+          getPitchName(bestContrastPitch)+
+          ' through the same tunnel creates doubt. '+
+          'Batter can\'t commit to fastball OR '+
+          getPitchName(bestContrastPitch)+'.'
       });
+    } else {
+      const tunnelPitch=suggestPitch('tunnel',lastCat,foulType);
+      if(tunnelPitch) primary.push({
+        label:'Tunnel — '+tunnelPitch.name,
+        desc:tunnelEstablished?
+          'Tunnel is established — '+tunnelPitch.name+
+          ' through same flight path, different break':
+          'Match early flight path of your last pitch, '+
+          'let this one break differently'
+      });
+    }
+
+    if(backFootAvailable&&strikes>=2){
+      const bfDesc=tunnelEstablished?
+        'Tunnel established — '+getPitchName(backFootPitch)+
+        ' starts like your tunnel pitch but breaks toward '+
+        (isLHB?'the batter\'s hands':'the batter\'s hands')+
+        '. Batter is protecting outside — this will freeze them.':
+        getPitchName(backFootPitch)+
+        ' breaks toward the batter\'s back foot — '+
+        'unexpected movement with two strikes.';
+      primary.push({
+        label:'Back-foot — '+getPitchName(backFootPitch),
+        desc:bfDesc
+      });
+    } else {
+      const contrastPitch=suggestPitch('contrast',lastCat,foulType);
+      if(contrastPitch&&
+        (!primary[0]||contrastPitch.pk!==
+          (bestContrastPitch||primary[0]?.pk))){
+        primary.push({
+          label:'Contrast — '+contrastPitch.name,
+          desc:contrastPitch.reason+
+            (eyeLineMoved?'':
+            ' — make the batter adjust their timing and eyes')
+        });
+      }
+    }
+
     if(!eyeLineMoved){
       const row=lastZone?getZoneRow(lastZone):'mid';
       const col=lastZone?getZoneCol(lastZone,isLHB):'middle';
@@ -443,25 +553,55 @@ function getAutoRole(count,seq,zk,batter,gameState){
       const locLabel=(locationWarningRed?'⚠ ':
         locationWarningYellow?'⚡ ':'')+
         'Location shift';
-      opts.push({
+      secondary.push({
         label:locLabel,
         desc:'Move the ball '+moveDir+
           ' — batter\'s eyes have been '+col+' '+row+
-          (locationWarningRed?' — contact probability elevated':'')
+          (locationWarningRed?
+          ' — contact probability elevated':'')
       });
     }
+
+    if(rubberHint){
+      secondary.push({
+        label:'⚡ Move on the rubber',
+        desc:rubberHint
+      });
+    }
+
     if(lastPitch){
-      const diffLocDesc=isLHB
-        ?'Same '+getPitchName(lastPitch.pk)+
-          ' but opposite location — RHB reads differently'
-        :'Same '+getPitchName(lastPitch.pk)+
-          ' but opposite location — change the feel';
-      opts.push({
+      secondary.push({
         label:'Same pitch, new location',
-        desc:diffLocDesc
+        desc:'Same '+getPitchName(lastPitch.pk)+
+          ' but opposite location — change the feel'
       });
     }
-    return opts.slice(0,4);
+
+    if(basesLoaded&&outs<2){
+      secondary.push({
+        label:'Jam — high and inside',
+        desc:'Force infield pop fly — best outcome with bases loaded'
+      });
+    }
+    if(dpSituation){
+      secondary.push({
+        label:'Ground ball',
+        desc:'Low pitch — induce grounder for double play'
+      });
+    }
+
+    if(highLeverage){
+      window.__lastSecondaryOptions=secondary.slice(0,3);
+      return {
+        primary:primary.slice(0,2),
+        secondary:secondary.slice(0,3)
+      };
+    }
+    window.__lastSecondaryOptions=[];
+    return {
+      primary:[...primary,...secondary].slice(0,4),
+      secondary:[]
+    };
   }
 
   const lastCat=lastPitch?getPitchCategory(lastPitch.pk):'fastball';
@@ -501,7 +641,10 @@ function getAutoRole(count,seq,zk,batter,gameState){
       const cp=suggestPitch('contrast',lastCat,lastFoul);
       if(cp) hint+='Your '+cp.name+' contrasts well — '+cp.reason+'.';
     }
-    options=buildOptions(lastCat,lastFoul);
+    const highLeverage=strikes>=2;
+    const optResult=buildOptions(lastCat,lastFoul,highLeverage);
+    options=optResult.primary||optResult;
+    const secondaryOptions=optResult.secondary||[];
 
   } else if(balls===0&&strikes===2){
     primary='PUTAWAY';
@@ -513,7 +656,10 @@ function getAutoRole(count,seq,zk,batter,gameState){
         pp.reason+'.';
       hint+=' Expand the zone — batter must protect.';
     }
-    options=buildOptions(lastCat,lastFoul);
+    const highLeverage=strikes>=2;
+    const optResult=buildOptions(lastCat,lastFoul,highLeverage);
+    options=optResult.primary||optResult;
+    const secondaryOptions=optResult.secondary||[];
 
   } else if(balls===1&&strikes===0){
     primary='SETUP';
@@ -525,7 +671,10 @@ function getAutoRole(count,seq,zk,batter,gameState){
       if(cp) hint+='your '+cp.name+' will look different coming out '+
         'of the same arm slot.';
     }
-    options=buildOptions(lastCat,lastFoul);
+    const highLeverage=strikes>=2;
+    const optResult=buildOptions(lastCat,lastFoul,highLeverage);
+    options=optResult.primary||optResult;
+    const secondaryOptions=optResult.secondary||[];
 
   } else if(balls===1&&strikes===1){
     primary='TUNNEL';
@@ -546,7 +695,10 @@ function getAutoRole(count,seq,zk,batter,gameState){
       if(cp) hint+=' Speed is locked — your '+cp.name+
         ' will disrupt the batter\'s timing.';
     }
-    options=buildOptions(lastCat,lastFoul);
+    const highLeverage=strikes>=2;
+    const optResult=buildOptions(lastCat,lastFoul,highLeverage);
+    options=optResult.primary||optResult;
+    const secondaryOptions=optResult.secondary||[];
 
   } else if(balls===1&&strikes===2){
     primary='PUTAWAY';
@@ -555,7 +707,10 @@ function getAutoRole(count,seq,zk,batter,gameState){
     const pp=suggestPitch('tunnel',lastCat,lastFoul);
     if(pp&&!foulAdjustment) hint+='Your '+pp.name+
       ' is your best option here — '+pp.reason+'.';
-    options=buildOptions(lastCat,lastFoul);
+    const highLeverage=strikes>=2;
+    const optResult=buildOptions(lastCat,lastFoul,highLeverage);
+    options=optResult.primary||optResult;
+    const secondaryOptions=optResult.secondary||[];
 
   } else if(balls===2&&strikes===0){
     primary='SETUP';
@@ -594,7 +749,10 @@ function getAutoRole(count,seq,zk,batter,gameState){
       if(tp) hint+='Your '+tp.name+' off your last '+
         getPitchName(lastPitch?.pk||'')+' sets up your strikeout pitch.';
     }
-    options=buildOptions(lastCat,lastFoul);
+    const highLeverage=strikes>=2;
+    const optResult=buildOptions(lastCat,lastFoul,highLeverage);
+    options=optResult.primary||optResult;
+    const secondaryOptions=optResult.secondary||[];
 
   } else if(balls===2&&strikes===2){
     primary='PUTAWAY';
@@ -602,7 +760,10 @@ function getAutoRole(count,seq,zk,batter,gameState){
     const pp=suggestPitch('tunnel',lastCat,lastFoul);
     if(pp&&!foulAdjustment) hint+='Your '+pp.name+
       ' — '+pp.reason+'. Batter must protect the plate.';
-    options=buildOptions(lastCat,lastFoul);
+    const highLeverage=strikes>=2;
+    const optResult=buildOptions(lastCat,lastFoul,highLeverage);
+    options=optResult.primary||optResult;
+    const secondaryOptions=optResult.secondary||[];
 
   } else if(balls===3&&strikes===0){
     primary='SETUP';
@@ -662,18 +823,15 @@ function getAutoRole(count,seq,zk,batter,gameState){
     if(fp&&!foulAdjustment) fullHint+='Your '+fp.name+
       ' — '+fp.reason+'. Make your best pitch.';
     hint=fullHint;
-    options=buildOptions(lastCat,lastFoul);
-    if(basesLoaded) options.push(
-      {label:'Jam — high and inside',
-        desc:'Force infield pop fly — best outcome with bases loaded'}
-    );
-    if(dpSituation) options.push(
-      {label:'Ground ball — throw low',
-        desc:'Low pitch induces grounder — double play ends the inning'}
-    );
+    const highLeverage=strikes>=2;
+    const optResult=buildOptions(lastCat,lastFoul,highLeverage);
+    options=optResult.primary||optResult;
+    const secondaryOptions=optResult.secondary||[];
   }
 
-  return {primary,secondary,hint,options,warningLevel};
+  return {primary,secondary,hint,options,
+    secondaryOptions:window.__lastSecondaryOptions||[],
+    warningLevel};
 }
 
 
@@ -762,34 +920,65 @@ function showSREModal(result,btn){
     'line-height:1.6;margin-bottom:12px;border-top:0.5px solid '+
     '#ddd;padding-top:10px;">'+result.hint+'</div>';
 
-  // Options
+  // Primary options — always visible
   if(result.options&&result.options.length){
+    result.options.forEach(opt=>{
+      const isWarning=opt.label.includes('⚠')||
+        opt.label.includes('⚡')||
+        opt.label.toLowerCase().includes('location')||
+        opt.label.toLowerCase().includes('move');
+      const isTunnel=opt.label.toLowerCase().includes('tunnel');
+      const isContrast=opt.label.toLowerCase().includes('contrast')||
+        opt.label.toLowerCase().includes('back-foot');
+      const isSpeed=opt.label.toLowerCase().includes('speed');
+      const cellBorder=isWarning?'#dc2626':
+        isTunnel||isSpeed?'#15803d':
+        isContrast?'#1e3a8a':'#ccc';
+      const cellBg=isWarning?'#fef2f2':
+        isTunnel||isSpeed?'#f0fdf4':
+        isContrast?'#eff6ff':'#f8f9fa';
+      const labelCol=isWarning?'#dc2626':
+        isTunnel||isSpeed?'#15803d':
+        isContrast?'#1e3a8a':'#333';
+      html+='<div style="margin-bottom:6px;padding:6px 10px;'+
+        'border-radius:6px;border:1px solid '+cellBorder+
+        ';background:'+cellBg+';">'+
+        '<div style="font-size:9px;color:'+labelCol+
+        ';letter-spacing:1px;font-weight:600;">'+opt.label+'</div>'+
+        '<div style="font-size:9px;color:#444;'+
+        'margin-top:2px;">'+opt.desc+'</div></div>';
+    });
+  }
+
+  // Secondary options — behind show more
+  if(result.secondaryOptions&&result.secondaryOptions.length){
     html+='<div id="sreoptions" style="display:none;">';
-      result.options.forEach(opt=>{
-        // Color code option cells by type
-        const isWarning=opt.label.includes('⚠')||
-          opt.label.includes('⚡')||
-          opt.label.toLowerCase().includes('location')||
-          opt.label.toLowerCase().includes('move');
-        const isTunnel=opt.label.toLowerCase().includes('tunnel');
-        const isContrast=opt.label.toLowerCase().includes('contrast');
-        const cellBorder=isWarning?'#dc2626':
-          isTunnel?'#15803d':
-          isContrast?'#1e3a8a':'#ccc';
-        const cellBg=isWarning?'#fef2f2':
-          isTunnel?'#f0fdf4':
-          isContrast?'#eff6ff':'#f8f9fa';
-        const labelCol=isWarning?'#dc2626':
-          isTunnel?'#15803d':
-          isContrast?'#1e3a8a':'#333';
-        html+='<div style="margin-bottom:6px;padding:6px 10px;'+
-          'border-radius:6px;border:1px solid '+cellBorder+
-          ';background:'+cellBg+';">'+
-          '<div style="font-size:9px;color:'+labelCol+
-          ';letter-spacing:1px;font-weight:600;">'+opt.label+'</div>'+
-          '<div style="font-size:9px;color:#444;'+
-          'margin-top:2px;">'+opt.desc+'</div></div>';
-      });
+    result.secondaryOptions.forEach(opt=>{
+      const isWarning=opt.label.includes('⚠')||
+        opt.label.includes('⚡')||
+        opt.label.toLowerCase().includes('location')||
+        opt.label.toLowerCase().includes('move');
+      const isTunnel=opt.label.toLowerCase().includes('tunnel');
+      const isContrast=opt.label.toLowerCase().includes('contrast')||
+        opt.label.toLowerCase().includes('back-foot');
+      const isSpeed=opt.label.toLowerCase().includes('speed');
+      const cellBorder=isWarning?'#dc2626':
+        isTunnel||isSpeed?'#15803d':
+        isContrast?'#1e3a8a':'#ccc';
+      const cellBg=isWarning?'#fef2f2':
+        isTunnel||isSpeed?'#f0fdf4':
+        isContrast?'#eff6ff':'#f8f9fa';
+      const labelCol=isWarning?'#dc2626':
+        isTunnel||isSpeed?'#15803d':
+        isContrast?'#1e3a8a':'#333';
+      html+='<div style="margin-bottom:6px;padding:6px 10px;'+
+        'border-radius:6px;border:1px solid '+cellBorder+
+        ';background:'+cellBg+';">'+
+        '<div style="font-size:9px;color:'+labelCol+
+        ';letter-spacing:1px;font-weight:600;">'+opt.label+'</div>'+
+        '<div style="font-size:9px;color:#444;'+
+        'margin-top:2px;">'+opt.desc+'</div></div>';
+    });
     html+='</div>';
     html+='<button onclick="'+
       'document.getElementById(\'sreoptions\').style.display=\'block\';'+
@@ -798,7 +987,9 @@ function showSREModal(result,btn){
       'border:0.5px solid #1e3a8a;background:transparent;'+
       'color:#1e3a8a;font-family:\'DM Mono\',monospace;'+
       'font-size:9px;letter-spacing:1px;cursor:pointer;'+
-      'margin-bottom:8px;">SHOW MORE OPTIONS</button>';
+      'margin-bottom:8px;">SHOW MORE OPTIONS ('+
+      (result.secondaryOptions?result.secondaryOptions.length:0)+
+      ')</button>';
   }
 
   // Close button
