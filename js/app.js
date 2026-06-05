@@ -194,21 +194,30 @@ function getAutoRole(count,seq,zk,batter,gameState){
     fastballPitches.reduce((a,b)=>a+b.spd,0)/
     fastballPitches.length:0;
   const fastballPatternEstablished=fastballPitches.length>=2;
+  // Contrast threshold — 10% below avg fastball
+  // Works at all age groups: youth(6mph), HS(8mph), pro(9mph+)
+  const contrastThreshold=avgFastballSpeed*0.10;
   const contrastPitches=arsenal.filter(pk=>{
+    // Skip fastball family — velocity too similar
+    if(FASTBALL_FAMILY.includes(pk)) return false;
+    if(!avgFastballSpeed) return false;
+    // If already thrown use actual average speed
     const thrown=prevPitches.filter(s=>s.pk===pk&&s.spd>0);
     if(thrown.length){
       const avgSpd=thrown.reduce((a,b)=>a+b.spd,0)/thrown.length;
-      return avgFastballSpeed-avgSpd>=10;
+      return avgFastballSpeed-avgSpd>=contrastThreshold;
     }
-    if(OFFSPEED_FAMILY.includes(pk)) return avgFastballSpeed>=78;
-    if(BREAKING_FAMILY.includes(pk)) return avgFastballSpeed>=85;
-    return false;
+    // Not yet thrown — use PITCH_VELOCITY_PCT to estimate
+    const pct=typeof PITCH_VELOCITY_PCT!=='undefined'?
+      PITCH_VELOCITY_PCT[pk]||0.85:0.85;
+    const estimatedSpd=avgFastballSpeed*pct;
+    return avgFastballSpeed-estimatedSpd>=contrastThreshold;
   });
   const bestContrastPitch=contrastPitches.length?
     contrastPitches[0]:null;
   const velocityReset=prevPitches.some(s=>
     avgFastballSpeed>0&&
-    (avgFastballSpeed-s.spd)>=10&&
+    (avgFastballSpeed-s.spd)>=contrastThreshold&&
     !FASTBALL_FAMILY.includes(s.pk)
   );
   const velocityPatternActive=fastballPatternEstablished&&
