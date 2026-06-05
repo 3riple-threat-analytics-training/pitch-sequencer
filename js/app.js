@@ -278,11 +278,26 @@ function getAutoRole(count,seq,zk,batter,gameState){
     locationWarningRed;
   let rubberHint='';
   if(suggestRubberMove){
-    const moveTo=rubberPos<0.35?'1B side':
-      rubberPos>0.65?'3B side':'either side';
-    rubberHint='Consider moving your setup to the '+moveTo+
-      ' of the rubber — attacking from a different angle '+
-      'can freeze a batter who has adjusted to your current position.';
+    const pitcherHand2=typeof hand!=='undefined'?hand:'R';
+    const openSide=(pitcherHand2==='R'&&isLHB)||
+      (pitcherHand2==='L'&&!isLHB)?'3B side':'1B side';
+    const currentSideLabel=rubberPos<0.35?'3B side':
+      rubberPos>0.65?'1B side':'center';
+    const alreadyOnOpenSide=
+      (openSide==='3B side'&&rubberPos<0.35)||
+      (openSide==='1B side'&&rubberPos>0.65);
+    if(alreadyOnOpenSide){
+      rubberHint='You\'re on the '+currentSideLabel+
+        ' — consider moving to center or '+
+        (openSide==='3B side'?'1B side':'3B side')+
+        ' to change the attack angle and keep the batter guessing.';
+    } else {
+      rubberHint='Move to the '+openSide+
+        ' of the rubber — this opens the '+
+        (isLHB?'outside':'outside')+
+        ' angle and creates a new tunnel path '+
+        'the batter hasn\'t seen from you today.';
+    }
   }
 
   // Eye line — has batter been forced to move eyes recently?
@@ -445,10 +460,25 @@ function getAutoRole(count,seq,zk,batter,gameState){
     const lastCat=getPitchCategory(lastPitch.pk||'');
     const suggestion=suggestPitch('tunnel',lastCat,lastFoulType);
     if(lastFoulType==='PULLED'){
-      foulAdjustment='Batter was out in front of your '+
-        getPitchName(lastPitch.pk)+' — sitting on that speed. ';
-      if(suggestion) foulAdjustment+=
-        'Consider your '+suggestion.name+' — '+suggestion.reason+'.';
+      const lastCatCheck=getPitchCategory(lastPitch.pk);
+      if(lastCatCheck==='offspeed'||lastCatCheck==='breaking'){
+        foulAdjustment='Batter pulled your '+
+          getPitchName(lastPitch.pk)+
+          ' — they were sitting fastball and adjusted late. '+
+          'The '+getPitchName(lastPitch.pk)+
+          ' is working — change the location. ';
+        if(suggestion) foulAdjustment+=
+          'Try your '+suggestion.name+
+          ' at a different location — same arm action, '+
+          'different result.';
+      } else {
+        foulAdjustment='Batter was out in front of your '+
+          getPitchName(lastPitch.pk)+
+          ' — sitting on that speed. ';
+        if(suggestion) foulAdjustment+=
+          'Consider your '+suggestion.name+
+          ' — '+suggestion.reason+'.';
+      }
     } else if(lastFoulType==='LATE'){
       foulAdjustment='Batter was late on your '+
         getPitchName(lastPitch.pk)+' — not ready for that speed. ';
@@ -491,11 +521,16 @@ function getAutoRole(count,seq,zk,batter,gameState){
   }
 
   function buildHint(baseHint){
-    let h=baseHint;
-    if(foulAdjustment) h+=' '+foulAdjustment;
-    if(checkSwingHint&&!foulAdjustment) h+=' '+checkSwingHint;
-    if(patternWarning) h+=' '+patternWarning;
-    if(situationHint) h+=' '+situationHint;
+    let h=baseHint.trim();
+    if(!h.endsWith('.')) h+='.';
+    if(foulAdjustment) h+=' '+foulAdjustment.trim();
+    if(checkSwingHint&&!foulAdjustment)
+      h+=' '+checkSwingHint.trim();
+    if(patternWarning){
+      h+=' '+patternWarning.trim();
+      if(!h.endsWith('.')) h+='.';
+    }
+    if(situationHint) h+=' '+situationHint.trim();
     return h;
   }
 
@@ -516,14 +551,30 @@ function getAutoRole(count,seq,zk,batter,gameState){
       });
     } else {
       const tunnelPitch=suggestPitch('tunnel',lastCat,foulType);
-      if(tunnelPitch) primary.push({
-        label:'Tunnel — '+tunnelPitch.name,
-        desc:tunnelEstablished?
-          'Tunnel is established — '+tunnelPitch.name+
-          ' through same flight path, different break':
-          'Match early flight path of your last pitch, '+
-          'let this one break differently'
-      });
+      if(tunnelPitch){
+        const contrastCheck=suggestPitch('contrast',lastCat,foulType);
+        if(contrastCheck&&contrastCheck.pk===tunnelPitch.pk){
+          primary.push({
+            label:'Tunnel + Speed Contrast — '+tunnelPitch.name,
+            desc:(tunnelEstablished?
+              'Tunnel is established — ':
+              'Same flight path as last pitch — ')+
+              tunnelPitch.name+
+              ' arrives slower AND breaks differently. '+
+              'Most deceptive option — disrupts both '+
+              'timing and location reads.'
+          });
+        } else {
+          primary.push({
+            label:'Tunnel — '+tunnelPitch.name,
+            desc:tunnelEstablished?
+              'Tunnel is established — '+tunnelPitch.name+
+              ' through same flight path, different break':
+              'Match early flight path of your last pitch, '+
+              'let this one break differently'
+          });
+        }
+      }
     }
 
     if(backFootAvailable&&strikes>=2){
@@ -541,9 +592,10 @@ function getAutoRole(count,seq,zk,batter,gameState){
       });
     } else {
       const contrastPitch=suggestPitch('contrast',lastCat,foulType);
-      if(contrastPitch&&
-        (!primary[0]||contrastPitch.pk!==
-          (bestContrastPitch||primary[0]?.pk))){
+      const mergedTunnelContrast=primary[0]&&
+        primary[0].label.startsWith('Tunnel + Speed Contrast');
+      if(contrastPitch&&!mergedTunnelContrast&&
+        (!primary[0]||contrastPitch.pk!==bestContrastPitch)){
         primary.push({
           label:'Contrast — '+contrastPitch.name,
           desc:contrastPitch.reason+
