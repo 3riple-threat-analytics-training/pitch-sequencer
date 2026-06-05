@@ -131,20 +131,25 @@ function getAutoRole(count,seq,zk,batter,gameState){
 
   // Zone analysis helpers
   function getZoneRow(zk){
-    if(['TL','TM','TR','TOP-EDG','CUR','CUM','CUL'].includes(zk))
-      return 'up';
-    if(['BL','BM','BR','BOT-EDG','CLO-L','CLO-M','CLO-R'].includes(zk))
-      return 'down';
+    if(['TL','TM','TR','TOP-EDG','TL-CRN','TR-CRN',
+      'CUR','CUM','CUL'].includes(zk)) return 'up';
+    if(['BL','BM','BR','BOT-EDG','BL-CRN','BR-CRN',
+      'CLO-L','CLO-M','CLO-R'].includes(zk)) return 'down';
     return 'mid';
   }
 
   function getZoneCol(zk,isLHB){
-    // From catcher POV — adjust for handedness
-    if(['TL','ML','BL','LFT-EDG','CIN'].includes(zk))
+    const leftKeys=['TL','ML','BL','LFT-EDG','TL-CRN','BL-CRN','CIN'];
+    const rightKeys=['TR','MR','BR','RGT-EDG','TR-CRN','BR-CRN','COUT'];
+    if(leftKeys.includes(zk))
       return isLHB?'outside':'inside';
-    if(['TR','MR','BR','RGT-EDG','COUT'].includes(zk))
+    if(rightKeys.includes(zk))
       return isLHB?'inside':'outside';
     return 'middle';
+  }
+
+  function getZoneQuadrant(zk,isLHB){
+    return getZoneRow(zk)+'-'+getZoneCol(zk,isLHB);
   }
 
   function zonesAreDifferent(zk1,zk2,isLHB){
@@ -185,10 +190,28 @@ function getAutoRole(count,seq,zk,batter,gameState){
   const zones=prevPitches.map(s=>s.zk).filter(Boolean);
   const lastZone=lastPitch?lastPitch.zk:null;
   const last3Zones=zones.slice(-3);
-  const locationFixation=last3Zones.length>=3&&
-    last3Zones.every(z=>!zonesAreDifferent(z,last3Zones[0],isLHB));
-  const last2SameLocation=last2.length===2&&
-    !zonesAreDifferent(last2[0].zk,last2[1].zk,isLHB);
+  const last2Zones=zones.slice(-2);
+
+  // Exact zone match — mirrors batting algorithm penalty thresholds
+  const exactLast2Same=last2Zones.length===2&&
+    last2Zones[0]===last2Zones[1];
+  const exactLast3Same=last3Zones.length===3&&
+    last3Zones.every(z=>z===last3Zones[0]);
+
+  // Quadrant match — broader pattern detection
+  const quadrantLast2Same=last2.length===2&&
+    getZoneQuadrant(last2[0].zk,isLHB)===
+    getZoneQuadrant(last2[1].zk,isLHB);
+  const quadrantLast3Same=last3Zones.length===3&&
+    last3Zones.every(z=>
+      getZoneQuadrant(z,isLHB)===
+      getZoneQuadrant(last3Zones[0],isLHB));
+
+  // Warning levels
+  const locationWarningYellow=exactLast2Same||quadrantLast2Same;
+  const locationWarningRed=exactLast3Same||quadrantLast3Same;
+  const locationFixation=locationWarningRed;
+  const last2SameLocation=locationWarningYellow&&!locationWarningRed;
 
   // Eye line — has batter been forced to move eyes recently?
   const eyeLineMoved=last2.length===2&&
@@ -276,30 +299,40 @@ function getAutoRole(count,seq,zk,batter,gameState){
   }
 
   // ── PATTERN FLAGS ──
+  // Track warning level for color coding
+  let warningLevel='none'; // none, yellow, red
   let patternWarning='';
-  if(locationFixation&&lastZone){
+  if(locationWarningRed&&lastZone){
     const row=getZoneRow(lastZone);
     const col=getZoneCol(lastZone,isLHB);
-    patternWarning='⚠ You\'ve thrown 3+ pitches to the '+
-      col+' '+row+' — batter has locked in. Move the ball.';
-  } else if(last2SameLocation){
-    patternWarning='You\'ve hit the same location twice — '+
-      'consider moving the ball '+(isLHB?'inside or up':'inside or up')+'.';
+    patternWarning='⚠ 3+ pitches to the '+col+' '+row+
+      ' — batter contact probability is elevated. Move the ball.';
+    warningLevel='red';
+  } else if(locationWarningYellow&&lastZone){
+    const row=getZoneRow(lastZone);
+    const col=getZoneCol(lastZone,isLHB);
+    patternWarning='2 consecutive pitches '+col+' '+row+
+      ' — consider moving the ball.';
+    warningLevel='yellow';
   }
 
   if(speedTierLocked&&avgRecentSpeed>0){
-    const speedWarn='Batter has seen '+recentSpeeds.length+
-      ' pitches in the '+Math.round(avgRecentSpeed-2)+'-'+
-      Math.round(avgRecentSpeed+2)+'mph range — vary your speed.';
+    const speedWarn='⚡ Batter has timed your velocity — '+
+      recentSpeeds.length+' pitches in the '+
+      Math.round(avgRecentSpeed-2)+'-'+
+      Math.round(avgRecentSpeed+2)+'mph range. Vary your speed.';
     patternWarning=patternWarning?
       patternWarning+' '+speedWarn:speedWarn;
+    if(warningLevel==='none') warningLevel='yellow';
   }
 
   Object.keys(pitchFreq).forEach(pk=>{
     if(pitchFreq[pk]>=3){
-      patternWarning=(patternWarning?patternWarning+' ':'')+
-        '⚠ '+pitchFreq[pk]+' '+getPitchName(pk)+
-        's this at-bat — batter has adjusted.';
+      const overuseWarn='⚠ '+pitchFreq[pk]+'x '+
+        getPitchName(pk)+' this at-bat — batter has adjusted.';
+      patternWarning=patternWarning?
+        patternWarning+' '+overuseWarn:overuseWarn;
+      warningLevel='red';
     }
   });
 
@@ -407,10 +440,14 @@ function getAutoRole(count,seq,zk,batter,gameState){
       const moveDir=col==='outside'?'inside':
         col==='inside'?'outside':
         row==='up'?'down':'up';
+      const locLabel=(locationWarningRed?'⚠ ':
+        locationWarningYellow?'⚡ ':'')+
+        'Location shift';
       opts.push({
-        label:'Location shift',
+        label:locLabel,
         desc:'Move the ball '+moveDir+
-          ' — batter\'s eyes have been '+col+' '+row
+          ' — batter\'s eyes have been '+col+' '+row+
+          (locationWarningRed?' — contact probability elevated':'')
       });
     }
     if(lastPitch){
@@ -636,7 +673,7 @@ function getAutoRole(count,seq,zk,batter,gameState){
     );
   }
 
-  return {primary,secondary,hint,options};
+  return {primary,secondary,hint,options,warningLevel};
 }
 
 
@@ -700,10 +737,18 @@ function showSREModal(result,btn){
     'box-shadow:0 4px 24px rgba(0,0,0,0.4);'+
     'color:#111111;';
 
-  // Primary role
+  // Count-based header color
+  const liveBalls2=typeof ballCount!=='undefined'?ballCount:0;
+  const liveStrikes2=typeof strikeCount!=='undefined'?strikeCount:0;
+  const headerCol=result.warningLevel==='red'?'#dc2626':
+    result.warningLevel==='yellow'?'#d97706':
+    liveBalls2>liveStrikes2?'#b45309': // hitter count — amber
+    liveStrikes2>liveBalls2?'#15803d': // pitcher count — green
+    '#1e3a8a'; // even count — blue
+
   let html='<div style="font-size:8px;color:#666;'+
     'letter-spacing:1px;margin-bottom:6px;">SMART ROLE ENGINE</div>';
-  html+='<div style="font-size:14px;font-weight:700;color:#1e3a8a;'+
+  html+='<div style="font-size:14px;font-weight:700;color:'+headerCol+';'+
     'letter-spacing:2px;margin-bottom:8px;">'+result.primary+'</div>';
 
   // Secondary roles
@@ -721,10 +766,27 @@ function showSREModal(result,btn){
   if(result.options&&result.options.length){
     html+='<div id="sreoptions" style="display:none;">';
       result.options.forEach(opt=>{
+        // Color code option cells by type
+        const isWarning=opt.label.includes('⚠')||
+          opt.label.includes('⚡')||
+          opt.label.toLowerCase().includes('location')||
+          opt.label.toLowerCase().includes('move');
+        const isTunnel=opt.label.toLowerCase().includes('tunnel');
+        const isContrast=opt.label.toLowerCase().includes('contrast');
+        const cellBorder=isWarning?'#dc2626':
+          isTunnel?'#15803d':
+          isContrast?'#1e3a8a':'#ccc';
+        const cellBg=isWarning?'#fef2f2':
+          isTunnel?'#f0fdf4':
+          isContrast?'#eff6ff':'#f8f9fa';
+        const labelCol=isWarning?'#dc2626':
+          isTunnel?'#15803d':
+          isContrast?'#1e3a8a':'#333';
         html+='<div style="margin-bottom:6px;padding:6px 10px;'+
-          'border-radius:6px;border:0.5px solid #ccc;background:#f8f9fa;">'+
-          '<div style="font-size:9px;color:#1e3a8a;letter-spacing:1px;'+
-          'font-weight:600;">'+opt.label+'</div>'+
+          'border-radius:6px;border:1px solid '+cellBorder+
+          ';background:'+cellBg+';">'+
+          '<div style="font-size:9px;color:'+labelCol+
+          ';letter-spacing:1px;font-weight:600;">'+opt.label+'</div>'+
           '<div style="font-size:9px;color:#444;'+
           'margin-top:2px;">'+opt.desc+'</div></div>';
       });
