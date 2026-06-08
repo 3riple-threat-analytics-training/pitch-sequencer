@@ -522,9 +522,21 @@ function getAutoRole(count,seq,zk,batter,gameState){
     if(patternWarning) parts.push(patternWarning.trim());
     if(situationHint) parts.push(situationHint.trim());
     return parts
-      .filter(Boolean)
-      .map(p=>p.endsWith('.')?p:p+'.')
-      .join(' ');
+      .filter(p=>p&&p!=='—'&&p!=='— ')
+      .map(p=>p.endsWith('.')||p.endsWith(' ')?p:p+' ')
+      .join('')
+      .trim();
+  }
+
+  function ah(h,addition){
+    // appendHint helper — ensures proper spacing
+    if(!addition) return h;
+    const trimH=h.trim();
+    const trimA=addition.trim();
+    if(!trimH) return trimA;
+    const separator=trimH.endsWith('.')||
+      trimH.endsWith('!')||trimH.endsWith('?')?' ':' ';
+    return trimH+separator+trimA;
   }
 
   function buildOptions(lastCat,foulType,highLeverage){
@@ -672,8 +684,8 @@ function getAutoRole(count,seq,zk,batter,gameState){
       suggestPitch('contrast','fastball',null):null;
     hint='First pitch — establish the zone. First pitch strike '+
       'changes the entire at-bat.';
-    if(firstSuggestion) hint+=' Your '+firstSuggestion.name+
-      ' is a strong first pitch — get ahead early.';
+    if(firstSuggestion) hint=ah(hint,'Your '+firstSuggestion.name+
+      ' is a strong first pitch — get ahead early.');
     options=[
       {label:'Strike first',
         desc:'Highest-probability strike location — '+
@@ -687,13 +699,15 @@ function getAutoRole(count,seq,zk,batter,gameState){
     primary=lastTunneled?'TUNNEL':'SETUP';
     hint=buildHint('Ahead 0-1 — ');
     if(lastTunneled){
-      hint+='tunnel is working. ';
+      hint=ah(hint,'Tunnel is working.');
       const tp=suggestPitch('tunnel',lastCat,lastFoul);
-      if(tp) hint+='Your '+tp.name+' tunnels well off your last pitch.';
+      if(tp) hint=ah(hint,'Your '+tp.name+
+        ' tunnels well off your last pitch.');
     } else {
-      hint+='build on pitch 1. ';
+      hint=ah(hint,'Build on pitch 1.');
       const cp=suggestPitch('contrast',lastCat,lastFoul);
-      if(cp) hint+='Your '+cp.name+' contrasts well — '+cp.reason+'.';
+      if(cp) hint=ah(hint,'Your '+cp.name+
+        ' contrasts well — '+cp.reason+'.');
     }
     const highLeverage=strikes>=2;
     const optResult=buildOptions(lastCat,lastFoul,highLeverage);
@@ -706,9 +720,9 @@ function getAutoRole(count,seq,zk,batter,gameState){
     hint=buildHint('0-2 — you have full control. ');
     if(!foulAdjustment&&!checkSwingHint){
       const pp=suggestPitch('tunnel',lastCat,lastFoul);
-      if(pp) hint+='Your '+pp.name+' is a strong putaway pitch here — '+
-        pp.reason+'.';
-      hint+=' Expand the zone — batter must protect.';
+      if(pp) hint=ah(hint,'Your '+pp.name+
+        ' is a strong putaway pitch here — '+pp.reason+'.');
+      hint=ah(hint,'Expand the zone — batter must protect.');
     }
     const highLeverage=strikes>=2;
     const optResult=buildOptions(lastCat,lastFoul,highLeverage);
@@ -719,11 +733,12 @@ function getAutoRole(count,seq,zk,batter,gameState){
     primary='SETUP';
     hint=buildHint('1-0 — need a strike. ');
     if(lastPitch){
-      hint+='Batter just saw your '+getPitchName(lastPitch.pk)+
-        ' for a ball — ';
       const cp=suggestPitch('contrast',lastCat,lastFoul);
-      if(cp) hint+='your '+cp.name+' will look different coming out '+
-        'of the same arm slot.';
+      hint=ah(hint,'Batter just saw your '+
+        getPitchName(lastPitch.pk)+' for a ball —'+
+        (cp?' your '+cp.name+' will look different '+
+        'coming out of the same arm slot.':
+        ' mix it up.'));
     }
     const highLeverage=strikes>=2;
     const optResult=buildOptions(lastCat,lastFoul,highLeverage);
@@ -734,20 +749,21 @@ function getAutoRole(count,seq,zk,batter,gameState){
     primary='TUNNEL';
     hint=buildHint('Even count — ');
     if(lastTunneled){
-      hint+='tunnel is established. ';
+      hint=ah(hint,'Tunnel is established.');
       const tp=suggestPitch('tunnel',lastCat,lastFoul);
-      if(tp) hint+='Your '+tp.name+' can extend this tunnel — '+
-        tp.reason+'.';
+      if(tp) hint=ah(hint,'Your '+tp.name+
+        ' can extend this tunnel — '+tp.reason+'.');
     } else {
-      hint+='set up a tunnel now. ';
+      hint=ah(hint,'Set up a tunnel now.');
       const tp=suggestPitch('tunnel',lastCat,lastFoul);
-      if(tp) hint+='Your '+tp.name+' off your last '+
-        getPitchName(lastPitch?.pk||'')+' creates a deceptive tunnel.';
+      if(tp) hint=ah(hint,'Your '+tp.name+' off your last '+
+        getPitchName(lastPitch?.pk||'')+
+        ' creates a deceptive tunnel.');
     }
     if(speedTierLocked){
       const cp=suggestPitch('contrast',lastCat,lastFoul);
-      if(cp) hint+=' Speed is locked — your '+cp.name+
-        ' will disrupt the batter\'s timing.';
+      if(cp) hint=ah(hint,'Speed is locked — your '+cp.name+
+        ' will disrupt the batter\'s timing.');
     }
     const highLeverage=strikes>=2;
     const optResult=buildOptions(lastCat,lastFoul,highLeverage);
@@ -759,8 +775,8 @@ function getAutoRole(count,seq,zk,batter,gameState){
     secondary=['CHASE'];
     hint=buildHint('1-2 — ahead in count. ');
     const pp=suggestPitch('tunnel',lastCat,lastFoul);
-    if(pp&&!foulAdjustment) hint+='Your '+pp.name+
-      ' is your best option here — '+pp.reason+'.';
+    if(pp&&!foulAdjustment) hint=ah(hint,'Your '+pp.name+
+      ' is your best option here — '+pp.reason+'.');
     const highLeverage=strikes>=2;
     const optResult=buildOptions(lastCat,lastFoul,highLeverage);
     options=optResult.primary||optResult;
@@ -769,14 +785,14 @@ function getAutoRole(count,seq,zk,batter,gameState){
   } else if(balls===2&&strikes===0){
     primary='SETUP';
     hint=buildHint('2-0 — must throw a strike. ');
-    hint+='Batter is sitting fastball. ';
+    hint=ah(hint,'Batter is sitting fastball.');
     const cp=suggestPitch('contrast',lastCat,lastFoul);
     if(cp&&getPitchCategory(cp.pk)!=='fastball'){
-      hint+='Your '+cp.name+' for a strike at 2-0 — '+
-        'batter will not expect offspeed here.';
+      hint=ah(hint,'Your '+cp.name+' for a strike at 2-0 — '+
+        'batter will not expect offspeed here.');
     } else {
-      hint+='Locate your fastball on the edge — '+
-        'give the umpire a chance to expand the zone.';
+      hint=ah(hint,'Locate your fastball on the edge — '+
+        'give the umpire a chance to expand the zone.');
     }
     options=[
       {label:'Safe strike',
@@ -794,14 +810,16 @@ function getAutoRole(count,seq,zk,batter,gameState){
     primary='TUNNEL';
     hint=buildHint('2-1 — key count. ');
     if(lastTunneled){
-      hint+='Tunnel is working — use it to set up your putaway pitch. ';
+      hint=ah(hint,'Tunnel is working — use it to set up your putaway pitch.');
       const tp=suggestPitch('tunnel',lastCat,lastFoul);
-      if(tp) hint+='Your '+tp.name+' extends this tunnel perfectly.';
+      if(tp) hint=ah(hint,'Your '+tp.name+
+        ' extends this tunnel perfectly.');
     } else {
-      hint+='Build a tunnel now. ';
+      hint=ah(hint,'Build a tunnel now.');
       const tp=suggestPitch('tunnel',lastCat,lastFoul);
-      if(tp) hint+='Your '+tp.name+' off your last '+
-        getPitchName(lastPitch?.pk||'')+' sets up your strikeout pitch.';
+      if(tp) hint=ah(hint,'Your '+tp.name+' off your last '+
+        getPitchName(lastPitch?.pk||'')+
+        ' sets up your strikeout pitch.');
     }
     const highLeverage=strikes>=2;
     const optResult=buildOptions(lastCat,lastFoul,highLeverage);
@@ -812,8 +830,8 @@ function getAutoRole(count,seq,zk,batter,gameState){
     primary='PUTAWAY';
     hint=buildHint('2-2 — even but pitcher has edge. ');
     const pp=suggestPitch('tunnel',lastCat,lastFoul);
-    if(pp&&!foulAdjustment) hint+='Your '+pp.name+
-      ' — '+pp.reason+'. Batter must protect the plate.';
+    if(pp&&!foulAdjustment) hint=ah(hint,'Your '+pp.name+
+      ' — '+pp.reason+'. Batter must protect the plate.');
     const highLeverage=strikes>=2;
     const optResult=buildOptions(lastCat,lastFoul,highLeverage);
     options=optResult.primary||optResult;
@@ -822,8 +840,8 @@ function getAutoRole(count,seq,zk,batter,gameState){
   } else if(balls===3&&strikes===0){
     primary='SETUP';
     hint=buildHint('3-0 — must throw a strike. Zone is at its smallest. ');
-    if(lastCheckSwing) hint+=checkSwingHint+' ';
-    else hint+='Batter likely taking. ';
+    if(lastCheckSwing) hint=ah(hint,checkSwingHint);
+    else hint=ah(hint,'Batter likely taking.');
     const sp=suggestPitch('contrast',lastCat,null);
     options=[
       {label:'Safe — highest strike probability',
@@ -841,7 +859,7 @@ function getAutoRole(count,seq,zk,batter,gameState){
   } else if(balls===3&&strikes===1){
     primary='SETUP';
     hint=buildHint('3-1 — batter has advantage but you have information. ');
-    if(lastCheckSwing) hint+=checkSwingHint+' ';
+    if(lastCheckSwing) hint=ah(hint,checkSwingHint);
 
     // Find quality strike pitch — exclude over-relied pitches
     const overReliedPitches=Object.keys(pitchFreq)
@@ -862,13 +880,13 @@ function getAutoRole(count,seq,zk,batter,gameState){
           'Locate it on the edge for a strike'):
       'Locate your freshest pitch on the edge for a strike';
 
-    if(qp) hint+='Locate your '+qp.name+
+    if(qp) hint=ah(hint,'Locate your '+qp.name+
       ' for a quality strike — '+
       (overReliedPitches.length?
         'batter has seen too much '+
         getPitchName(overReliedPitches[0])+
         ' — mix it up.':
-        qp.reason+'.');
+        qp.reason+'.'));
 
     options=[
       {label:'Quality strike',desc:qpDesc},
@@ -895,8 +913,8 @@ function getAutoRole(count,seq,zk,batter,gameState){
     }
     fullHint=buildHint(fullHint);
     const fp=suggestPitch('tunnel',lastCat,lastFoul);
-    if(fp&&!foulAdjustment) fullHint+='Your '+fp.name+
-      ' — '+fp.reason+'. Make your best pitch.';
+    if(fp&&!foulAdjustment) fullHint=ah(fullHint,'Your '+fp.name+
+      ' — '+fp.reason+'. Make your best pitch.');
     hint=fullHint;
     const highLeverage=strikes>=2;
     const optResult=buildOptions(lastCat,lastFoul,highLeverage);
