@@ -100,7 +100,8 @@ function getAutoRole(count,seq,zk,batter,gameState){
   const runners=gameState.runners||
     {first:false,second:false,third:false};
   const runsAllowed=gameState.runsAllowed||0;
-  const isLHB=batter==='LHB';
+  // Catcher POV swap — internal RHB = display LHB and vice versa
+  const isLHB=batter==='RHB';
 
   // ── ARSENAL AWARENESS ──
   const profile=typeof getProfile==='function'?getProfile():null;
@@ -228,20 +229,12 @@ function getAutoRole(count,seq,zk,batter,gameState){
   const contrastOverridesTunnel=velocityPatternActive&&
     overRelianceDetected&&bestContrastPitch!==null;
 
-  // ── BACK-FOOT BREAKING BALL DETECTION ──
-  const pitcherHand=typeof hand!=='undefined'?hand:'R';
-  const handMismatch=(pitcherHand==='R'&&batter==='LHB')||
-    (pitcherHand==='L'&&batter==='RHB');
-  const breakingBallsInArsenal=arsenal.filter(pk=>
-    BREAKING_FAMILY.includes(pk)
-  );
-  const backFootAvailable=handMismatch&&
-    breakingBallsInArsenal.length>0;
-  const backFootPitch=backFootAvailable?
-    breakingBallsInArsenal[0]:null;
+  // Tunnel established detection
   const tunnelEstablished=prevPitches.some(s=>
     s.tunnelData&&s.tunnelData.hasTunnel
   );
+  const backFootAvailable=false;
+  const backFootPitch=null;
 
   // Location pattern — full at-bat
   const zones=prevPitches.map(s=>s.zk).filter(Boolean);
@@ -278,6 +271,7 @@ function getAutoRole(count,seq,zk,batter,gameState){
     locationWarningRed;
   let rubberHint='';
   if(suggestRubberMove){
+    // isLHB already accounts for catcher POV swap
     const pitcherHand2=typeof hand!=='undefined'?hand:'R';
     const openSide=(pitcherHand2==='R'&&isLHB)||
       (pitcherHand2==='L'&&!isLHB)?'3B side':'1B side';
