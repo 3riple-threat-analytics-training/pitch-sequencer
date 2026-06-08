@@ -521,17 +521,16 @@ function getAutoRole(count,seq,zk,batter,gameState){
   }
 
   function buildHint(baseHint){
-    let h=baseHint.trim();
-    if(!h.endsWith('.')) h+='.';
-    if(foulAdjustment) h+=' '+foulAdjustment.trim();
+    const parts=[baseHint.trim()];
+    if(foulAdjustment) parts.push(foulAdjustment.trim());
     if(checkSwingHint&&!foulAdjustment)
-      h+=' '+checkSwingHint.trim();
-    if(patternWarning){
-      h+=' '+patternWarning.trim();
-      if(!h.endsWith('.')) h+='.';
-    }
-    if(situationHint) h+=' '+situationHint.trim();
-    return h;
+      parts.push(checkSwingHint.trim());
+    if(patternWarning) parts.push(patternWarning.trim());
+    if(situationHint) parts.push(situationHint.trim());
+    return parts
+      .filter(Boolean)
+      .map(p=>p.endsWith('.')?p:p+'.')
+      .join(' ');
   }
 
   function buildOptions(lastCat,foulType,highLeverage){
@@ -849,17 +848,38 @@ function getAutoRole(count,seq,zk,batter,gameState){
     primary='SETUP';
     hint=buildHint('3-1 — batter has advantage but you have information. ');
     if(lastCheckSwing) hint+=checkSwingHint+' ';
-    const qp=suggestPitch('tunnel',lastCat,lastFoul);
+
+    // Find quality strike pitch — exclude over-relied pitches
+    const overReliedPitches=Object.keys(pitchFreq)
+      .filter(pk=>pitchFreq[pk]>=3);
+    const freshArsenal=arsenal.filter(pk=>
+      !overReliedPitches.includes(pk)
+    );
+    // Try fresh arsenal first, fall back to full arsenal
+    const qpFresh=freshArsenal.length?
+      suggestPitch('tunnel',lastCat,lastFoul):null;
+    const qp=qpFresh||suggestPitch('tunnel',lastCat,lastFoul);
+
+    // Build quality strike desc
+    const qpDesc=qp?
+      (overReliedPitches.includes(qp.pk)?
+        'Your '+qp.name+' — locate it on the edge, not down the middle':
+        'Your '+qp.name+' — batter hasn\'t seen this much. '+
+          'Locate it on the edge for a strike'):
+      'Locate your freshest pitch on the edge for a strike';
+
     if(qp) hint+='Locate your '+qp.name+
-      ' for a quality strike — '+qp.reason+'.';
-    if(situationHint) hint+=' '+situationHint;
+      ' for a quality strike — '+
+      (overReliedPitches.length?
+        'batter has seen too much '+
+        getPitchName(overReliedPitches[0])+
+        ' — mix it up.':
+        qp.reason+'.');
+
     options=[
-      {label:'Quality strike',
-        desc:qp?'Your '+qp.name+' — locate it on the edge, '+
-          'not down the middle':
-          'Locate your best pitch on the edge for a strike'},
+      {label:'Quality strike',desc:qpDesc},
       {label:'Tunnel',
-        desc:'Use your previous strikes to tunnel this pitch — '+
+        desc:'Use your previous strikes to tunnel — '+
           'same corridor, different break'},
       {label:'Courage',
         desc:'Edge pitch — at 3-1 batter may chase '+
