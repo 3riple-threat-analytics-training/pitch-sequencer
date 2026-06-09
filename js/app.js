@@ -523,8 +523,9 @@ function getAutoRole(count,seq,zk,batter,gameState){
     if(situationHint) parts.push(situationHint.trim());
     return parts
       .filter(p=>p&&p!=='—'&&p!=='— ')
-      .map(p=>p.endsWith('.')||p.endsWith(' ')?p:p+' ')
-      .join('')
+      .map(p=>p.trim())
+      .filter(Boolean)
+      .join(' ')
       .trim();
   }
 
