@@ -298,6 +298,77 @@ function getAutoRole(count,seq,zk,batter,gameState){
   const eyeLineMoved=last2.length===2&&
     zonesAreDifferent(last2[0].zk,last2[1].zk,isLHB);
 
+  // ── AXIS PATTERN DETECTION ──
+  // Track last 4 pitches for dominant attack axis
+  const last4=prevPitches.slice(-4);
+  const last4Zones=last4.map(s=>s.zk).filter(Boolean);
+
+  // Row axis (up/mid/down)
+  const rowFreq={up:0,mid:0,down:0};
+  last4Zones.forEach(z=>rowFreq[getZoneRow(z)]++);
+  const dominantRow=Object.keys(rowFreq).reduce((a,b)=>
+    rowFreq[a]>=rowFreq[b]?a:b,'mid');
+  const rowDominant=rowFreq[dominantRow]>=3;
+
+  // Column axis (left/mid/right mapped to inside/outside/middle)
+  const colFreq={inside:0,middle:0,outside:0};
+  last4Zones.forEach(z=>colFreq[getZoneCol(z,isLHB)]++);
+  const dominantCol=Object.keys(colFreq).reduce((a,b)=>
+    colFreq[a]>=colFreq[b]?a:b,'middle');
+  const colDominant=colFreq[dominantCol]>=3;
+
+  // Axis switch suggestion
+  let axisSwitchHint='';
+  let axisSwitchZones='';
+  if(rowDominant&&colDominant){
+    // Both axes dominant — pitcher is very predictable
+    axisSwitchHint='⚠ Pattern locked — you\'ve been attacking '+
+      dominantCol+' '+dominantRow+' repeatedly.';
+    axisSwitchZones='Move to opposite quadrant — try '+
+      (dominantRow==='up'?'down':'up')+' and '+
+      (dominantCol==='outside'?'inside':'outside')+'.';
+  } else if(rowDominant){
+    // Up/down dominant — suggest left/right
+    axisSwitchHint='You\'ve been working the '+dominantRow+
+      ' of the zone — move the ball laterally.';
+    axisSwitchZones='Target '+(dominantCol==='outside'?
+      'inside':'outside')+' at '+dominantRow+
+      ' — change the horizontal eye line.';
+  } else if(colDominant){
+    // Left/right dominant — suggest up/down
+    axisSwitchHint='You\'ve been working '+dominantCol+
+      ' — move the ball up or down.';
+    axisSwitchZones='Target '+(dominantRow==='up'?
+      'low':'high')+' and '+dominantCol+
+      ' — change the vertical eye line.';
+  }
+
+  // ── CROSS-CATEGORY TUNNEL FOR STRAIGHT BACK ──
+  // Finds closest-speed pitch in different category
+  function getCrossCategoryTunnel(lastPk,lastSpd){
+    const lastCatLocal=getPitchCategory(lastPk);
+    // Find pitches in different category from arsenal
+    const crossCat=arsenal.filter(pk=>
+      getPitchCategory(pk)!==lastCatLocal
+    );
+    if(!crossCat.length) return null;
+    // Sort by closest speed to last pitch
+    return crossCat.sort((a,b)=>{
+      const aThrown=prevPitches.filter(s=>s.pk===a&&s.spd>0);
+      const bThrown=prevPitches.filter(s=>s.pk===b&&s.spd>0);
+      const aSpd=aThrown.length?
+        aThrown.reduce((x,y)=>x+y.spd,0)/aThrown.length:
+        (typeof PITCH_VELOCITY_PCT!=='undefined'?
+          (PITCH_VELOCITY_PCT[a]||0.85)*(lastSpd||60):lastSpd*0.85);
+      const bSpd=bThrown.length?
+        bThrown.reduce((x,y)=>x+y.spd,0)/bThrown.length:
+        (typeof PITCH_VELOCITY_PCT!=='undefined'?
+          (PITCH_VELOCITY_PCT[b]||0.85)*(lastSpd||60):lastSpd*0.85);
+      return Math.abs(aSpd-(lastSpd||60))-
+        Math.abs(bSpd-(lastSpd||60));
+    })[0];
+  }
+
   // Consecutive foul type detection
   const last2Fouls=prevPitches.slice(-2).filter(s=>s.foulType);
   const consecutiveSameFoul=last2Fouls.length===2&&
@@ -479,10 +550,43 @@ function getAutoRole(count,seq,zk,batter,gameState){
       if(suggestion) foulAdjustment+=
         'Consider your '+suggestion.name+' — '+suggestion.reason+'.';
     } else if(lastFoulType==='STRAIGHT_BACK'){
+      // Find closest-speed cross-category pitch
+      const crossPk=getCrossCategoryTunnel(
+        lastPitch.pk,lastPitch.spd||0);
+      const crossName=crossPk?getPitchName(crossPk):null;
+      // Check if same quadrant as previous pitch
+      const sameQuadrant=last2.length===2&&
+        getZoneQuadrant(last2[0].zk,isLHB)===
+        getZoneQuadrant(last2[1].zk,isLHB);
+      // Pitcher ahead counts for chase option
+      const pitcherAhead=(balls===0&&strikes===2)||
+        (balls===1&&strikes===2)||
+        (balls===2&&strikes===2);
+
       foulAdjustment='Batter squared up your '+
-        getPitchName(lastPitch.pk)+' — change location and/or pitch type. ';
-      if(suggestion) foulAdjustment+=
-        'Consider your '+suggestion.name+' — '+suggestion.reason+'.';
+        getPitchName(lastPitch.pk)+' — they\'re locked in. ';
+
+      if(sameQuadrant&&crossName){
+        foulAdjustment+='Use the same tunnel but throw your '+
+          crossName+' — same arm action, different movement. ';
+        if(pitcherAhead){
+          foulAdjustment+='Or throw your '+
+            getPitchName(lastPitch.pk)+
+            ' out of the zone — low in the dirt or high — '+
+            'same arm action, batter will chase thinking it\'s '+
+            'coming into the zone.';
+        }
+      } else if(crossName){
+        foulAdjustment+='Move to a different quadrant with your '+
+          crossName+' — change both location AND movement.';
+      } else {
+        foulAdjustment+='No cross-category pitch available — '+
+          'move to a completely different location.';
+        if(pitcherAhead){
+          foulAdjustment+=' Consider throwing out of the zone — '+
+            'low in the dirt or high — to reset the batter\'s eye line.';
+        }
+      }
     }
   }
 
@@ -520,6 +624,10 @@ function getAutoRole(count,seq,zk,batter,gameState){
     if(checkSwingHint&&!foulAdjustment)
       parts.push(checkSwingHint.trim());
     if(patternWarning) parts.push(patternWarning.trim());
+    if(axisSwitchHint&&!patternWarning)
+      parts.push(axisSwitchHint.trim());
+    if(axisSwitchZones&&!patternWarning)
+      parts.push(axisSwitchZones.trim());
     if(situationHint) parts.push(situationHint.trim());
     return parts
       .filter(p=>p&&p!=='—'&&p!=='— ')
@@ -583,6 +691,20 @@ function getAutoRole(count,seq,zk,batter,gameState){
       }
     }
 
+    // CHASE option for FOUL STRAIGHT BACK when pitcher ahead
+    const pitcherAheadCount=(balls===0&&strikes===2)||
+      (balls===1&&strikes===2)||
+      (balls===2&&strikes===2);
+    if(lastFoul==='STRAIGHT_BACK'&&pitcherAheadCount&&lastPitch){
+      primary.push({
+        label:'Chase — '+getPitchName(lastPitch.pk),
+        desc:'Same arm action as your '+getPitchName(lastPitch.pk)+
+          ' — throw low in the dirt OR high out of the zone. '+
+          'Batter is locked in on that pitch and will chase '+
+          'thinking it\'s coming into the zone.'
+      });
+    }
+
     if(backFootAvailable&&strikes>=2){
       const bfDesc=tunnelEstablished?
         'Tunnel established — '+getPitchName(backFootPitch)+
@@ -633,6 +755,14 @@ function getAutoRole(count,seq,zk,batter,gameState){
       secondary.push({
         label:'⚡ Move on the rubber',
         desc:rubberHint
+      });
+    }
+
+    // Axis switch suggestion
+    if(axisSwitchZones){
+      secondary.push({
+        label:'⚡ Switch attack axis',
+        desc:axisSwitchZones
       });
     }
 
