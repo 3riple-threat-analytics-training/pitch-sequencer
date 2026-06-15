@@ -216,6 +216,33 @@ function getAutoRole(count,seq,zk,batter,gameState){
   });
   const bestContrastPitch=contrastPitches.length?
     contrastPitches[0]:null;
+
+  // ── DROP PITCH DETECTION ──
+  // Pitches with same arm action as fastball but drop
+  const DROP_PITCHES=['SP','FK','SNK','2FB'];
+  const dropPitches=arsenal.filter(pk=>
+    DROP_PITCHES.includes(pk)
+  );
+  const bestDropPitch=dropPitches.length?dropPitches[0]:null;
+
+  // ── AGE GROUP AWARENESS ──
+  const ageGroup=profile?profile.ageGroup||'youth':'youth';
+  const isYouthOrHS=ageGroup==='youth'||ageGroup==='hs';
+
+  // Hanging changeup warning
+  function getChangeupWarning(isPrimary){
+    const hasChangeup=arsenal.some(pk=>
+      OFFSPEED_FAMILY.includes(pk)
+    );
+    if(!hasChangeup) return '';
+    if(isYouthOrHS||isPrimary){
+      return '⚠ Location is critical — a changeup that hangs '+
+        'middle of the zone will get hit hard. '+
+        'Locate it down and away.';
+    }
+    return '';
+  }
+
   const velocityReset=prevPitches.some(s=>
     avgFastballSpeed>0&&
     (avgFastballSpeed-s.spd)>=contrastThreshold&&
@@ -417,9 +444,17 @@ function getAutoRole(count,seq,zk,batter,gameState){
             'disrupts the batter\'s timing'};
       }
     }
-    const tunnelOptions=arsenal.filter(pk=>
-      getPitchCategory(pk)===lastCat&&pk!==lastPitch?.pk
-    );
+    // Block same-family tunnel when FOUL PULLED on fastball
+    const blockFastballTunnel=
+      lastFoulType==='PULLED'&&
+      getPitchCategory(lastPitch?.pk||'')==='fastball'&&
+      priority==='tunnel';
+    // 1. Tunnel — same category, different pitch
+    // Block same-family if FOUL PULLED on fastball
+    const tunnelOptions=blockFastballTunnel?[]:
+      arsenal.filter(pk=>
+        getPitchCategory(pk)===lastCat&&pk!==lastPitch?.pk
+      );
     const contrastOptions=arsenal.filter(pk=>
       getPitchCategory(pk)===contrastCat
     );
@@ -537,12 +572,39 @@ function getAutoRole(count,seq,zk,batter,gameState){
           ' at a different location — same arm action, '+
           'different result.';
       } else {
+        // Pulled fastball = batter was ahead of velocity
         foulAdjustment='Batter was out in front of your '+
-          getPitchName(lastPitch.pk)+
-          ' — sitting on that speed. ';
-        if(suggestion) foulAdjustment+=
-          'Consider your '+suggestion.name+
-          ' — '+suggestion.reason+'.';
+          getPitchName(lastPitch.pk)+' — sitting on fastball speed. ';
+
+        // Check if previous pitch was low/middle — suggest up
+        const prevRow=lastZone?getZoneRow(lastZone):'mid';
+        const canGoUp=prevRow==='down'||prevRow==='mid';
+
+        if(bestDropPitch){
+          // Drop pitch — same arm action, drops late
+          foulAdjustment+='Your '+getPitchName(bestDropPitch)+
+            ' has the same arm action but drops — '+
+            'batter will be out in front again but miss under it. ';
+        } else if(canGoUp){
+          // Fastball up — change vertical axis
+          foulAdjustment+='Consider going up — fastball up '+
+            'changes the eye line. Batter was sitting low/middle, '+
+            'high fastball will be above their timing window. ';
+        }
+
+        // Cross-category option
+        const crossPk=getCrossCategoryTunnel(
+          lastPitch.pk,lastPitch.spd||0);
+        if(crossPk){
+          foulAdjustment+='Your '+getPitchName(crossPk)+
+            ' through the same tunnel — same arm action, '+
+            'different movement.';
+          // Add changeup warning if applicable
+          if(OFFSPEED_FAMILY.includes(crossPk)){
+            const warn=getChangeupWarning(false);
+            if(warn) foulAdjustment+=' '+warn;
+          }
+        }
       }
     } else if(lastFoulType==='LATE'){
       foulAdjustment='Batter was late on your '+
@@ -705,6 +767,17 @@ function getAutoRole(count,seq,zk,batter,gameState){
       });
     }
 
+    // Add changeup warning to primary options that
+    // include offspeed pitches
+    primary.forEach(opt=>{
+      if(opt.label.toLowerCase().includes('changeup')||
+        opt.label.toLowerCase().includes('change')){
+        const warn=getChangeupWarning(true);
+        if(warn&&!opt.desc.includes('hangs'))
+          opt.desc+=' '+warn;
+      }
+    });
+
     if(backFootAvailable&&strikes>=2){
       const bfDesc=tunnelEstablished?
         'Tunnel established — '+getPitchName(backFootPitch)+
@@ -748,6 +821,19 @@ function getAutoRole(count,seq,zk,batter,gameState){
           ' — batter\'s eyes have been '+col+' '+row+
           (locationWarningRed?
           ' — contact probability elevated':'')
+      });
+    }
+
+    // Add changeup warning to secondary options
+    // for youth/HS age groups only
+    if(isYouthOrHS){
+      secondary.forEach(opt=>{
+        if(opt.label.toLowerCase().includes('changeup')||
+          opt.label.toLowerCase().includes('change')){
+          const warn=getChangeupWarning(false);
+          if(warn&&!opt.desc.includes('hangs'))
+            opt.desc+=' '+warn;
+        }
       });
     }
 
