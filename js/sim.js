@@ -1699,7 +1699,7 @@ function applySimCountOutcome(outcome,strikesAtStart){
     saveSimState();
     return display;
   }
-  if(strikeCount>=3&&(outcome==='STRIKE'||outcome==='SWING & MISS'||outcome==='CALLED STRIKE')){display='STRIKEOUT';addSimOutCore();if(simMode){lockThrowButton();lastSimDiamondBadgeText='STRIKEOUT';}showSimAdvanceButton();saveSimState();return display;}
+  if(strikeCount>=3&&(outcome==='STRIKE'||outcome==='SWING & MISS'||outcome==='CALLED STRIKE'||outcome==='CHECK SWING (STRIKE)')){display='STRIKEOUT';addSimOutCore();if(simMode){lockThrowButton();lastSimDiamondBadgeText='STRIKEOUT';}showSimAdvanceButton();saveSimState();return display;}
   if(outcome==='GROUND OUT'||outcome==='POP FLY'){ballCount=0;strikeCount=0;renderCount();addSimOutCore();if(simMode){lockThrowButton();lastSimDiamondBadgeText=outcome;}showSimAdvanceButton();saveSimState();return outcome;}
   if(outcome==='SINGLE'||outcome==='DOUBLE'||outcome==='TRIPLE'||outcome==='HOME RUN'){
     ballCount=0;strikeCount=0;renderCount();
