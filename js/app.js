@@ -140,8 +140,16 @@ function getAutoRole(count,seq,zk,batter,gameState){
   }
 
   function getZoneCol(zk,isLHB){
-    const leftKeys=['TL','ML','BL','LFT-EDG','TL-CRN','BL-CRN','CIN'];
-    const rightKeys=['TR','MR','BR','RGT-EDG','TR-CRN','BR-CRN','COUT'];
+    // Chase zone keys render on OPPOSITE screen side from
+    // their key name — confirmed via live visual testing.
+    // CLO-L/CUL actually render RIGHT; CLO-R/CUR actually
+    // render LEFT; CIN actually renders RIGHT; COUT
+    // actually renders LEFT. This is isolated to SRE's
+    // hint text only — does not affect throwing/rendering.
+    const leftKeys=['TL','ML','BL','LFT-EDG','TL-CRN','BL-CRN',
+      'CLO-R','CUR','COUT'];
+    const rightKeys=['TR','MR','BR','RGT-EDG','TR-CRN','BR-CRN',
+      'CLO-L','CUL','CIN'];
     if(leftKeys.includes(zk))
       return isLHB?'outside':'inside';
     if(rightKeys.includes(zk))
