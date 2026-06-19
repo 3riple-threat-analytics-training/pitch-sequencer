@@ -130,6 +130,26 @@ function getAutoRole(count,seq,zk,batter,gameState){
     return names[pk]||pk;
   }
 
+  function get2FBMovementDesc(){
+    // Describes likely 2FB movement based on last pitch's
+    // zone — low zones suggest sink, glove-side middle
+    // zones suggest run/tail, otherwise generic.
+    if(!lastZone) return 'moves differently than your last pitch';
+    const row=getZoneRow(lastZone);
+    const lowZones=['BL','BM','BR','BOT-EDG','BL-CRN','BR-CRN',
+      'CLO-L','CLO-M','CLO-R'];
+    const armSideMidZones=['ML','MR','LFT-EDG','RGT-EDG'];
+    if(lowZones.includes(lastZone)||row==='down'){
+      return 'sinks down and to your arm side — locate it low '+
+        'for ground ball contact';
+    }
+    if(armSideMidZones.includes(lastZone)){
+      return 'runs and tails toward the batter\'s hands — '+
+        'arm-side action batters struggle to square up';
+    }
+    return 'moves differently than your last pitch';
+  }
+
   // Zone analysis helpers
   function getZoneRow(zk){
     if(['TL','TM','TR','TOP-EDG','TL-CRN','TR-CRN',
@@ -589,10 +609,12 @@ function getAutoRole(count,seq,zk,batter,gameState){
         const canGoUp=prevRow==='down'||prevRow==='mid';
 
         if(bestDropPitch){
-          // Drop pitch — same arm action, drops late
+          // Drop pitch — same arm action, movement varies
+          const moveDesc=bestDropPitch==='2FB'?
+            get2FBMovementDesc():'drops late';
           foulAdjustment+='Your '+getPitchName(bestDropPitch)+
-            ' has the same arm action but drops — '+
-            'batter will be out in front again but miss under it. ';
+            ' has the same arm action but '+moveDesc+
+            ' — batter will be out in front again. ';
         } else if(canGoUp){
           // Fastball up — change vertical axis
           foulAdjustment+='Consider going up — fastball up '+
@@ -749,12 +771,15 @@ function getAutoRole(count,seq,zk,batter,gameState){
               'timing and location reads.'
           });
         } else {
+          const moveText=tunnelPitch.pk==='2FB'?
+            get2FBMovementDesc():'different break';
           primary.push({
             label:'Tunnel — '+tunnelPitch.name,
             desc:tunnelEstablished?
               'Tunnel is established — '+tunnelPitch.name+
-              ' through same flight path, different break':
-              'Match early flight path of your last pitch, '+
+              ' through same flight path, '+moveText:
+              'Match early flight path of your last pitch — '+
+              tunnelPitch.pk==='2FB'?moveText:
               'let this one break differently'
           });
         }
