@@ -124,8 +124,9 @@ function getAutoRole(count,seq,zk,batter,gameState){
       '4FB':'4-seam fastball','2FB':'2-seam fastball',
       'CB':'curveball','SL':'slider','CH':'changeup',
       'CT':'cutter','SNK':'sinker','SPL':'splitter',
-      'SLV':'slurve','SWP':'sweeper','FK':'forkball',
-      'KC':'knuckle curve','SCR':'screwball','CHP':'circle change'
+      'SP':'splitter','SLV':'slurve','SWP':'sweeper',
+      'FK':'forkball','KC':'knuckle curve','SCR':'screwball',
+      'CHP':'circle change'
     };
     return names[pk]||pk;
   }
