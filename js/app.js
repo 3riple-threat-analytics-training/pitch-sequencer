@@ -151,6 +151,40 @@ function getAutoRole(count,seq,zk,batter,gameState){
     return 'moves differently than your last pitch';
   }
 
+  function getSpeedDirectionDesc(suggestedPk){
+    // Determines if suggestedPk is faster or slower than
+    // the last pitch thrown, using actual thrown speeds
+    // when available, falling back to PITCH_VELOCITY_PCT.
+    // Uses existing contrastThreshold (scales with age group)
+    // as the buffer for "close enough to call similar speed."
+    if(!lastPitch||!lastPitch.pk) return 'arrives at a different speed';
+    const lastSpd=lastPitch.spd||0;
+
+    const thrown=prevPitches.filter(s=>s.pk===suggestedPk&&s.spd>0);
+    let suggestedSpd;
+    if(thrown.length){
+      suggestedSpd=thrown.reduce((a,b)=>a+b.spd,0)/thrown.length;
+    } else if(lastSpd>0&&typeof PITCH_VELOCITY_PCT!=='undefined'){
+      const lastPct=PITCH_VELOCITY_PCT[lastPitch.pk]||0.85;
+      const suggestedPct=PITCH_VELOCITY_PCT[suggestedPk]||0.85;
+      const impliedMax=lastSpd/lastPct;
+      suggestedSpd=impliedMax*suggestedPct;
+    } else {
+      return 'arrives at a different speed';
+    }
+
+    const diff=suggestedSpd-lastSpd;
+    const buffer=contrastThreshold||6;
+    if(diff>=buffer){
+      return 'arrives faster — after your '+
+        getPitchName(lastPitch.pk)+
+        ' it will appear even quicker than it is';
+    } else if(diff<=-buffer){
+      return 'arrives slower';
+    }
+    return 'arrives at a similar speed but breaks differently';
+  }
+
   // Zone analysis helpers
   function getZoneRow(zk){
     if(['TL','TM','TR','TOP-EDG','TL-CRN','TR-CRN',
@@ -747,12 +781,13 @@ function getAutoRole(count,seq,zk,batter,gameState){
 
     if(velocityPatternActive&&bestContrastPitch&&
       (strikes>=2||highLeverage)){
+      const speedDesc2=getSpeedDirectionDesc(bestContrastPitch);
       primary.push({
         label:'Tunnel + Speed Contrast — '+
           getPitchName(bestContrastPitch),
         desc:'Fastball pattern established — '+
-          getPitchName(bestContrastPitch)+
-          ' through the same tunnel creates doubt. '+
+          getPitchName(bestContrastPitch)+' '+speedDesc2+
+          ' through the same tunnel, creating doubt. '+
           'Batter can\'t commit to fastball OR '+
           getPitchName(bestContrastPitch)+'.'
       });
@@ -761,13 +796,14 @@ function getAutoRole(count,seq,zk,batter,gameState){
       if(tunnelPitch){
         const contrastCheck=suggestPitch('contrast',lastCat,foulType);
         if(contrastCheck&&contrastCheck.pk===tunnelPitch.pk){
+          const speedDesc=getSpeedDirectionDesc(tunnelPitch.pk);
           primary.push({
             label:'Tunnel + Speed Contrast — '+tunnelPitch.name,
             desc:(tunnelEstablished?
               'Tunnel is established — ':
               'Same flight path as last pitch — ')+
-              tunnelPitch.name+
-              ' arrives slower AND breaks differently. '+
+              tunnelPitch.name+' '+speedDesc+
+              ' and breaks differently. '+
               'Most deceptive option — disrupts both '+
               'timing and location reads.'
           });
