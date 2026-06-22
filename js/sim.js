@@ -520,6 +520,7 @@ function dismissBatterHandednessNotification(){
 function handleNewBatter(){
   dismissBatterHandednessNotification();
   lastSimDiamondBadgeText=null;
+  pendingRunnerUpdate=null;
   unlockThrowButton();
   cancelSimScheduledClear();
   let startedNewInning=false;
