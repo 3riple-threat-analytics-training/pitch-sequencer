@@ -1194,10 +1194,10 @@ body[data-theme="dark"] .stat-bad{color:#f87171;}
   opacity: 1;
 }
 
-/* Only show on mobile */
+/* Desktop-only font size increase for outcome-flash (mobile keeps its existing 28px from the base #outcome-flash rule) */
 @media (min-width: 601px) {
   #outcome-flash {
-    display: none !important;
+    font-size: 56px;
   }
 }
 

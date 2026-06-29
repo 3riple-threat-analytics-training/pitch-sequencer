@@ -2597,7 +2597,6 @@ function addLanding(pos,color,mph,outcome){
   g.add(new THREE.Mesh(new THREE.SphereGeometry(ORB_R,12,12),new THREE.MeshBasicMaterial({color,wireframe:true,opacity:0.55,transparent:true})));
   const tc=document.createElement('canvas');tc.width=64;tc.height=64;const tx=tc.getContext('2d');tx.clearRect(0,0,64,64);tx.fillStyle='#ffffff';tx.textAlign='center';tx.textBaseline='middle';tx.font='bold 18px sans-serif';tx.fillText(String(mph),32,22);tx.font='bold 11px sans-serif';tx.fillText('mph',32,40);
   const spr=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(tc),transparent:true,opacity:0.92}));spr.scale.set(0.055,0.055,1);g.add(spr);
-  if(outcome && window.innerWidth > 600) g.add(makeOutcomeSprite(outcome));
   g.position.set(pos.x,pos.y,pos.z);scene.add(g);landObjs.push(g);
 }
 function animBall(pts,color,ms,onDone){
