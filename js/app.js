@@ -1303,9 +1303,9 @@ function showSREModal(result,btn){
     const hasOS=_ar.some(pk=>_OS.includes(pk));
     // Determine which category is missing and whether it's relevant now
     const missingCats=[];
-    if(!hasFB) missingCats.push({cat:'fastball',label:'a fastball',reason:'without one you have no speed anchor for tunneling'});
-    if(!hasBR) missingCats.push({cat:'breaking',label:'a breaking ball',reason:'adds movement contrast and a second tunnel path'});
-    if(!hasOS) missingCats.push({cat:'offspeed',label:'an offspeed pitch',reason:'creates speed differential to disrupt timing'});
+    if(!hasFB) missingCats.push({cat:'fastball',label:'fastball',reason:'without one you have no speed anchor for tunneling'});
+    if(!hasBR) missingCats.push({cat:'breaking',label:'breaking ball',reason:'adds movement contrast and a second tunnel path'});
+    if(!hasOS) missingCats.push({cat:'offspeed',label:'offspeed pitch',reason:'creates speed differential to disrupt timing'});
     if(!missingCats.length) return;
     // Only fire if the missing category would have been relevant to this hint
     const hintText=(result.hint||'').toLowerCase();
