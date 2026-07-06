@@ -534,7 +534,7 @@ function getAutoRole(count,seq,zk,batter,gameState){
       const pk=contrastOptions[0];
       return {pk,name:getPitchName(pk),
         reason:foulType==='LATE'?
-          'batter was late — not ready for that speed':
+          'same arm action, different speed — disrupts their timing read':
           foulType==='PULLED'?
           'batter was out in front — sitting on that velocity':
           'contrasts with your last pitch'};
@@ -675,7 +675,7 @@ function getAutoRole(count,seq,zk,batter,gameState){
       foulAdjustment='Batter was late on your '+
         getPitchName(lastPitch.pk)+' — not ready for that speed. ';
       if(suggestion) foulAdjustment+=
-        'Consider your '+suggestion.name+' — '+suggestion.reason+'.';
+        'Consider your '+suggestion.name+'.';
     } else if(lastFoulType==='STRAIGHT_BACK'){
       // Find closest-speed cross-category pitch
       const crossPk=getCrossCategoryTunnel(
