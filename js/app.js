@@ -108,9 +108,9 @@ function getAutoRole(count,seq,zk,batter,gameState){
   const arsenal=profile&&profile.arsenal?profile.arsenal:[];
 
   // Pitch categories
-  const FASTBALL_FAMILY=['4FB','2FB','SNK','CT'];
-  const BREAKING_FAMILY=['SL','CB','KC','SWP','FK','SLV','SCR'];
-  const OFFSPEED_FAMILY=['CH','SPL','CHP'];
+  const FASTBALL_FAMILY=['4FB','2FB','CT','SK','SP'];
+  const BREAKING_FAMILY=['SL','CB','KC','SWP','FK','SLV','SCR','KN'];
+  const OFFSPEED_FAMILY=['CH','EPH'];
 
   function getPitchCategory(pk){
     if(FASTBALL_FAMILY.includes(pk)) return 'fastball';
@@ -123,10 +123,10 @@ function getAutoRole(count,seq,zk,batter,gameState){
     const names={
       '4FB':'4-seam fastball','2FB':'2-seam fastball',
       'CB':'curveball','SL':'slider','CH':'changeup',
-      'CT':'cutter','SNK':'sinker','SPL':'splitter',
+      'CT':'cutter','SK':'sinker','SP':'splitter',
       'SP':'splitter','SLV':'slurve','SWP':'sweeper',
       'FK':'forkball','KC':'knuckle curve','SCR':'screwball',
-      'CHP':'circle change'
+      'EPH':'eephus'
     };
     return names[pk]||pk;
   }
@@ -282,7 +282,7 @@ function getAutoRole(count,seq,zk,batter,gameState){
 
   // ── DROP PITCH DETECTION ──
   // Pitches with same arm action as fastball but drop
-  const DROP_PITCHES=['SP','FK','SNK','2FB'];
+  const DROP_PITCHES=['SP','FK','SK','2FB'];
   const dropPitches=arsenal.filter(pk=>
     DROP_PITCHES.includes(pk)
   );
@@ -1288,6 +1288,52 @@ function showSREModal(result,btn){
     'letter-spacing:1px;margin-bottom:6px;">SMART ROLE ENGINE</div>';
   html+='<div style="font-size:14px;font-weight:700;color:'+headerCol+';'+
     'letter-spacing:2px;margin-bottom:8px;">'+result.primary+'</div>';
+  // Arsenal completeness warning — once per profile, shown in modal header
+  // only when the gap is actively relevant to the current suggestion
+  (function(){
+    const _p=typeof getProfile==='function'?getProfile():null;
+    if(!_p) return;
+    if(_p.arsenalWarningShown) return;
+    const _ar=_p.arsenal||[];
+    const _FB=['4FB','2FB','CT','SK','SP'];
+    const _BR=['SL','CB','KC','SWP','FK','SLV','SCR','KN'];
+    const _OS=['CH','EPH'];
+    const hasFB=_ar.some(pk=>_FB.includes(pk));
+    const hasBR=_ar.some(pk=>_BR.includes(pk));
+    const hasOS=_ar.some(pk=>_OS.includes(pk));
+    // Determine which category is missing and whether it's relevant now
+    const missingCats=[];
+    if(!hasFB) missingCats.push({cat:'fastball',label:'a fastball',reason:'without one you have no speed anchor for tunneling'});
+    if(!hasBR) missingCats.push({cat:'breaking',label:'a breaking ball',reason:'adds movement contrast and a second tunnel path'});
+    if(!hasOS) missingCats.push({cat:'offspeed',label:'an offspeed pitch',reason:'creates speed differential to disrupt timing'});
+    if(!missingCats.length) return;
+    // Only fire if the missing category would have been relevant to this hint
+    const hintText=(result.hint||'').toLowerCase();
+    const optLabels=(result.options||[]).map(o=>(o.label+' '+(o.body||'')).toLowerCase()).join(' ');
+    const relevant=missingCats.some(m=>{
+      if(m.cat==='fastball') return hintText.includes('fastball')||optLabels.includes('fastball');
+      if(m.cat==='breaking') return hintText.includes('break')||hintText.includes('slider')||hintText.includes('curve')||optLabels.includes('break')||optLabels.includes('slider')||optLabels.includes('curve');
+      if(m.cat==='offspeed') return hintText.includes('offspeed')||hintText.includes('changeup')||hintText.includes('speed contrast')||optLabels.includes('offspeed')||optLabels.includes('changeup')||optLabels.includes('speed contrast');
+      return false;
+    });
+    if(!relevant) return;
+    // Build warning line — first missing category that's relevant
+    const shown=missingCats.find(m=>{
+      if(m.cat==='fastball') return hintText.includes('fastball')||optLabels.includes('fastball');
+      if(m.cat==='breaking') return hintText.includes('break')||hintText.includes('slider')||hintText.includes('curve')||optLabels.includes('break')||optLabels.includes('slider')||optLabels.includes('curve');
+      if(m.cat==='offspeed') return hintText.includes('offspeed')||hintText.includes('changeup')||hintText.includes('speed contrast')||optLabels.includes('offspeed')||optLabels.includes('changeup')||optLabels.includes('speed contrast');
+      return false;
+    });
+    if(!shown) return;
+    html+='<div style="font-size:9px;color:#b45309;background:#fffbeb;'+
+      'border:1px solid #d97706;border-radius:6px;padding:6px 10px;'+
+      'margin-bottom:8px;letter-spacing:0.5px;line-height:1.5;">'+
+      '⚠ Arsenal gap — no '+shown.label+' in profile. '+shown.reason+'.'+
+      '</div>';
+    // Mark as shown permanently on this profile
+    _p.arsenalWarningShown=true;
+    if(typeof saveProfile==='function') saveProfile(_p);
+  })();
 
   // Secondary roles
   if(result.secondary&&result.secondary.length){
