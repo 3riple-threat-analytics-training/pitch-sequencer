@@ -372,15 +372,18 @@ function getAutoRole(count,seq,zk,batter,gameState){
       (openSide==='1B side'&&rubberPos>0.65);
     if(alreadyOnOpenSide){
       rubberHint='You\'re on the '+currentSideLabel+
-        ' — consider moving to center or '+
+        ' — moving to center or '+
         (openSide==='3B side'?'1B side':'3B side')+
-        ' to change the attack angle and keep the batter guessing.';
+        ' shifts your arm path angle. The batter has to recalibrate'+
+        ' their read from a new release point — use this to set up'+
+        ' a backdoor breaking ball or a pitch that backs into the zone.';
     } else {
       rubberHint='Move to the '+openSide+
-        ' of the rubber — this opens the '+
-        (isLHB?'outside':'outside')+
-        ' angle and creates a new tunnel path '+
-        'the batter hasn\'t seen from you today.';
+        ' of the rubber — your arm path comes from a new angle the'+
+        ' batter hasn\'t tracked yet. This creates a new tunnel,'+
+        ' opens the backdoor for a breaking ball that starts outside'+
+        ' and backs into the zone, and extends the strike zone in a'+
+        ' direction the batter has not seen from you today.';
     }
   }
 
