@@ -182,7 +182,7 @@ function getAutoRole(count,seq,zk,batter,gameState){
     } else if(diff<=-buffer){
       return 'arrives slower';
     }
-    return 'arrives at a similar speed but breaks differently';
+    return 'arrives at a similar speed';
   }
 
   // Zone analysis helpers
