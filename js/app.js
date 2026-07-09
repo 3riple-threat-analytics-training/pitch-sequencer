@@ -182,6 +182,38 @@ function getAutoRole(count,seq,zk,batter,gameState){
     } else if(diff<=-buffer){
       return 'arrives slower';
     }
+    // Movement contrast — describe HOW the pitch moves differently
+    // even when speed is similar, so the pitcher understands the value
+    const _GLOVE=['SL','CT','SWP','KC'];
+    const _ARM=['2FB','SK','CH','SCR'];
+    const _DOWN=['SP','FK','EPH','CB','SLV','KN'];
+    const _STRAIGHT=['4FB'];
+    function _getMoveGroup(pk){
+      if(_GLOVE.includes(pk)) return 'glove';
+      if(_ARM.includes(pk)) return 'arm';
+      if(_DOWN.includes(pk)) return 'down';
+      if(_STRAIGHT.includes(pk)) return 'straight';
+      return 'unknown';
+    }
+    const _lastPk=lastPitch?lastPitch.pk:'';
+    const _sugPk=suggestedPk||'';
+    const _lastGrp=_getMoveGroup(_lastPk);
+    const _sugGrp=_getMoveGroup(_sugPk);
+    const _opposite=
+      (_lastGrp==='glove'&&_sugGrp==='arm')||
+      (_lastGrp==='arm'&&_sugGrp==='glove')||
+      (_lastGrp==='straight'&&_sugGrp==='down')||
+      (_lastGrp==='down'&&_sugGrp==='straight')||
+      (_lastGrp==='glove'&&_sugGrp==='down')||
+      (_lastGrp==='down'&&_sugGrp==='glove')||
+      (_lastGrp==='arm'&&_sugGrp==='straight')||
+      (_lastGrp==='straight'&&_sugGrp==='arm');
+    if(_lastGrp!=='unknown'&&_sugGrp!=='unknown'&&_lastGrp!==_sugGrp){
+      if(_opposite){
+        return 'arrives at a similar speed but breaks in the opposite direction';
+      }
+      return 'arrives at a similar speed with different movement';
+    }
     return 'arrives at a similar speed';
   }
 
@@ -579,10 +611,17 @@ function getAutoRole(count,seq,zk,batter,gameState){
   }
 
   if(speedTierLocked&&avgRecentSpeed>0){
+    // Direction-aware: if recent cluster is fast pitches, go slower.
+    // If recent cluster is slow/breaking pitches, go faster.
+    const _clusterIsFast=avgFastballSpeed>0&&
+      avgRecentSpeed>=(avgFastballSpeed-contrastThreshold);
+    const _speedAdvice=_clusterIsFast?
+      'Vary your speed — add a breaking ball or offspeed pitch to disrupt timing.':
+      'Go faster — establish your fastball. Batter is sitting on slower stuff.';
     const speedWarn='⚡ Batter has timed your velocity — '+
       recentSpeeds.length+' pitches in the '+
       Math.round(avgRecentSpeed-2)+'-'+
-      Math.round(avgRecentSpeed+2)+'mph range. Vary your speed.';
+      Math.round(avgRecentSpeed+2)+'mph range. '+_speedAdvice;
     patternWarning=patternWarning?
       patternWarning+' '+speedWarn:speedWarn;
     if(warningLevel==='none') warningLevel='yellow';
