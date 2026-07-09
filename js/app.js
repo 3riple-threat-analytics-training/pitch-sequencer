@@ -782,6 +782,134 @@ function getAutoRole(count,seq,zk,batter,gameState){
     const primary=[];
     const secondary=[];
 
+    // ── THREE-CELL RANKED OUTCOME LAYOUT ──
+    // Fires when pitcher has 2 strikes AND a foul just occurred.
+    // Replaces normal option flow with three ranked outcome cells:
+    // 1. Strikeout  2. Ground out  3. Pop fly / Jam
+    if(strikes>=2 && lastFoulType && lastPitch){
+      const _ar=arsenal||[];
+      const _FB=['4FB','2FB','CT','SK','SP'];
+      const _BR=['SL','CB','KC','SWP','FK','SLV','SCR','KN'];
+      const _OS=['CH','EPH'];
+
+      // Helper: find best pitch from arsenal matching keys, fallback to next best
+      function bestFromArsenal(preferredKeys, fallbackKeys){
+        const pref=preferredKeys.filter(pk=>_ar.includes(pk));
+        if(pref.length) return pref[0];
+        const fall=fallbackKeys.filter(pk=>_ar.includes(pk));
+        if(fall.length) return fall[0];
+        return null;
+      }
+
+      // ── CELL 1: STRIKEOUT PATH ──
+      // Best pitch and location to generate swing-and-miss or called strike
+      // Logic varies by foul type
+      let soLabel='Strikeout — ';
+      let soDesc='';
+      let soPk=null;
+      if(lastFoulType==='PULLED'){
+        // Batter out front — splitter/changeup in dirt, same arm action
+        soPk=bestFromArsenal(['SP','CH','FK'],['SL','CB','2FB']);
+        const soName=soPk?getPitchName(soPk):'offspeed pitch';
+        soLabel+=(soPk?soName:'offspeed pitch');
+        soDesc='Batter was out front — sitting on fastball speed. '+
+          'Your '+(soPk?soName:'offspeed pitch')+' has the same arm action but'+
+          (soPk&&_OS.includes(soPk)?' arrives slower —':' drops late —')+
+          ' throw it low in the dirt. Batter will commit early and miss.'+
+          ' Location: low in the dirt, arm side.';
+      } else if(lastFoulType==='LATE'){
+        // Batter late — fastball up or hard breaking ball
+        soPk=bestFromArsenal(['4FB','CT'],['2FB','SK','SL']);
+        const soName=soPk?getPitchName(soPk):'fastball';
+        soLabel+=(soPk?soName:'fastball');
+        soDesc='Batter is late — can\'t catch up to velocity. '+
+          'Your '+(soPk?soName:'fastball')+
+          (soPk&&_BR.includes(soPk)?
+            ' with hard late break — throw low corner. Batter will be frozen.':
+            ' up in the zone — batter\'s late swing will go under it.')+
+          ' Location: '+(soPk&&_BR.includes(soPk)?
+            'low corner, glove side.':'up, arm side corner.');
+      } else {
+        // STRAIGHT BACK — batter squared it up, chase out of zone
+        soPk=bestFromArsenal(['SL','CB','SP','CH'],['FK','KC','SWP']);
+        const soName=soPk?getPitchName(soPk):'breaking ball';
+        soLabel+=(soPk?soName:'breaking ball');
+        soDesc='Batter squared up your last pitch — they\'re locked in. '+
+          'Throw your '+(soPk?soName:'breaking ball')+
+          ' out of the zone through the same tunnel — '+
+          'same arm action, batter will chase thinking it\'s coming in.'+
+          ' Location: low in the dirt OR high out of zone.';
+      }
+      if(soPk){
+        primary.push({label:soLabel, desc:soDesc});
+      }
+
+      // ── CELL 2: GROUND OUT PATH ──
+      // Best low-movement pitch to induce weak top-spin contact
+      // Pitch must stay low — batter cannot get under it
+      let goPk=bestFromArsenal(['SK','2FB','SP','FK'],['4FB','CH','CB']);
+      const goName=goPk?getPitchName(goPk):'low pitch';
+      // Best location: bottom of zone, vary side based on foul type
+      const goSide=lastFoulType==='PULLED'?
+        (isLHB?'outside corner':'inside corner'):
+        lastFoulType==='LATE'?
+        (isLHB?'inside corner':'outside corner'):
+        'bottom of zone';
+      primary.push({
+        label:'Ground out — '+(goPk?goName:'low pitch'),
+        desc:'Keep the ball low — batter cannot get under it and will'+
+          ' hit the top of the ball, forcing weak top-spin contact down.'+
+          ' Your '+(goPk?goName:'low pitch')+
+          (goPk&&['SK','2FB'].includes(goPk)?
+            ' sinks and tails late — batter\'s swing will be on top of it.':
+            goPk&&goPk==='SP'?
+            ' drops straight down — batter will roll it over.':
+            ' kept low limits exit angle.') +
+          ' Location: '+goSide+', bottom third of zone.'
+      });
+
+      // ── CELL 3: POP FLY / JAM PATH ──
+      // Highest risk — if batter gets barrel, elevated exit angle = power
+      // Best pitch: cutter or 4FB up and in, hard slider on hands
+      let jamPk=bestFromArsenal(['CT','4FB','SL'],['2FB','CB','KC']);
+      const jamName=jamPk?getPitchName(jamPk):'fastball';
+      // Location: up and in, inside corner
+      const jamSide=isLHB?'inside corner, up':'inside corner, up';
+      primary.push({
+        label:'⚠ Pop fly / Jam — '+(jamPk?jamName:'fastball'),
+        desc:'⚠ Highest risk — if batter gets the barrel, elevated exit'+
+          ' angle means extra base hit. Use only if you have strong'+
+          ' command of this location. Your '+(jamPk?jamName:'fastball')+
+          (jamPk&&jamPk==='CT'?
+            ' cuts in on the hands — batter gets handle, not barrel.':
+            jamPk&&_BR.includes(jamPk)?
+            ' breaks hard in on the hands — batter jammed.':
+            ' up and in — batter\'s hands get stuck, weak pop up.')+
+          ' Location: '+jamSide+', off the plate if command allows.'
+      });
+
+      // Secondary: location context only — no extra modules
+      if(lastZone){
+        const col=getZoneCol(lastZone,isLHB);
+        const row=getZoneRow(lastZone);
+        const moveDir=col==='outside'?'inside':
+          col==='inside'?'outside':
+          row==='up'?'down':'up';
+        secondary.push({
+          label:'Location context',
+          desc:'Last pitch was '+col+' '+row+
+            '. Consider moving '+moveDir+
+            ' to change the batter\'s eye line.'
+        });
+      }
+      if(rubberHint){
+        secondary.push({label:'⚡ Move on the rubber', desc:rubberHint});
+      }
+      window.__lastSecondaryOptions=secondary.slice(0,2);
+      return {primary:primary.slice(0,3), secondary:secondary.slice(0,2)};
+    }
+    // ── END THREE-CELL RANKED OUTCOME LAYOUT ──
+
     if(velocityPatternActive&&bestContrastPitch&&
       (strikes>=2||highLeverage)){
       const speedDesc2=getSpeedDirectionDesc(bestContrastPitch);
