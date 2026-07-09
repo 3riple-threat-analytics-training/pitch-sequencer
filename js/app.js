@@ -967,13 +967,15 @@ function getAutoRole(count,seq,zk,batter,gameState){
         const contrastCheck=suggestPitch('contrast',lastCat,foulType);
         if(contrastCheck&&contrastCheck.pk===tunnelPitch.pk){
           const speedDesc=getSpeedDirectionDesc(tunnelPitch.pk);
+          const _alreadyHasMovement=speedDesc.includes('opposite direction')||
+            speedDesc.includes('different movement');
           primary.push({
             label:'Tunnel + Speed Contrast — '+tunnelPitch.name,
             desc:(tunnelEstablished?
               'Tunnel is established — ':
               'Same flight path as last pitch — ')+
               tunnelPitch.name+' '+speedDesc+
-              ' and breaks differently. '+
+              (_alreadyHasMovement?'. ':' and breaks differently. ')+
               'Most deceptive option — disrupts both '+
               'timing and location reads.'
           });
