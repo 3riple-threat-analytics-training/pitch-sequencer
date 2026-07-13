@@ -762,10 +762,20 @@ function getAutoRole(count,seq,zk,batter,gameState){
   let checkSwingHint='';
   if(lastCheckSwing){
     const cs=lastCheckSwing.checkSwing;
-    checkSwingHint='Batter showed interest in the '+
-      (cs.zone||'')+' zone on your '+
-      getPitchName(lastCheckSwing.pk||'')+
-      ' — tunnel your next pitch through there.';
+    // Find index of the check swing pitch in seq
+    const _csIdx=seq.findIndex(s=>
+      s.pk===lastCheckSwing.pk&&
+      s.zk===(cs.zone||'')&&
+      s.checkSwing&&s.checkSwing.zone);
+    // Check if any pitch AFTER the check swing already targeted that zone
+    const _alreadyRevisited=_csIdx>=0&&
+      seq.slice(_csIdx+1).some(s=>s.zk===(cs.zone||''));
+    if(!_alreadyRevisited){
+      checkSwingHint='Batter showed interest in the '+
+        (cs.zone||'')+' zone on your '+
+        getPitchName(lastCheckSwing.pk||'')+
+        ' — tunnel your next pitch through there.';
+    }
   }
 
   const basesLoaded=runners.first&&runners.second&&runners.third;
@@ -1219,7 +1229,7 @@ function getAutoRole(count,seq,zk,batter,gameState){
         getPitchName(lastPitch?.pk||'')+
         ' creates a deceptive tunnel.');
     }
-    if(speedTierLocked){
+    if(speedTierLocked&&!patternWarning.includes('Batter has timed your velocity')){
       const cp=suggestPitch('contrast',lastCat,lastFoul);
       if(cp) hint=ah(hint,'Speed is locked — your '+cp.name+
         ' will disrupt the batter\'s timing.');
@@ -1299,7 +1309,8 @@ function getAutoRole(count,seq,zk,batter,gameState){
   } else if(balls===3&&strikes===0){
     primary='SETUP';
     hint=buildHint('3-0 — must throw a strike. Zone is at its smallest. ');
-    if(lastCheckSwing) hint=ah(hint,checkSwingHint);
+    let checkSwingUsed=false;
+    if(lastCheckSwing&&checkSwingHint){hint=ah(hint,checkSwingHint);checkSwingUsed=true;}
     else hint=ah(hint,'Batter likely taking.');
     const sp=suggestPitch('contrast',lastCat,null);
     options=[
@@ -1318,7 +1329,7 @@ function getAutoRole(count,seq,zk,batter,gameState){
   } else if(balls===3&&strikes===1){
     primary='SETUP';
     hint=buildHint('3-1 — batter has advantage but you have information. ');
-    if(lastCheckSwing) hint=ah(hint,checkSwingHint);
+    if(lastCheckSwing&&checkSwingHint&&!checkSwingUsed){hint=ah(hint,checkSwingHint);checkSwingUsed=true;}
 
     // Find quality strike pitch — exclude over-relied pitches
     const overReliedPitches=Object.keys(pitchFreq)
