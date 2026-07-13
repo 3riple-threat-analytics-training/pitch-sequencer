@@ -900,10 +900,10 @@ function getAutoRole(count,seq,zk,batter,gameState){
       const goName=goPk?getPitchName(goPk):'low pitch';
       // Best location: bottom of zone, vary side based on foul type
       const goSide=lastFoulType==='PULLED'?
-        (isLHB?'outside corner':'inside corner'):
+        (isLHB?'outside corner, bottom third':'inside corner, bottom third'):
         lastFoulType==='LATE'?
-        (isLHB?'inside corner':'outside corner'):
-        'bottom of zone';
+        (isLHB?'inside corner, bottom third':'outside corner, bottom third'):
+        'bottom third of zone';
       primary.push({
         label:'Ground out — '+(goPk?goName:'low pitch'),
         desc:'Keep the ball low — batter cannot get under it and will'+
@@ -914,7 +914,7 @@ function getAutoRole(count,seq,zk,batter,gameState){
             goPk&&goPk==='SP'?
             ' drops straight down — batter will roll it over.':
             ' kept low limits exit angle.') +
-          ' Location: '+goSide+', bottom third of zone.'
+          ' Location: '+goSide+'.'
       });
 
       // ── CELL 3: POP FLY / JAM PATH ──
