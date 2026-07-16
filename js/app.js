@@ -827,6 +827,97 @@ function getAutoRole(count,seq,zk,batter,gameState){
     return trimH+separator+trimA;
   }
 
+  // ── MIDDLE ANCHOR DETECTION ──
+  // Calculates the geometric midpoint between pitched zones
+  // and finds the nearest named zone key to that midpoint.
+  // Uses internal zone keys throughout (catcher's POV convention).
+  // Confidence: 2 pitches = candidate, 3 = strong, 4+ = confirmed.
+  function getMiddleAnchor(){
+    // Only use strike zone and edge keys — no chase zones
+    const ANCHOR_ZONE_KEYS=[
+      'TL','TM','TR','ML','MM','MR','BL','BM','BR',
+      'TL-CRN','TR-CRN','BL-CRN','BR-CRN',
+      'TOP-EDG','BOT-EDG','LFT-EDG','RGT-EDG'
+    ];
+    // Get thrown zone keys from seq, filter to anchor-eligible zones only
+    const thrownZones=seq
+      .map(s=>s.zk)
+      .filter(zk=>zk&&ANCHOR_ZONE_KEYS.includes(zk));
+    if(thrownZones.length<2) return null;
+    // Resolve ZPOS coordinates — ZPOS uses config constants so
+    // evaluate them at runtime using the already-available globals
+    function getPos(zk){
+      const p=ZPOS[zk];
+      if(!p) return null;
+      // ZPOS values reference X_L/X_M/X_R/Y_TOP/Y_MID/Y_BOT
+      // which are already evaluated as numbers in zones.js scope —
+      // but since ZPOS is defined in zones.js and loaded before app.js,
+      // p.x and p.y are already resolved numbers at this point
+      return {x:p.x, y:p.y};
+    }
+    // Calculate centroid of all thrown zone positions
+    let sumX=0, sumY=0, count=0;
+    thrownZones.forEach(zk=>{
+      const pos=getPos(zk);
+      if(pos){sumX+=pos.x; sumY+=pos.y; count++;}
+    });
+    if(!count) return null;
+    const centroidX=sumX/count;
+    const centroidY=sumY/count;
+    // Find nearest anchor-eligible zone key to the centroid
+    let nearestZk=null;
+    let nearestDist=Infinity;
+    ANCHOR_ZONE_KEYS.forEach(zk=>{
+      const pos=getPos(zk);
+      if(!pos) return;
+      const dist=Math.sqrt(
+        Math.pow(pos.x-centroidX,2)+
+        Math.pow(pos.y-centroidY,2)
+      );
+      if(dist<nearestDist){
+        nearestDist=dist;
+        nearestZk=zk;
+      }
+    });
+    if(!nearestZk) return null;
+    // Confidence level based on number of pitches
+    const confidence=thrownZones.length>=4?'confirmed':
+      thrownZones.length===3?'strong':'candidate';
+    // MM risk assessment — uses batter type and velocity
+    const _batterType=typeof batter!=='undefined'?batter:'RHB';
+    const _lastSpd=lastPitch?lastPitch.spd||0:0;
+    const _ageMaxSpd=avgFastballSpeed||50;
+    const _isHighVelo=_lastSpd>=_ageMaxSpd*0.90;
+    const _isPullSwinger=typeof window.__batterProfile!=='undefined'&&
+      window.__batterProfile==='PULL';
+    const mmRisk=nearestZk==='MM'?
+      (_isPullSwinger?'high':_isHighVelo?'low':'moderate'):
+      'none';
+    // Determine if anchor has already been thrown to directly
+    const anchorThrown=thrownZones.includes(nearestZk);
+    // Best pitch to attack anchor from arsenal
+    // Prefers pitch whose movement group completes the pattern
+    const _thrownCats=seq.map(s=>getPitchCategory(s.pk)).filter(Boolean);
+    const _unusedCats=['fastball','breaking','offspeed'].filter(
+      c=>!_thrownCats.includes(c));
+    const anchorPitch=arsenal.find(pk=>{
+      const cat=getPitchCategory(pk);
+      return _unusedCats.includes(cat);
+    })||arsenal.find(pk=>pk!==lastPitch?.pk)||null;
+    return {
+      zone:nearestZk,
+      confidence,
+      mmRisk,
+      anchorThrown,
+      anchorPitch:anchorPitch?
+        {pk:anchorPitch,name:getPitchName(anchorPitch)}:null,
+      pitchCount:thrownZones.length
+    };
+  }
+  // Call anchor detection — available to SRE hint and zone diagram
+  const anchorResult=seq.length>=2?getMiddleAnchor():null;
+  // ── END MIDDLE ANCHOR DETECTION ──
+
   function buildOptions(lastCat,foulType,highLeverage){
     const primary=[];
     const secondary=[];
@@ -1394,9 +1485,9 @@ function getAutoRole(count,seq,zk,batter,gameState){
 
   return {primary,secondary,hint,options,
     secondaryOptions:window.__lastSecondaryOptions||[],
-    warningLevel};
+    warningLevel,
+    anchor:anchorResult||null};
 }
-
 
 function showSREHint(){
   if(!sreEnabled) return;
@@ -1528,6 +1619,37 @@ function showSREModal(result,btn){
   html+='<div style="font-size:10px;color:#222;'+
     'line-height:1.6;margin-bottom:12px;border-top:0.5px solid '+
     '#ddd;padding-top:10px;">'+result.hint+'</div>';
+  // Middle anchor hint — shows when anchor detected with enough confidence
+  if(result.anchor&&result.anchor.zone){
+    const _a=result.anchor;
+    const _zDisplay={'TR':'TL','TL':'TR','MR':'ML','ML':'MR',
+      'BR':'BL','BL':'BR','TM':'TM','MM':'MM','BM':'BM',
+      'TL-CRN':'TL-CRN','TR-CRN':'TR-CRN','BL-CRN':'BL-CRN',
+      'BR-CRN':'BR-CRN','TOP-EDG':'TOP-EDG','BOT-EDG':'BOT-EDG',
+      'LFT-EDG':'LFT-EDG','RGT-EDG':'RGT-EDG'};
+    const _displayZone=_zDisplay[_a.zone]||_a.zone;
+    const _confLabel=_a.confidence==='confirmed'?'✓ Anchor confirmed':
+      _a.confidence==='strong'?'◎ Anchor strong':
+      '◌ Anchor candidate';
+    const _mmWarning=_a.mmRisk==='high'?
+      ' ⚠ Pull hitter — high contact risk at MM.':
+      _a.mmRisk==='moderate'?
+      ' Use a fastball or backdoor breaking ball through MM.':
+      '';
+    const _pitchSuggestion=_a.anchorPitch?
+      ' Best pitch: '+_a.anchorPitch.name+'.':'';
+    const _anchorColor=_a.mmRisk==='high'?'#dc2626':
+      _a.mmRisk==='moderate'?'#d97706':'#06b6d4';
+    html+='<div style="font-size:9px;color:'+_anchorColor+';'+
+      'background:rgba(6,182,212,0.08);'+
+      'border:1px solid '+_anchorColor+';border-radius:6px;'+
+      'padding:6px 10px;margin-bottom:8px;'+
+      'letter-spacing:0.5px;line-height:1.5;">'+
+      _confLabel+' — '+_displayZone+
+      (_a.anchorThrown?' (established)':' (implied)')+
+      '.'+_pitchSuggestion+_mmWarning+
+      '</div>';
+  }
 
   // Primary options — always visible
   if(result.options&&result.options.length){

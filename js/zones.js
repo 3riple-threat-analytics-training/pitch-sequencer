@@ -85,4 +85,19 @@ function setTargetMode(m){
   refreshGhost();
 }
 
-function selZone(k){zone=k;rebuildTargetDiagram();refreshGhost();}
+function selZone(k){zone=k;rebuildTargetDiagram();refreshGhost();applyAnchorHighlight();}
+function applyAnchorHighlight(){
+  // Remove existing anchor highlights
+  document.querySelectorAll('.zc.anchor').forEach(el=>{
+    el.classList.remove('anchor');
+  });
+  // Only apply if anchor has been detected with at least candidate confidence
+  if(typeof anchorResult==='undefined'||!anchorResult) return;
+  // Find the zone button matching the anchor zone key
+  const anchorBtn=document.querySelector(
+    '[data-zk="'+anchorResult.zone+'"]'
+  );
+  if(anchorBtn&&anchorBtn.classList.contains('zc')){
+    anchorBtn.classList.add('anchor');
+  }
+}
