@@ -3110,6 +3110,7 @@ function throwPitch(){
     else if(outcome==='FOUL (STRAIGHT BACK)') window.__lastFoulType='STRAIGHT_BACK';
   }
   commitPitch(makeCurve(pitch,zone,bd).getPoints(90).map(v=>v.clone()),pitch,zone,spd,bd,role,ctBefore,outcome);
+  if(typeof applyAnchorHighlight==='function') applyAnchorHighlight();
 
   // Courage pitch and danger zone log — runs after every pitch
   if(simMode){

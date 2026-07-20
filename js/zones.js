@@ -91,12 +91,40 @@ function applyAnchorHighlight(){
   document.querySelectorAll('.zc.anchor').forEach(el=>{
     el.classList.remove('anchor');
   });
-  // Only apply if anchor has been detected with at least candidate confidence
-  if(typeof anchorResult==='undefined'||!anchorResult) return;
-  // Find the zone button matching the anchor zone key
-  const anchorBtn=document.querySelector(
-    '[data-zk="'+anchorResult.zone+'"]'
-  );
+  // Self-contained anchor calculation from seq and ZPOS
+  // Does not rely on anchorResult from getAutoRole
+  if(typeof seq==='undefined'||!seq||seq.length<2) return;
+  if(typeof ZPOS==='undefined') return;
+  const ANCHOR_ZONE_KEYS=[
+    'TL','TM','TR','ML','MM','MR','BL','BM','BR',
+    'TL-CRN','TR-CRN','BL-CRN','BR-CRN',
+    'TOP-EDG','BOT-EDG','LFT-EDG','RGT-EDG'
+  ];
+  const thrownZones=seq
+    .map(s=>s.zk)
+    .filter(zk=>zk&&ANCHOR_ZONE_KEYS.includes(zk));
+  if(thrownZones.length<2) return;
+  // Calculate centroid of thrown zone positions
+  let sumX=0,sumY=0,count=0;
+  thrownZones.forEach(zk=>{
+    const p=ZPOS[zk];
+    if(p){sumX+=p.x;sumY+=p.y;count++;}
+  });
+  if(!count) return;
+  const cx=sumX/count;
+  const cy=sumY/count;
+  // Find nearest anchor-eligible zone key to centroid
+  let nearestZk=null;
+  let nearestDist=Infinity;
+  ANCHOR_ZONE_KEYS.forEach(zk=>{
+    const p=ZPOS[zk];
+    if(!p) return;
+    const dist=Math.sqrt(Math.pow(p.x-cx,2)+Math.pow(p.y-cy,2));
+    if(dist<nearestDist){nearestDist=dist;nearestZk=zk;}
+  });
+  if(!nearestZk) return;
+  // Apply cyan highlight to the anchor zone button
+  const anchorBtn=document.querySelector('[data-zk="'+nearestZk+'"]');
   if(anchorBtn&&anchorBtn.classList.contains('zc')){
     anchorBtn.classList.add('anchor');
   }
