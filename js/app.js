@@ -3052,6 +3052,7 @@ function commitPitch(pts3d,pk,zk,spd,bd,rl,ct,outcome){
   seq.push({pk,zk,spd,bd,role:rl,count:ct,outcome:outcome||'',
     foulType,checkSwing,
     pts3d:pts3d.map(v=>v.clone()),tunnelData});
+  if(typeof applyAnchorHighlight==='function') applyAnchorHighlight();
   updateSeqUI();buildTunnels();
   // Save at-bat to orbit history when at-bat ends
   const AT_BAT_ENDINGS=['STRIKEOUT','WALK','SINGLE','DOUBLE',
@@ -3110,7 +3111,6 @@ function throwPitch(){
     else if(outcome==='FOUL (STRAIGHT BACK)') window.__lastFoulType='STRAIGHT_BACK';
   }
   commitPitch(makeCurve(pitch,zone,bd).getPoints(90).map(v=>v.clone()),pitch,zone,spd,bd,role,ctBefore,outcome);
-  if(typeof applyAnchorHighlight==='function') applyAnchorHighlight();
 
   // Courage pitch and danger zone log — runs after every pitch
   if(simMode){
