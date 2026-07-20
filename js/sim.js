@@ -761,6 +761,7 @@ function cancelSimScheduledClear(){if(simClearTimer){clearTimeout(simClearTimer)
 function simClearSequenceOnly(){
   seq=[];pathObjs.forEach(o=>removeObj(o));pathObjs=[];landObjs.forEach(o=>scene.remove(o));landObjs=[];clearTunnels();updateSeqUI();refreshGhost();
   if(simMode){ballCount=0;strikeCount=0;renderCount();}
+  if(typeof applyAnchorHighlight==='function') applyAnchorHighlight();
   saveSimState();
 }
 function scheduleSimSequenceClear(ms){

@@ -843,6 +843,21 @@ function getAutoRole(count,seq,zk,batter,gameState){
     const thrownZones=seq
       .map(s=>s.zk)
       .filter(zk=>zk&&ANCHOR_ZONE_KEYS.includes(zk));
+    // Scenario D: pitcher throws MM on pitch 1 — treat as intentional anchor
+    // MM established early gives maximum tunneling options in all directions
+    if(thrownZones.length===1&&thrownZones[0]==='MM'){
+      const anchorPitchD=arsenal.find(pk=>pk!==seq[0].pk)||null;
+      return {
+        zone:'MM',
+        confidence:'candidate',
+        mmRisk:'moderate',
+        anchorThrown:true,
+        anchorPitch:anchorPitchD?
+          {pk:anchorPitchD,name:getPitchName(anchorPitchD)}:null,
+        pitchCount:1,
+        scenarioD:true
+      };
+    }
     if(thrownZones.length<2) return null;
     // Resolve ZPOS coordinates — ZPOS uses config constants so
     // evaluate them at runtime using the already-available globals
@@ -3158,6 +3173,7 @@ function clearAll(){
   hideSimAdvanceButton();
   updateSimStatBar();
   pathObjs.forEach(o=>removeObj(o));pathObjs=[];landObjs.forEach(o=>scene.remove(o));landObjs=[];clearTunnels();updateSeqUI();updateSimLogUI();
+  if(typeof applyAnchorHighlight==='function') applyAnchorHighlight();
   zone='MM';
   setTargetMode('ZONE');
   if(currentView==='side') drawSideView();
