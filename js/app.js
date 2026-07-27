@@ -554,7 +554,7 @@ function getAutoRole(count,seq,zk,batter,gameState){
         getPitchCategory(pk)===lastCat&&pk!==lastPitch?.pk
       );
     const contrastOptions=arsenal.filter(pk=>
-      getPitchCategory(pk)===contrastCat
+      getPitchCategory(pk)===contrastCat&&pk!==lastPitch?.pk
     );
     const locationOptions=arsenal.filter(pk=>pk!==lastPitch?.pk);
     const samePitchOptions=lastPitch?[lastPitch.pk]:[];
