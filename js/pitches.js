@@ -31,11 +31,27 @@ const PITCHES={
         cl(new THREE.Vector3(s.x+off,peak+0.32,s.z*0.45+t.z*0.55)),
         cl(new THREE.Vector3(t.x+off*0.08,peak+0.14,s.z*0.12+t.z*0.88))
       ];
+    },
+    backdoor:(s,t,h)=>{
+      const peak=t.y+SQ*1.8;
+      return[
+        cl(new THREE.Vector3(s.x-h*0.38,peak+0.28,s.z*0.48+t.z*0.52)),
+        cl(new THREE.Vector3(t.x+h*0.22,peak+0.10,s.z*0.10+t.z*0.90))
+      ];
+    },
+    backfoot:(s,t,h)=>{
+      const peak=t.y+SQ*1.6;
+      return[
+        cl(new THREE.Vector3(s.x+h*0.40,peak+0.24,s.z*0.50+t.z*0.50)),
+        cl(new THREE.Vector3(t.x-h*0.28,Math.max(MIN_Y,peak-0.08),s.z*0.08+t.z*0.92))
+      ];
     }
   },
   'SL':{color:0xa855f7,name:'Slider',ms:780,
     ctrl:(s,t,h)=>[cl(new THREE.Vector3(s.x+h*0.02,s.y+0.06,s.z*.66+t.z*.34)),cl(new THREE.Vector3(t.x+h*0.38,t.y+0.03,s.z*.10+t.z*.90))],
-    bd:(s,t,h)=>[cl(new THREE.Vector3(s.x+h*FRAME_EDGE,s.y+0.05,s.z*.58+t.z*.42)),cl(new THREE.Vector3(t.x+h*0.05,t.y+0.02,s.z*.06+t.z*.94))]},
+    bd:(s,t,h)=>[cl(new THREE.Vector3(s.x+h*FRAME_EDGE,s.y+0.05,s.z*.58+t.z*.42)),cl(new THREE.Vector3(t.x+h*0.05,t.y+0.02,s.z*.06+t.z*.94))],
+    backdoor:(s,t,h)=>[cl(new THREE.Vector3(s.x-h*0.42,s.y+0.06,s.z*.62+t.z*.38)),cl(new THREE.Vector3(t.x+h*0.28,t.y+0.03,s.z*.08+t.z*.92))],
+    backfoot:(s,t,h)=>[cl(new THREE.Vector3(s.x+h*0.44,s.y+0.05,s.z*.60+t.z*.40)),cl(new THREE.Vector3(t.x-h*0.32,Math.max(MIN_Y,t.y-0.12),s.z*.06+t.z*.94))]},
   'CH':{color:0x22c55e,name:'Changeup',ms:820,
     ctrl:(s,t,h)=>[cl(new THREE.Vector3(s.x+h*0.02,s.y+0.07,s.z*.68+t.z*.32)),cl(new THREE.Vector3(t.x+h*0.05,Math.max(MIN_Y,t.y+0.28),s.z*.04+t.z*.96))],
     bd:(s,t,h)=>{const o=h*0.40;return[cl(new THREE.Vector3(s.x+o,s.y+0.06,s.z*.68+t.z*.32)),cl(new THREE.Vector3(t.x+o*0.08,Math.max(MIN_Y,t.y+0.20),s.z*.04+t.z*.96))];}},
@@ -73,6 +89,14 @@ const PITCHES={
     bd:(s,t,h)=>{const p=t.y+SQ,o=h*0.44;return[
       cl(new THREE.Vector3(s.x-o,p+0.20,s.z*.52+t.z*.48)),
       cl(new THREE.Vector3(t.x-o*0.10,p+0.08,s.z*.16+t.z*.84))
+    ];},
+    backdoor:(s,t,h)=>{const p=t.y+SQ;return[
+      cl(new THREE.Vector3(s.x+h*0.38,p+0.18,s.z*.52+t.z*.48)),
+      cl(new THREE.Vector3(t.x-h*0.24,p+0.06,s.z*.14+t.z*.86))
+    ];},
+    backfoot:(s,t,h)=>{const p=t.y+SQ;return[
+      cl(new THREE.Vector3(s.x-h*0.40,p+0.16,s.z*.50+t.z*.50)),
+      cl(new THREE.Vector3(t.x+h*0.28,Math.max(MIN_Y,p-0.06),s.z*.12+t.z*.88))
     ];}
   },
   'EPH':{color:0xd97706,name:'Eephus',ms:1400,
@@ -93,7 +117,15 @@ const PITCHES={
     bd:(s,t,h)=>{const o=h*0.46;return[
       cl(new THREE.Vector3(s.x+o,s.y+0.08,s.z*.56+t.z*.44)),
       cl(new THREE.Vector3(t.x+o*0.10,Math.max(MIN_Y,t.y+0.14),s.z*.10+t.z*.90))
-    ];}
+    ];},
+    backdoor:(s,t,h)=>[
+      cl(new THREE.Vector3(s.x-h*0.40,s.y+0.10,s.z*.56+t.z*.44)),
+      cl(new THREE.Vector3(t.x+h*0.30,Math.max(MIN_Y,t.y+0.12),s.z*.10+t.z*.90))
+    ],
+    backfoot:(s,t,h)=>[
+      cl(new THREE.Vector3(s.x+h*0.42,s.y+0.08,s.z*.56+t.z*.44)),
+      cl(new THREE.Vector3(t.x-h*0.28,Math.max(MIN_Y,t.y-0.08),s.z*.08+t.z*.92))
+    ]
   },
   'SWP':{color:0x10b981,name:'Sweeper',ms:720,
     ctrl:(s,t,h)=>[
@@ -103,6 +135,14 @@ const PITCHES={
     bd:(s,t,h)=>[
       cl(new THREE.Vector3(s.x+h*FRAME_EDGE,s.y+0.05,s.z*.56+t.z*.44)),
       cl(new THREE.Vector3(t.x+h*0.08,t.y+0.02,s.z*.05+t.z*.95))
+    ],
+    backdoor:(s,t,h)=>[
+      cl(new THREE.Vector3(s.x-h*0.48,s.y+0.05,s.z*.58+t.z*.42)),
+      cl(new THREE.Vector3(t.x+h*0.44,t.y+0.03,s.z*.06+t.z*.94))
+    ],
+    backfoot:(s,t,h)=>[
+      cl(new THREE.Vector3(s.x+h*0.50,s.y+0.04,s.z*.58+t.z*.42)),
+      cl(new THREE.Vector3(t.x-h*0.40,Math.max(MIN_Y,t.y-0.10),s.z*.05+t.z*.95))
     ]
   },
   'KN':{color:0x94a3b8,name:'Knuckleball',ms:1100,
@@ -130,8 +170,6 @@ const PITCHES={
   },
   'KC':{color:0x6366f1,name:'Knuckle Curve',ms:940,
     ctrl:(s,t,h)=>{
-      // Knuckle curve: big downward break like curveball but with
-      // unpredictable lateral drift added on each throw
       const lateralDrift=(Math.random()-0.5)*0.18;
       const peak=t.y+SQ*2.2;
       return[
@@ -154,6 +192,20 @@ const PITCHES={
       return[
         cl(new THREE.Vector3(s.x+o,peak+0.24,s.z*0.48+t.z*0.52)),
         cl(new THREE.Vector3(t.x+o*0.09+lateralDrift,peak+0.10,s.z*0.14+t.z*0.86))
+      ];
+    },
+    backdoor:(s,t,h)=>{
+      const peak=t.y+SQ*1.8;
+      return[
+        cl(new THREE.Vector3(s.x-h*0.36,peak+0.22,s.z*0.48+t.z*0.52)),
+        cl(new THREE.Vector3(t.x+h*0.24,peak+0.08,s.z*0.12+t.z*0.88))
+      ];
+    },
+    backfoot:(s,t,h)=>{
+      const peak=t.y+SQ*1.6;
+      return[
+        cl(new THREE.Vector3(s.x+h*0.38,peak+0.20,s.z*0.50+t.z*0.50)),
+        cl(new THREE.Vector3(t.x-h*0.26,Math.max(MIN_Y,peak-0.06),s.z*0.10+t.z*0.90))
       ];
     }
   },

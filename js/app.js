@@ -2547,12 +2547,25 @@ function buildTunnels(){
   for(let a=0;a<seq.length-1;a++)for(let b=a+1;b<seq.length;b++)drawTunnelPair(seq[a].pts3d,seq[b].pts3d);
 }
 
-function bdTarget(tp,h){return{x:h*BD_BORDER,y:tp.y};}
+function bdTarget(tp,h,bdMode){
+  if(bdMode==='backdoor'){
+    // Backdoor: lands on inside edge closest to batter
+    // Ball appears to come at batter then breaks across plate
+    return {x:-h*BD_BORDER,y:tp.y};
+  }
+  if(bdMode==='backfoot'){
+    // Back-foot: lands low inside corner relative to batter's back foot
+    // Ball starts away then breaks in and down
+    return {x:-h*(BD_BORDER*0.85),y:Y_BOT};
+  }
+  // Legacy bd=true behavior — outside edge
+  return {x:h*BD_BORDER,y:tp.y};
+}
 function makeCurve(pk,zk,bd){
   const rp=getRP();
   const tp=ZPOS[zk]||{x:0,y:Y_MID};
   const h=hand==='R'?1:-1;
-  const landing=bd?bdTarget(tp,h):tp;
+  const landing=bd?bdTarget(tp,h,bd):tp;
   let endX=landing.x;
   let endY=landing.y;
   if(pk==='KN'){
@@ -2561,14 +2574,114 @@ function makeCurve(pk,zk,bd){
   }
   const t=new THREE.Vector3(endX,endY,0.12);
   const P=PITCHES[pk];
-  const[c1,c2]=bd&&P.bd?P.bd(rp,t,h):P.ctrl(rp,t,h);
+  const[c1,c2]=bd==='backdoor'&&P.backdoor?P.backdoor(rp,t,h):
+    bd==='backfoot'&&P.backfoot?P.backfoot(rp,t,h):
+    bd&&P.bd?P.bd(rp,t,h):
+    P.ctrl(rp,t,h);
   return new THREE.CubicBezierCurve3(rp.clone(),c1,c2,t.clone());
 }
 
 function line3D(pts,col,op,lw){const g=new THREE.BufferGeometry().setFromPoints(pts);const l=new THREE.Line(g,new THREE.LineBasicMaterial({color:col,opacity:op,transparent:op<1,linewidth:lw||2}));scene.add(l);return l;}
 function dashedLine(pts,col){const lines=[];for(let i=0;i<pts.length-2;i+=4){const g=new THREE.BufferGeometry().setFromPoints([pts[i],pts[Math.min(i+2,pts.length-1)]]);const l=new THREE.Line(g,new THREE.LineBasicMaterial({color:col,opacity:0.28,transparent:true}));scene.add(l);lines.push(l);}return lines;}
 function removeObj(o){if(!o)return;Array.isArray(o)?o.forEach(x=>scene.remove(x)):scene.remove(o);}
-function refreshGhost(){ghostLines.forEach(o=>removeObj(o));ghostLines=[];const bd=document.getElementById('ckbd').checked;ghostLines=dashedLine(makeCurve(pitch,zone,bd).getPoints(80),PITCHES[pitch].color);}
+// Backdoor/back-foot qualifying pitches
+const BD_QUALIFYING=['SL','CB','SWP','SCR','KC','SLV'];
+const BF_QUALIFYING=['SL','SWP','SCR','KC','SLV'];
+function getBdMode(){
+  const bBtn=document.getElementById('ckbd-backdoor');
+  const fBtn=document.getElementById('ckbd-backfoot');
+  if(bBtn&&bBtn.classList.contains('bd-active')) return 'backdoor';
+  if(fBtn&&fBtn.classList.contains('bd-active')) return 'backfoot';
+  return false;
+}
+function toggleBdMode(mode){
+  const bBtn=document.getElementById('ckbd-backdoor');
+  const fBtn=document.getElementById('ckbd-backfoot');
+  if(!bBtn||!fBtn) return;
+  const currentMode=getBdMode();
+  // Toggle off if already active
+  if(currentMode===mode){
+    bBtn.classList.remove('bd-active');
+    fBtn.classList.remove('bd-active');
+    updateBdButtonStyles();
+    refreshGhost();
+    return;
+  }
+  bBtn.classList.remove('bd-active');
+  fBtn.classList.remove('bd-active');
+  // Check arsenal and handedness before activating
+  const profile=typeof getProfile==='function'?getProfile():null;
+  const ar=profile&&profile.arsenal?profile.arsenal:[];
+  const pitcherHand=typeof hand!=='undefined'?hand:'R';
+  const batterHand=typeof batter!=='undefined'?batter:'RHB';
+  // Catcher's POV swap — RHB button = internal LHB
+  const isLHBInternal=batterHand==='RHB';
+  const sameSide=(pitcherHand==='R'&&!isLHBInternal)||
+    (pitcherHand==='L'&&isLHBInternal);
+  if(mode==='backdoor'){
+    const hasQualPitch=ar.some(pk=>BD_QUALIFYING.includes(pk));
+    if(!hasQualPitch){
+      alert('Add a slider, curveball, sweeper, or screwball to your arsenal for backdoor.');
+      return;
+    }
+    if(!sameSide){
+      alert('Backdoor works best same-handed (RHP vs RHB or LHP vs LHB).');
+      return;
+    }
+    bBtn.classList.add('bd-active');
+  } else if(mode==='backfoot'){
+    const hasQualPitch=ar.some(pk=>BF_QUALIFYING.includes(pk));
+    if(!hasQualPitch){
+      alert('Add a slider, sweeper, or screwball to your arsenal for back-foot.');
+      return;
+    }
+    if(sameSide){
+      alert('Back-foot works best opposite-handed (RHP vs LHB or LHP vs RHB).');
+      return;
+    }
+    fBtn.classList.add('bd-active');
+  }
+  updateBdButtonStyles();
+  refreshGhost();
+}
+function updateBdButtonStyles(){
+  const bBtn=document.getElementById('ckbd-backdoor');
+  const fBtn=document.getElementById('ckbd-backfoot');
+  if(!bBtn||!fBtn) return;
+  const activeStyle='border-color:#7ec8e3;color:#7ec8e3;background:#0f2840;';
+  const inactiveStyle='border-color:#3a5a7a;color:#4a7aaa;background:#0a1520;';
+  bBtn.style.cssText=bBtn.style.cssText.replace(
+    /border-color:[^;]+;color:[^;]+;background:[^;]+;/,'');
+  fBtn.style.cssText=fBtn.style.cssText.replace(
+    /border-color:[^;]+;color:[^;]+;background:[^;]+;/,'');
+  if(bBtn.classList.contains('bd-active')){
+    bBtn.style.borderColor='#7ec8e3';
+    bBtn.style.color='#7ec8e3';
+    bBtn.style.background='#0f2840';
+  } else {
+    bBtn.style.borderColor='#3a5a7a';
+    bBtn.style.color='#4a7aaa';
+    bBtn.style.background='#0a1520';
+  }
+  if(fBtn.classList.contains('bd-active')){
+    fBtn.style.borderColor='#7ec8e3';
+    fBtn.style.color='#7ec8e3';
+    fBtn.style.background='#0f2840';
+  } else {
+    fBtn.style.borderColor='#3a5a7a';
+    fBtn.style.color='#4a7aaa';
+    fBtn.style.background='#0a1520';
+  }
+}
+function refreshGhost(){
+  ghostLines.forEach(o=>removeObj(o));
+  ghostLines=[];
+  const bdMode=getBdMode();
+  ghostLines=dashedLine(
+    makeCurve(pitch,zone,bdMode).getPoints(80),
+    PITCHES[pitch].color
+  );
+}
 
 function drawSideView(){
   const svg=document.getElementById('sidesvg');
@@ -3085,7 +3198,7 @@ function throwPitch(){
     if(seq.length>=planLimit)return;
   }
   if(simMode) cancelSimScheduledClear();
-  const spd=parseInt(document.getElementById('spd').value,10),bd=document.getElementById('ckbd').checked;
+  const spd=parseInt(document.getElementById('spd').value,10),bd=typeof getBdMode==='function'?getBdMode():false;
   const ctBefore=pitchCount;
   const strikesAtStart=strikeCount;
   let outcome='';
