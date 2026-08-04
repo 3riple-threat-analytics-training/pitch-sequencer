@@ -50,7 +50,7 @@ const PITCHES={
   'SL':{color:0xa855f7,name:'Slider',ms:780,
     ctrl:(s,t,h)=>[cl(new THREE.Vector3(s.x+h*0.02,s.y+0.06,s.z*.66+t.z*.34)),cl(new THREE.Vector3(t.x+h*0.38,t.y+0.03,s.z*.10+t.z*.90))],
     bd:(s,t,h)=>[cl(new THREE.Vector3(s.x+h*FRAME_EDGE,s.y+0.05,s.z*.58+t.z*.42)),cl(new THREE.Vector3(t.x+h*0.05,t.y+0.02,s.z*.06+t.z*.94))],
-    backdoor:(s,t,h)=>[cl(new THREE.Vector3(s.x-h*0.42,s.y+0.06,s.z*.62+t.z*.38)),cl(new THREE.Vector3(t.x+h*0.28,t.y+0.03,s.z*.08+t.z*.92))],
+    backdoor:(s,t,h)=>[cl(new THREE.Vector3(s.x-h*0.85,s.y+0.06,s.z*.55+t.z*.45)),cl(new THREE.Vector3(t.x+h*0.55,t.y+0.03,s.z*.06+t.z*.94))],
     backfoot:(s,t,h)=>[cl(new THREE.Vector3(s.x+h*0.44,s.y+0.05,s.z*.60+t.z*.40)),cl(new THREE.Vector3(t.x-h*0.32,Math.max(MIN_Y,t.y-0.12),s.z*.06+t.z*.94))]},
   'CH':{color:0x22c55e,name:'Changeup',ms:820,
     ctrl:(s,t,h)=>[cl(new THREE.Vector3(s.x+h*0.02,s.y+0.07,s.z*.68+t.z*.32)),cl(new THREE.Vector3(t.x+h*0.05,Math.max(MIN_Y,t.y+0.28),s.z*.04+t.z*.96))],
