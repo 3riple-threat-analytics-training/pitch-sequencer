@@ -2564,9 +2564,7 @@ function bdTarget(tp,h,bdMode){
     const _isLHB=typeof batter!=='undefined'&&batter==='RHB';
     // LHB (internal RHB) stands RIGHT → inside = RGT-EDG
     // RHB (internal LHB) stands LEFT → inside = LFT-EDG
-    const _edgePos=_isLHB?
-      ZPOS['RGT-EDG']||{x:-(ZW/2+0.0375),y:Y_MID}:
-      ZPOS['LFT-EDG']||{x:(ZW/2+0.0375),y:Y_MID};
+    const _edgePos=ZPOS['LFT-EDG']||{x:(ZW/2+0.0375),y:Y_MID};
     return {x:_edgePos.x, y:tp.y};
   }
   if(bdMode==='backfoot'){
