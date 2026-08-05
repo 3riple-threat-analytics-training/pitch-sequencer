@@ -2638,10 +2638,6 @@ function toggleBdMode(mode){
       alert('Add a slider, curveball, sweeper, or screwball to your arsenal for backdoor.');
       return;
     }
-    if(!sameSide){
-      alert('Backdoor works best same-handed (RHP vs RHB or LHP vs LHB).');
-      return;
-    }
     bBtn.classList.add('bd-active');
   } else if(mode==='backfoot'){
     const hasQualPitch=ar.some(pk=>BF_QUALIFYING.includes(pk));
