@@ -2559,18 +2559,16 @@ function buildTunnels(){
 
 function bdTarget(tp,h,bdMode){
   if(bdMode==='backdoor'){
-    // Backdoor: lands on inside edge of plate (LFT-EDG or RGT-EDG)
-    // isLHB = batter==='RHB' per catcher's POV convention
-    const _isLHB=typeof batter!=='undefined'&&batter==='RHB';
-    // LHB (internal RHB) stands RIGHT → inside = RGT-EDG
-    // RHB (internal LHB) stands LEFT → inside = LFT-EDG
+    // RHP slider ALWAYS breaks LEFT to RIGHT from catcher's view
+    // Backdoor always lands on LFT-EDG regardless of batter handedness
     const _edgePos=ZPOS['LFT-EDG']||{x:(ZW/2+0.0375),y:Y_MID};
-    return {x:_edgePos.x, y:tp.y};
+    return {x:_edgePos.x,y:tp.y};
   }
   if(bdMode==='backfoot'){
-    // Back-foot: lands low inside corner relative to batter's back foot
-    // Ball starts away then breaks in and down
-    return {x:-h*(BD_BORDER*0.85),y:Y_BOT};
+    // Back-foot: RHP slider breaks LEFT to RIGHT
+    // Lands low on LEFT side toward LHB's back foot
+    const _edgePos=ZPOS['LFT-EDG']||{x:(ZW/2+0.0375),y:Y_MID};
+    return {x:_edgePos.x,y:Y_BOT};
   }
   // Legacy bd=true behavior — outside edge
   return {x:h*BD_BORDER,y:tp.y};
