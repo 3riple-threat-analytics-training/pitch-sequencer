@@ -74,7 +74,7 @@ const TAKE_30_PROBABILITY={
   LOW_BALL:0.60,
   PULL:0.50
 };
-const TIPS={left:'1B side: wider angle to RHB.',center:'Center: neutral angle.',right:'3B side: wider angle to LHB.'};
+const TIPS={left:'3B side: wider angle to LHB.',center:'Center: neutral angle.',right:'1B side: wider angle to RHB.'};
 
 const PLAN_STORAGE_KEY='pitchSequencerSavedPlansV1';
 const SIM_SESSION_KEY='pitchseq-sim-state';

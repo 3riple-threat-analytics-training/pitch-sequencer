@@ -41,7 +41,17 @@ function resize(){const w=wrap.clientWidth||480,h=wrap.clientHeight||560;rendere
 resize();
 new ResizeObserver(resize).observe(wrap);
 
-function getRP(){const rx=(rubber-0.5)*0.6,ho=hand==='R'?0.26:-0.26;return new THREE.Vector3(rx+ho,1.58,17.0);}
+function getRP(bdMode){
+  // Backdoor: shift release point to correct rubber edge
+  // RHP backdoor → 3B side (pitcher's right) → rubber=0.85
+  // LHP backdoor → 1B side (pitcher's left) → rubber=0.15
+  // All other modes: use actual rubber position unchanged
+  const _rubber=(bdMode==='backdoor')?
+    (hand==='R'?0.85:0.15):rubber;
+  const rx=(_rubber-0.5)*0.6;
+  const ho=hand==='R'?0.26:-0.26;
+  return new THREE.Vector3(rx+ho,1.58,17.0);
+}
 function setCamera(){cam.fov=52;cam.position.set(0,1.06,-1.2);cam.lookAt(0,1.06,17);cam.updateProjectionMatrix();}
 
 function setHand(h){hand=h;document.getElementById('brhp').classList.toggle('active',h==='R');document.getElementById('blhp').classList.toggle('active',h==='L');buildStatic();rebuildPaths();refreshGhost();}
@@ -387,8 +397,8 @@ function getAutoRole(count,seq,zk,batter,gameState){
 
   // ── RUBBER POSITION ──
   const rubberPos=typeof rubber!=='undefined'?rubber:0.5;
-  const rubberSide=rubberPos<0.35?'3B side':
-    rubberPos>0.65?'1B side':'center';
+  const rubberSide=rubberPos<0.35?'1B side':
+    rubberPos>0.65?'3B side':'center';
   const suggestRubberMove=locationWarningYellow||
     locationWarningRed;
   let rubberHint='';
@@ -397,8 +407,8 @@ function getAutoRole(count,seq,zk,batter,gameState){
     const pitcherHand2=typeof hand!=='undefined'?hand:'R';
     const openSide=(pitcherHand2==='R'&&isLHB)||
       (pitcherHand2==='L'&&!isLHB)?'3B side':'1B side';
-    const currentSideLabel=rubberPos<0.35?'3B side':
-      rubberPos>0.65?'1B side':'center';
+    const currentSideLabel=rubberPos<0.35?'1B side':
+      rubberPos>0.65?'3B side':'center';
     const alreadyOnOpenSide=
       (openSide==='3B side'&&rubberPos<0.35)||
       (openSide==='1B side'&&rubberPos>0.65);
@@ -2568,7 +2578,7 @@ function bdTarget(tp,h,bdMode){
   return {x:h*BD_BORDER,y:tp.y};
 }
 function makeCurve(pk,zk,bd){
-  const rp=getRP();
+  const rp=getRP(bd);
   const tp=ZPOS[zk]||{x:0,y:Y_MID};
   const h=hand==='R'?1:-1;
   const landing=bd?bdTarget(tp,h,bd):tp;
@@ -2580,10 +2590,8 @@ function makeCurve(pk,zk,bd){
   }
   const t=new THREE.Vector3(endX,endY,0.12);
   const P=PITCHES[pk];
-  const[c1,c2]=bd==='backdoor'&&P.backdoor?P.backdoor(rp,t,h):
-    bd==='backfoot'&&P.backfoot?P.backfoot(rp,t,h):
-    bd&&P.bd?P.bd(rp,t,h):
-    P.ctrl(rp,t,h);
+  const[c1,c2]=bd&&P.bd&&bd!=='backdoor'&&bd!=='backfoot'?
+    P.bd(rp,t,h):P.ctrl(rp,t,h);
   return new THREE.CubicBezierCurve3(rp.clone(),c1,c2,t.clone());
 }
 
