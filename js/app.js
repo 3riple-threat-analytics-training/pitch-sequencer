@@ -2558,16 +2558,22 @@ function buildTunnels(){
 }
 
 function bdTarget(tp,h,bdMode){
+  // Determine pitcher handedness — LHP is the inverse of RHP
+  const _isLHP=typeof hand!=='undefined'&&hand==='L';
   if(bdMode==='backdoor'){
-    // RHP slider ALWAYS breaks LEFT to RIGHT from catcher's view
-    // Backdoor always lands on LFT-EDG regardless of batter handedness
-    const _edgePos=ZPOS['LFT-EDG']||{x:(ZW/2+0.0375),y:Y_MID};
+    // RHP: breaks LEFT→RIGHT, lands LFT-EDG
+    // LHP: breaks RIGHT→LEFT, lands RGT-EDG
+    const _edgePos=_isLHP?
+      ZPOS['RGT-EDG']||{x:-(ZW/2+0.0375),y:Y_MID}:
+      ZPOS['LFT-EDG']||{x:(ZW/2+0.0375),y:Y_MID};
     return {x:_edgePos.x,y:tp.y};
   }
   if(bdMode==='backfoot'){
-    // Back-foot: RHP slider breaks LEFT to RIGHT
-    // Lands low on LEFT side toward LHB's back foot
-    const _edgePos=ZPOS['LFT-EDG']||{x:(ZW/2+0.0375),y:Y_MID};
+    // RHP: breaks LEFT→RIGHT, lands LFT-EDG low
+    // LHP: breaks RIGHT→LEFT, lands RGT-EDG low
+    const _edgePos=_isLHP?
+      ZPOS['RGT-EDG']||{x:-(ZW/2+0.0375),y:Y_MID}:
+      ZPOS['LFT-EDG']||{x:(ZW/2+0.0375),y:Y_MID};
     return {x:_edgePos.x,y:Y_BOT};
   }
   // Legacy bd=true behavior — outside edge
