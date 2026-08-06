@@ -2558,23 +2558,23 @@ function buildTunnels(){
 }
 
 function bdTarget(tp,h,bdMode){
-  // Determine pitcher handedness — LHP is the inverse of RHP
+  // Determine pitcher handedness
   const _isLHP=typeof hand!=='undefined'&&hand==='L';
   if(bdMode==='backdoor'){
-    // RHP: breaks LEFT→RIGHT, lands LFT-EDG
-    // LHP: breaks RIGHT→LEFT, lands RGT-EDG
+    // RHP: lands LFT-EDG
+    // LHP: lands RGT-EDG
     const _edgePos=_isLHP?
       ZPOS['RGT-EDG']||{x:-(ZW/2+0.0375),y:Y_MID}:
       ZPOS['LFT-EDG']||{x:(ZW/2+0.0375),y:Y_MID};
     return {x:_edgePos.x,y:tp.y};
   }
   if(bdMode==='backfoot'){
-    // RHP: breaks LEFT→RIGHT, lands LFT-EDG low
-    // LHP: breaks RIGHT→LEFT, lands RGT-EDG low
-    const _edgePos=_isLHP?
-      ZPOS['RGT-EDG']||{x:-(ZW/2+0.0375),y:Y_MID}:
-      ZPOS['LFT-EDG']||{x:(ZW/2+0.0375),y:Y_MID};
-    return {x:_edgePos.x,y:Y_BOT};
+    // RHP: lands BR-CRN (low right side)
+    // LHP: lands BL-CRN (low left side)
+    const _cornerPos=_isLHP?
+      ZPOS['BL-CRN']||{x:(ZW/2-0.0375),y:ZLO-0.0375}:
+      ZPOS['BR-CRN']||{x:-(ZW/2-0.0375),y:ZLO-0.0375};
+    return {x:_cornerPos.x,y:_cornerPos.y};
   }
   // Legacy bd=true behavior — outside edge
   return {x:h*BD_BORDER,y:tp.y};
