@@ -2591,13 +2591,11 @@ function makeCurve(pk,zk,bd){
   }
   const t=new THREE.Vector3(endX,endY,0.12);
   const P=PITCHES[pk];
-  // For backdoor against LHB (internal RHB), flip h so break goes toward RGT-EDG
-  // isLHB per catcher's POV convention: batter==='RHB' means displayed LHB
-  const _bdFlipH=bd==='backdoor'&&
-    typeof batter!=='undefined'&&batter==='RHB';
-  const _h=_bdFlipH?-h:h;
+  // Backdoor always uses h=1 for control points — break always goes LEFT→RIGHT
+  // from catcher's view regardless of pitcher or batter handedness
+  const _ctrlH=bd==='backdoor'?1:h;
   const[c1,c2]=bd&&P.bd&&bd!=='backdoor'&&bd!=='backfoot'?
-    P.bd(rp,t,_h):P.ctrl(rp,t,_h);
+    P.bd(rp,t,h):P.ctrl(rp,t,_ctrlH);
 
   return new THREE.CubicBezierCurve3(rp.clone(),c1,c2,t.clone());
 }
