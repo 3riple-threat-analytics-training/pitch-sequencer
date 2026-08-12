@@ -46,8 +46,7 @@ function getRP(bdMode){
   // RHP backdoor → 3B side (pitcher's right) → rubber=0.85
   // LHP backdoor → 1B side (pitcher's left) → rubber=0.15
   // All other modes: use actual rubber position unchanged
-  const _rubber=(bdMode==='backdoor')?
-    (hand==='R'?0.85:0.15):rubber;
+  const _rubber=(bdMode==='backdoor')?0.85:rubber;
   const rx=(_rubber-0.5)*0.6;
   const ho=hand==='R'?0.26:-0.26;
   return new THREE.Vector3(rx+ho,1.58,17.0);
