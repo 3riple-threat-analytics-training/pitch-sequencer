@@ -46,7 +46,8 @@ function getRP(bdMode){
   // RHP backdoor → 3B side (pitcher's right) → rubber=0.85
   // LHP backdoor → 1B side (pitcher's left) → rubber=0.15
   // All other modes: use actual rubber position unchanged
-  const _rubber=(bdMode==='backdoor')?0.85:rubber;
+  const _rubber=(bdMode==='backdoor')?
+    (hand==='R'?0.85:0.15):rubber;
   const rx=(_rubber-0.5)*0.6;
   const ho=hand==='R'?0.26:-0.26;
   return new THREE.Vector3(rx+ho,1.58,17.0);
@@ -2591,12 +2592,8 @@ function makeCurve(pk,zk,bd){
   }
   const t=new THREE.Vector3(endX,endY,0.12);
   const P=PITCHES[pk];
-  // Backdoor always uses h=1 for control points — break always goes LEFT→RIGHT
-  // from catcher's view regardless of pitcher or batter handedness
-  const _ctrlH=bd==='backdoor'?1:h;
   const[c1,c2]=bd&&P.bd&&bd!=='backdoor'&&bd!=='backfoot'?
-    P.bd(rp,t,h):P.ctrl(rp,t,_ctrlH);
-
+    P.bd(rp,t,h):P.ctrl(rp,t,h);
   return new THREE.CubicBezierCurve3(rp.clone(),c1,c2,t.clone());
 }
 
