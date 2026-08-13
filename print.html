@@ -492,6 +492,44 @@ html, body {
     var outcomeLabel=escHtml(plan.outcome||'UNTESTED');
     var opponent=String(plan.opponent||'').trim();
     var batterNotes=String(plan.batterNotes||'').trim();
+    // Auto-inject anchor note when batterNotes is empty
+    if(!batterNotes&&plan.sequence&&plan.sequence.length>=2){
+      var _anchorZones=plan.sequence
+        .map(function(s){return s.zk||'';})
+        .filter(function(zk){return zk&&[
+          'TL','TM','TR','ML','MM','MR','BL','BM','BR',
+          'TL-CRN','TR-CRN','BL-CRN','BR-CRN',
+          'TOP-EDG','BOT-EDG','LFT-EDG','RGT-EDG'
+        ].indexOf(zk)>=0;});
+      if(_anchorZones.length>=2){
+        var _sumX=0,_sumY=0,_cnt=0;
+        var _zpos={
+          'TL':{x:-0.16,y:0.95},'TM':{x:0,y:0.95},'TR':{x:0.16,y:0.95},
+          'ML':{x:-0.16,y:0.68},'MM':{x:0,y:0.68},'MR':{x:0.16,y:0.68},
+          'BL':{x:-0.16,y:0.42},'BM':{x:0,y:0.42},'BR':{x:0.16,y:0.42},
+          'TL-CRN':{x:-0.2025,y:1.0075},'TR-CRN':{x:0.2025,y:1.0075},
+          'BL-CRN':{x:-0.2025,y:0.3825},'BR-CRN':{x:0.2025,y:0.3825},
+          'TOP-EDG':{x:0,y:1.0075},'BOT-EDG':{x:0,y:0.3825},
+          'LFT-EDG':{x:-0.2775,y:0.68},'RGT-EDG':{x:0.2775,y:0.68}
+        };
+        _anchorZones.forEach(function(zk){
+          var p=_zpos[zk];
+          if(p){_sumX+=p.x;_sumY+=p.y;_cnt++;}
+        });
+        if(_cnt>0){
+          var _cx=_sumX/_cnt,_cy=_sumY/_cnt;
+          var _nearest=null,_nearestDist=Infinity;
+          Object.keys(_zpos).forEach(function(zk){
+            var p=_zpos[zk];
+            var d=Math.sqrt((_cx-p.x)*(_cx-p.x)+(_cy-p.y)*(_cy-p.y));
+            if(d<_nearestDist){_nearestDist=d;_nearest=zk;}
+          });
+          if(_nearest){
+            batterNotes='Attack anchor: '+_nearest+' — tunnel pitches through this corridor to maximize deception.';
+          }
+        }
+      }
+    }
     var opponentLine=opponent
       ?'<div class="slot-opponent">vs '+escHtml(opponent)+' <span class="slot-outcome" style="color:'+outcomeColor+';border:0.5px solid '+outcomeColor+';">'+outcomeLabel+'</span></div>'
       :'<div><span class="slot-outcome" style="color:'+outcomeColor+';border:0.5px solid '+outcomeColor+';">'+outcomeLabel+'</span></div>';
