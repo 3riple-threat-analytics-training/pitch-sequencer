@@ -103,7 +103,9 @@ function applyAnchorHighlight(){
   const thrownZones=seq
     .map(s=>s.zk)
     .filter(zk=>zk&&ANCHOR_ZONE_KEYS.includes(zk));
-  if(thrownZones.length<2) return;
+  // Allow Scenario D: single pitch to MM treated as intentional anchor
+  const isScenarioD=thrownZones.length===1&&thrownZones[0]==='MM';
+  if(thrownZones.length<2&&!isScenarioD) return;
   // Calculate centroid of thrown zone positions
   let sumX=0,sumY=0,count=0;
   thrownZones.forEach(zk=>{

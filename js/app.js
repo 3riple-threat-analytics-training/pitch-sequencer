@@ -940,7 +940,9 @@ function getAutoRole(count,seq,zk,batter,gameState){
     };
   }
   // Call anchor detection — available to SRE hint and zone diagram
-  const anchorResult=seq.length>=2?getMiddleAnchor():null;
+  // Allow Scenario D (MM on pitch 1) with seq.length>=1
+  // All other anchor detection still requires seq.length>=2
+  const anchorResult=seq.length>=1?getMiddleAnchor():null;
   // ── END MIDDLE ANCHOR DETECTION ──
 
   function buildOptions(lastCat,foulType,highLeverage){
