@@ -93,7 +93,7 @@ function applyAnchorHighlight(){
   });
   // Self-contained anchor calculation from seq and ZPOS
   // Does not rely on anchorResult from getAutoRole
-  if(typeof seq==='undefined'||!seq||seq.length<2) return;
+  if(typeof seq==='undefined'||!seq||seq.length<1) return;
   if(typeof ZPOS==='undefined') return;
   const ANCHOR_ZONE_KEYS=[
     'TL','TM','TR','ML','MM','MR','BL','BM','BR',
