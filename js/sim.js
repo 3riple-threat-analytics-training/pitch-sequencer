@@ -431,6 +431,24 @@ function toggleSimMode(){
   updateSimPanelVisibility();
   if(simMode){
     if(typeof applyFatigueToVelocity==='function')applyFatigueToVelocity();
+    // Away game: show opener before first pitch
+    if(!isHomeTeam){
+      // Generate away team's first at-bat runs
+      setTimeout(function(){
+        showAwayGameOpener(function(){
+          // After dismissing, show team runs notification
+          const awayRuns=Math.floor(Math.random()*3);
+          teamScore+=awayRuns;
+          const msg=awayRuns===0?
+            'Your team did not score.':
+            awayRuns===1?'Your team scored 1 run!':
+            'Your team scored '+awayRuns+' runs!';
+          showTeamRunsNotification(msg,function(){
+            updateSimStatBar();
+          });
+        });
+      },300);
+    }
   } else if(typeof pitch!=='undefined'&&pitch&&typeof applyPitchVelocity==='function'){
     applyPitchVelocity(pitch);
   }
@@ -2082,6 +2100,43 @@ function modalNewInning(){
   showTeamRunsNotification(msg,function(){
     if(atBatOver) handleNewBatter();
   });
+}
+function showAwayGameOpener(onDone){
+  const overlay=document.createElement('div');
+  overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;'
+    +'z-index:10000;display:flex;align-items:center;justify-content:center;'
+    +'background:rgba(0,0,0,0.7);';
+  const box=document.createElement('div');
+  box.style.cssText='background:#0a1520;border:2px solid #7ec8e3;border-radius:12px;'
+    +'padding:24px 32px;text-align:center;font-family:\'Bebas Neue\',sans-serif;'
+    +'max-width:320px;width:90%;';
+  const title=document.createElement('div');
+  title.style.cssText='font-size:11px;color:#7ec8e3;letter-spacing:2px;margin-bottom:8px;'
+    +'font-family:\'DM Mono\',monospace;';
+  title.textContent='AWAY GAME — YOUR TEAM BATS FIRST';
+  const scoreDiv=document.createElement('div');
+  scoreDiv.style.cssText='font-size:36px;color:#e8f4fd;letter-spacing:3px;margin-bottom:8px;';
+  scoreDiv.textContent='AWAY 0 — 0 HOME';
+  const msgDiv=document.createElement('div');
+  msgDiv.style.cssText='font-size:13px;color:#7ec8e3;letter-spacing:1px;margin-bottom:16px;'
+    +'font-family:\'DM Mono\',monospace;line-height:1.5;';
+  msgDiv.textContent='Your team bats in the top of inning 1.\nThen you take the mound.';
+  const btn=document.createElement('button');
+  btn.style.cssText='padding:10px 24px;border-radius:6px;border:none;'
+    +'background:#1a3a5c;color:#7ec8e3;font-family:\'Bebas Neue\',sans-serif;'
+    +'font-size:16px;letter-spacing:2px;cursor:pointer;width:100%;'
+    +'border:1px solid #7ec8e3;';
+  btn.textContent='TAKE THE MOUND';
+  btn.onclick=function(){
+    document.body.removeChild(overlay);
+    if(onDone) onDone();
+  };
+  box.appendChild(title);
+  box.appendChild(scoreDiv);
+  box.appendChild(msgDiv);
+  box.appendChild(btn);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
 }
 function showTeamRunsNotification(msg,onDone){
   const overlay=document.createElement('div');
