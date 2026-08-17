@@ -2041,22 +2041,30 @@ function generateTeamRuns(){
   const pitcherStruggling=inningRunsAllowed>0;
   const scoreDiff=teamScore-totalScore;
   const pitcherWinning=scoreDiff>0;
-  const fatigue=typeof getFatigueLevel==='function'?getFatigueLevel():'fresh';
+  const losingBadly=scoreDiff<=-3;
+  const fatigue=typeof getFatigueLevelCurrent==='function'?getFatigueLevelCurrent():'fresh';
   const tired=fatigue==='tired'||fatigue==='exhausted';
   // Four psychological scenarios
   let runsGenerated=0;
   const r=Math.random();
   if(pitcherStruggling){
-    // Scenario 1 (60%): Encouragement — give runs
-    // Scenario 2 (40%): Adversity — no runs
-    if(r<0.60){
-      runsGenerated=Math.floor(Math.random()*maxRuns)+1;
+    if(losingBadly){
+      // Losing badly — increase adversity to simulate difficult outing
+      // 40% encouragement, 60% adversity
+      if(r<0.40){
+        runsGenerated=Math.floor(Math.random()*maxRuns)+1;
+      }
+    } else {
+      // Scenario 1 (60%): Encouragement — give runs
+      // Scenario 2 (40%): Adversity — no runs
+      if(r<0.60){
+        runsGenerated=Math.floor(Math.random()*maxRuns)+1;
+      }
     }
   } else {
     if(pitcherWinning){
-      // Scenario 3 (35%): Pressure — no runs, remove safety net
-      // (65%): Reward — give runs to build lead
-      if(r<0.35){
+      // Scenario 3 (50/50): Pressure vs Reward
+      if(r<0.50){
         runsGenerated=0;
       } else {
         runsGenerated=Math.floor(Math.random()*(maxRuns-1))+1;
