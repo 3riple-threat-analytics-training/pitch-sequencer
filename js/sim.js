@@ -28,6 +28,9 @@ let atBatOver=false;
 // Baserunner state — true means runner on that base
 let runners={first:false, second:false, third:false};
 let totalScore=0;
+let teamScore=0;
+let isHomeTeam=false;
+let inningRunsAllowed=0;
 let inningHits=0;
 let scoreboardData=[]; // array of {inning, hits, score} per completed inning
 let pendingRunnerUpdate=null; // suggested runner state after a hit
@@ -305,6 +308,9 @@ function endGame(){
   simHalfTop=true;
   simInningBreak=false;
   totalScore=0;
+  teamScore=0;
+  isHomeTeam=Math.random()<0.5;
+  inningRunsAllowed=0;
   inningHits=0;
   scoreboardData=[];
   runners={first:false,second:false,third:false};
@@ -678,6 +684,12 @@ function updateSimStatBar(){
   }
   const scoreEl=document.getElementById('simscore');
   if(scoreEl) scoreEl.textContent=totalScore;
+  const teamScoreEl=document.getElementById('simteamscore');
+  if(teamScoreEl) teamScoreEl.textContent=teamScore;
+  const teamLabelEl=document.getElementById('teamlabel');
+  const oppLabelEl=document.getElementById('opplabel');
+  if(teamLabelEl) teamLabelEl.textContent=isHomeTeam?'HOME':'AWAY';
+  if(oppLabelEl) oppLabelEl.textContent=isHomeTeam?'AWAY':'HOME';
   updateDiamondIcon();
 }
 
@@ -720,6 +732,7 @@ function applyHitToRunners(hitType){
   pendingRunnerUpdate={newRunners, runsScored, hitType};
   runners=newRunners;
   totalScore+=runsScored;
+  inningRunsAllowed+=runsScored;
   inningHits++;
   updateSimStatBar();
 }
@@ -742,6 +755,7 @@ function applyWalkToRunners(){
   pendingRunnerUpdate={newRunners, runsScored, hitType:'WALK'};
   runners=newRunners;
   totalScore+=runsScored;
+  inningRunsAllowed+=runsScored;
   updateSimStatBar();
 }
 
@@ -1997,7 +2011,113 @@ function modalNewBatter(){
   if(atBatOver) handleNewBatter();
 }
 
+function generateTeamRuns(){
+  // Read pitcher state
+  const profile=getProfile();
+  const ageGroup=profile&&profile.ageGroup?profile.ageGroup:'hsvar';
+  // Age-aware max runs per inning
+  const maxRuns={
+    comp13:4,hsjv:3,hsvar:3,college:2,pro:2
+  }[ageGroup]||3;
+  // Pitcher state this inning
+  const pitcherStruggling=inningRunsAllowed>0;
+  const scoreDiff=teamScore-totalScore;
+  const pitcherWinning=scoreDiff>0;
+  const fatigue=typeof getFatigueLevel==='function'?getFatigueLevel():'fresh';
+  const tired=fatigue==='tired'||fatigue==='exhausted';
+  // Four psychological scenarios
+  let runsGenerated=0;
+  const r=Math.random();
+  if(pitcherStruggling){
+    // Scenario 1 (60%): Encouragement — give runs
+    // Scenario 2 (40%): Adversity — no runs
+    if(r<0.60){
+      runsGenerated=Math.floor(Math.random()*maxRuns)+1;
+    }
+  } else {
+    if(pitcherWinning){
+      // Scenario 3 (35%): Pressure — no runs, remove safety net
+      // (65%): Reward — give runs to build lead
+      if(r<0.35){
+        runsGenerated=0;
+      } else {
+        runsGenerated=Math.floor(Math.random()*(maxRuns-1))+1;
+      }
+    } else {
+      // Scenario 4 (55%): Pressure — keep game close
+      // (45%): Reward — give runs
+      if(r<0.55){
+        runsGenerated=0;
+      } else {
+        runsGenerated=Math.floor(Math.random()*(maxRuns-1))+1;
+      }
+    }
+  }
+  // Fatigue modifier — tired pitcher gets more support
+  if(tired&&runsGenerated===0&&Math.random()<0.40){
+    runsGenerated=1;
+  }
+  // Late inning intensity — inning 6+ increases pressure
+  if(inningNumber>=6&&runsGenerated>0&&Math.random()<0.30){
+    runsGenerated=Math.max(0,runsGenerated-1);
+  }
+  teamScore+=runsGenerated;
+  inningRunsAllowed=0;
+  return runsGenerated;
+}
 function modalNewInning(){
+  const runsScored=generateTeamRuns();
+  // Show team runs notification
+  const label=isHomeTeam?'YOUR TEAM':'YOUR TEAM';
+  const msg=runsScored===0?
+    'Your team did not score this inning.':
+    runsScored===1?
+    'Your team scored 1 run this inning!':
+    'Your team scored '+runsScored+' runs this inning!';
+  // Store for display
+  window.__pendingTeamRunsMsg=msg;
+  window.__pendingTeamRuns=runsScored;
   closeDiamondModal();
-  if(atBatOver) handleNewBatter();
+  // Show notification then proceed
+  showTeamRunsNotification(msg,function(){
+    if(atBatOver) handleNewBatter();
+  });
+}
+function showTeamRunsNotification(msg,onDone){
+  const overlay=document.createElement('div');
+  overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;'
+    +'z-index:10000;display:flex;align-items:center;justify-content:center;'
+    +'background:rgba(0,0,0,0.7);';
+  const box=document.createElement('div');
+  box.style.cssText='background:#0a1520;border:2px solid #4a9a4a;border-radius:12px;'
+    +'padding:24px 32px;text-align:center;font-family:\'Bebas Neue\',sans-serif;'
+    +'max-width:320px;width:90%;';
+  const title=document.createElement('div');
+  title.style.cssText='font-size:11px;color:#4a9a4a;letter-spacing:2px;margin-bottom:8px;'
+    +'font-family:\'DM Mono\',monospace;';
+  title.textContent='YOUR TEAM BATS';
+  const scoreDiv=document.createElement('div');
+  scoreDiv.style.cssText='font-size:36px;color:#e8f4fd;letter-spacing:3px;margin-bottom:8px;';
+  scoreDiv.textContent=isHomeTeam?
+    'HOME '+teamScore+' — '+totalScore+' AWAY':
+    'AWAY '+teamScore+' — '+totalScore+' HOME';
+  const msgDiv=document.createElement('div');
+  msgDiv.style.cssText='font-size:13px;color:#86efac;letter-spacing:1px;margin-bottom:16px;'
+    +'font-family:\'DM Mono\',monospace;';
+  msgDiv.textContent=msg;
+  const btn=document.createElement('button');
+  btn.style.cssText='padding:10px 24px;border-radius:6px;border:none;'
+    +'background:#4a9a4a;color:#fff;font-family:\'Bebas Neue\',sans-serif;'
+    +'font-size:16px;letter-spacing:2px;cursor:pointer;width:100%;';
+  btn.textContent='TAKE THE MOUND';
+  btn.onclick=function(){
+    document.body.removeChild(overlay);
+    if(onDone) onDone();
+  };
+  box.appendChild(title);
+  box.appendChild(scoreDiv);
+  box.appendChild(msgDiv);
+  box.appendChild(btn);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
 }

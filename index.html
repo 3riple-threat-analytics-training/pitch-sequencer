@@ -703,7 +703,11 @@ STEP FWD ▶▶</button>
               <span id="simdot1" class="simdot sim-out-dot"></span>
               <span id="simdot2" class="simdot sim-out-dot"></span>
             </span>
-            <span>SCORE <span id="simscore">0</span></span>
+            <span id="teamscore-display" style="font-family:'DM Mono',monospace;">
+              <span id="teamlabel">HOME</span> <span id="simteamscore">0</span>
+              <span style="color:#3a5a7a;"> — </span>
+              <span id="opplabel">AWAY</span> <span id="simscore">0</span>
+            </span>
             <span id="diamondicon" onclick="openDiamondModal()" title="Baserunners" style="cursor:pointer;">
               <svg width="24" height="22" viewBox="0 0 24 22" xmlns="http://www.w3.org/2000/svg">
                 <polygon points="12,2 22,11 12,20 2,11" fill="none" stroke="#3a5a7a" stroke-width="1"/>
