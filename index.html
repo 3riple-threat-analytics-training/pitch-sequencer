@@ -808,6 +808,11 @@ STEP FWD ▶▶</button>
       <div style="font-family:'DM Mono',monospace;font-size:8px;color:var(--text-muted);letter-spacing:1px;margin-bottom:6px;">SESSION DATA</div>
       <button onclick="clearAllStats()" style="width:100%;padding:7px;border-radius:6px;font-family:'DM Mono',monospace;font-size:9px;letter-spacing:1px;background:transparent;border:0.5px solid #cc1a1a;color:#cc1a1a;cursor:pointer;">CLEAR SESSION STATS</button>
     </div>
+    <div style="border-top:0.5px solid var(--border-panel);padding-top:12px;margin-top:4px;">
+      <div style="font-family:'DM Mono',monospace;font-size:8px;color:var(--text-muted);letter-spacing:1px;margin-bottom:6px;">TUTORIALS</div>
+      <button onclick="closeSettingsModal();showTutorialPrompt();" style="width:100%;padding:7px;border-radius:6px;font-family:'DM Mono',monospace;font-size:9px;letter-spacing:1px;background:transparent;border:0.5px solid #06b6d4;color:#06b6d4;cursor:pointer;margin-bottom:6px;">📖 BASICS TUTORIAL</button>
+      <button onclick="closeSettingsModal();showTutorial2Prompt();" style="width:100%;padding:7px;border-radius:6px;font-family:'DM Mono',monospace;font-size:9px;letter-spacing:1px;background:transparent;border:0.5px solid #06b6d4;color:#06b6d4;cursor:pointer;">📖 ADVANCED TUTORIAL</button>
+    </div>
     <button class="settings-close" onclick="closeSettingsModal()">CLOSE</button>
   </div>
 </div>

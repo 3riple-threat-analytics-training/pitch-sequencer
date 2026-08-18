@@ -1,6 +1,7 @@
 let hand='R',pitch='4FB',zone='MM',rubber=0.5;
 let mrOGVisible=true;
 let sreEnabled=false;
+let tutorialActive=false;
 let tunnelOn=false,role='SETUP',batter='RHB';
 let targetMode='ZONE';
 let extendedAtBat=false;
@@ -3428,7 +3429,11 @@ if(typeof toggleSimMode==='function'){
     if(typeof updateZoneGlows==='function') updateZoneGlows();
     // Show SRE reminder first time sim mode is turned on
     if(typeof simMode!=='undefined'&&simMode){
-      showSimBannerIfNeeded();
+      if(!tutorialActive) showSimBannerIfNeeded();
+      // Show tutorial first time sim mode is turned on
+      if(!localStorage.getItem('pitchseq-tutorial-basic-seen')){
+        setTimeout(()=>showTutorialPrompt(),400);
+      }
     }
     return result;
   };
