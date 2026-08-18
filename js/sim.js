@@ -1,5 +1,5 @@
 let simMode=false;
-let batterType='GENERIC';
+let batterType='RANDOM';
 let batterLevel='rec12';
 let gameSituation='NEUTRAL';
 let umpireQuality='GOOD';
@@ -403,7 +403,7 @@ function toggleSimMode(){
   const b=document.getElementById('simbtn');
   b.textContent=simMode?'SIM MODE ON':'SIM MODE OFF';
   b.classList.toggle('on',simMode);
-  batterType='GENERIC';
+  batterType='RANDOM';
   secretBatterType='';
   batterRevealed=false;
   pitchesInAtBat=0;
@@ -556,14 +556,17 @@ function handleNewBatter(){
   if(batterType==='RANDOM'){
     const pool=['GENERIC','FREE_SWINGER','PATIENT','LOW_BALL','HIGH_BALL','PULL'];
     secretBatterType=pool[Math.floor(Math.random()*pool.length)];
-    const randomHand=Math.random()<0.5?'RHB':'LHB';
-    const currentHand=(typeof batter!=='undefined'&&batter==='LHB')?'LHB':'RHB';
-    console.log('DEBUG batter=',batter,'currentHand=',currentHand,'randomHand=',randomHand);
-    if(randomHand!==currentHand){
-      showBatterHandednessNotification(randomHand);
-    }
   }else{
     secretBatterType='';
+  }
+  // Handedness diversity — fires for ALL batter types not just RANDOM
+  // Weight against repeating same handedness consecutively
+  const currentHand=(typeof batter!=='undefined'&&batter==='LHB')?'LHB':'RHB';
+  const repeatProb=0.35; // 35% chance same hand, 65% chance switch
+  const randomHand=Math.random()<repeatProb?currentHand:
+    (currentHand==='RHB'?'LHB':'RHB');
+  if(randomHand!==currentHand){
+    showBatterHandednessNotification(randomHand);
   }
   hideSimAdvanceButton();
   if(typeof onNewBatter==='function') onNewBatter();
