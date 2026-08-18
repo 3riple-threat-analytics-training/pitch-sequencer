@@ -2,6 +2,190 @@ let hand='R',pitch='4FB',zone='MM',rubber=0.5;
 let mrOGVisible=true;
 let sreEnabled=false;
 let tutorialActive=false;
+let tutorialStep=0;
+
+function showTutorialPrompt(){
+  if(document.getElementById('tutorial-prompt-overlay')) return;
+  const overlay=document.createElement('div');
+  overlay.id='tutorial-prompt-overlay';
+  overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;'
+    +'z-index:10001;display:flex;align-items:center;justify-content:center;'
+    +'background:rgba(0,0,0,0.75);';
+  const box=document.createElement('div');
+  box.style.cssText='background:#0a1520;border:2px solid #06b6d4;border-radius:12px;'
+    +'padding:24px 28px;text-align:center;font-family:\'Bebas Neue\',sans-serif;'
+    +'max-width:320px;width:90%;';
+  const title=document.createElement('div');
+  title.style.cssText='font-size:20px;color:#06b6d4;letter-spacing:3px;margin-bottom:8px;';
+  title.textContent='WELCOME TO PITCH SEQUENCER';
+  const msg=document.createElement('div');
+  msg.style.cssText='font-size:11px;color:#e8f4fd;font-family:\'DM Mono\',monospace;'
+    +'line-height:1.6;margin-bottom:20px;';
+  msg.textContent='Would you like a quick tutorial to learn how the app works?';
+  const yesBtn=document.createElement('button');
+  yesBtn.style.cssText='width:100%;padding:10px;border-radius:6px;border:none;'
+    +'background:#06b6d4;color:#fff;font-family:\'Bebas Neue\',sans-serif;'
+    +'font-size:16px;letter-spacing:2px;cursor:pointer;margin-bottom:8px;';
+  yesBtn.textContent='YES — SHOW ME HOW';
+  yesBtn.onclick=function(){
+    document.body.removeChild(overlay);
+    localStorage.setItem('pitchseq-tutorial-basic-seen','1');
+    showTutorial1(0);
+  };
+  const noBtn=document.createElement('button');
+  noBtn.style.cssText='width:100%;padding:10px;border-radius:6px;'
+    +'border:0.5px solid #3a5a7a;background:transparent;color:#5a8aaa;'
+    +'font-family:\'Bebas Neue\',sans-serif;font-size:16px;letter-spacing:2px;cursor:pointer;';
+  noBtn.textContent='NO THANKS — SKIP';
+  noBtn.onclick=function(){
+    document.body.removeChild(overlay);
+    localStorage.setItem('pitchseq-tutorial-basic-seen','1');
+  };
+  box.appendChild(title);
+  box.appendChild(msg);
+  box.appendChild(yesBtn);
+  box.appendChild(noBtn);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+}
+
+function showTutorial2Prompt(){
+  if(document.getElementById('tutorial-prompt-overlay')) return;
+  const overlay=document.createElement('div');
+  overlay.id='tutorial-prompt-overlay';
+  overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;'
+    +'z-index:10001;display:flex;align-items:center;justify-content:center;'
+    +'background:rgba(0,0,0,0.75);';
+  const box=document.createElement('div');
+  box.style.cssText='background:#0a1520;border:2px solid #06b6d4;border-radius:12px;'
+    +'padding:24px 28px;text-align:center;font-family:\'Bebas Neue\',sans-serif;'
+    +'max-width:320px;width:90%;';
+  const title=document.createElement('div');
+  title.style.cssText='font-size:20px;color:#06b6d4;letter-spacing:3px;margin-bottom:8px;';
+  title.textContent='ADVANCED TUTORIAL';
+  const msg=document.createElement('div');
+  msg.style.cssText='font-size:11px;color:#e8f4fd;font-family:\'DM Mono\',monospace;'
+    +'line-height:1.6;margin-bottom:20px;';
+  msg.textContent='Learn advanced features: backdoor pitches, tunneling, anchor system and planning mode.';
+  const yesBtn=document.createElement('button');
+  yesBtn.style.cssText='width:100%;padding:10px;border-radius:6px;border:none;'
+    +'background:#06b6d4;color:#fff;font-family:\'Bebas Neue\',sans-serif;'
+    +'font-size:16px;letter-spacing:2px;cursor:pointer;margin-bottom:8px;';
+  yesBtn.textContent='YES — SHOW ME';
+  yesBtn.onclick=function(){
+    document.body.removeChild(overlay);
+    localStorage.setItem('pitchseq-tutorial-advanced-seen','1');
+    showTutorial2(0);
+  };
+  const noBtn=document.createElement('button');
+  noBtn.style.cssText='width:100%;padding:10px;border-radius:6px;'
+    +'border:0.5px solid #3a5a7a;background:transparent;color:#5a8aaa;'
+    +'font-family:\'Bebas Neue\',sans-serif;font-size:16px;letter-spacing:2px;cursor:pointer;';
+  noBtn.textContent='NO THANKS — SKIP';
+  noBtn.onclick=function(){
+    document.body.removeChild(overlay);
+    localStorage.setItem('pitchseq-tutorial-advanced-seen','1');
+  };
+  box.appendChild(title);
+  box.appendChild(msg);
+  box.appendChild(yesBtn);
+  box.appendChild(noBtn);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+}
+
+function _tutorialHighlight(elId,on){
+  const el=elId?document.getElementById(elId):null;
+  if(!el) return;
+  if(on){
+    el.style.outline='2px solid #06b6d4';
+    el.style.boxShadow='0 0 12px rgba(6,182,212,0.5)';
+    el.style.borderRadius='4px';
+    el.scrollIntoView({behavior:'smooth',block:'nearest'});
+  } else {
+    el.style.outline='';
+    el.style.boxShadow='';
+  }
+}
+
+function _showTutorialCard(stepIndex,totalSteps,title,body,targetElId,onNext,onSkip){
+  const existing=document.getElementById('tutorial-card');
+  if(existing) existing.remove();
+  tutorialActive=true;
+  _tutorialHighlight(targetElId,true);
+  const card=document.createElement('div');
+  card.id='tutorial-card';
+  card.style.cssText='position:fixed;bottom:20px;left:50%;'
+    +'transform:translateX(-50%);'
+    +'background:#0a1520;border:2px solid #06b6d4;border-radius:12px;'
+    +'padding:18px 20px;max-width:340px;width:90%;'
+    +'z-index:10002;font-family:\'DM Mono\',monospace;'
+    +'box-shadow:0 4px 24px rgba(6,182,212,0.25);';
+  const progress=document.createElement('div');
+  progress.style.cssText='font-size:8px;color:#06b6d4;letter-spacing:1px;margin-bottom:6px;';
+  progress.textContent='STEP '+(stepIndex+1)+' OF '+totalSteps;
+  const ttl=document.createElement('div');
+  ttl.style.cssText='font-size:14px;font-family:\'Bebas Neue\',sans-serif;'
+    +'color:#e8f4fd;letter-spacing:2px;margin-bottom:8px;';
+  ttl.textContent=title;
+  const bod=document.createElement('div');
+  bod.style.cssText='font-size:10px;color:#8aabb8;line-height:1.6;margin-bottom:14px;';
+  bod.textContent=body;
+  const btnRow=document.createElement('div');
+  btnRow.style.cssText='display:flex;gap:8px;';
+  const skipBtn=document.createElement('button');
+  skipBtn.style.cssText='flex:1;padding:8px;border-radius:6px;'
+    +'border:0.5px solid #3a5a7a;background:transparent;color:#5a8aaa;'
+    +'font-family:\'Bebas Neue\',sans-serif;font-size:13px;letter-spacing:1px;cursor:pointer;';
+  skipBtn.textContent='SKIP';
+  skipBtn.onclick=function(){
+    _tutorialHighlight(targetElId,false);
+    card.remove();
+    tutorialActive=false;
+    if(onSkip) onSkip();
+  };
+  const nextBtn=document.createElement('button');
+  nextBtn.style.cssText='flex:2;padding:8px;border-radius:6px;border:none;'
+    +'background:#06b6d4;color:#fff;'
+    +'font-family:\'Bebas Neue\',sans-serif;font-size:13px;letter-spacing:1px;cursor:pointer;';
+  nextBtn.textContent=stepIndex===totalSteps-1?'FINISH':'NEXT →';
+  nextBtn.onclick=function(){
+    _tutorialHighlight(targetElId,false);
+    card.remove();
+    if(onNext) onNext();
+  };
+  btnRow.appendChild(skipBtn);
+  btnRow.appendChild(nextBtn);
+  card.appendChild(progress);
+  card.appendChild(ttl);
+  card.appendChild(bod);
+  card.appendChild(btnRow);
+  document.body.appendChild(card);
+}
+
+function showTutorial1(step){
+  const TOTAL=8;
+  if(step>=TOTAL){tutorialActive=false;return;}
+  switch(step){
+    case 0:
+      _showTutorialCard(0,TOTAL,
+        'WELCOME TO PITCH SEQUENCER',
+        'Pitch Sequencer is a training tool designed to help pitchers think smarter on the mound. It simulates real game situations so you can practice pitch sequencing, tunneling, and reading batters — all without throwing a single pitch.',
+        null,
+        ()=>showTutorial1(1),
+        ()=>{tutorialActive=false;}
+      );
+      break;
+    default:
+      tutorialActive=false;
+  }
+}
+
+function showTutorial2(step){
+  const TOTAL=6;
+  if(step>=TOTAL){tutorialActive=false;return;}
+  tutorialActive=false;
+}
 let tunnelOn=false,role='SETUP',batter='RHB';
 let targetMode='ZONE';
 let extendedAtBat=false;
