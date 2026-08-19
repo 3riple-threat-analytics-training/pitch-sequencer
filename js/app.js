@@ -95,17 +95,21 @@ function showTutorial2Prompt(){
 }
 
 function _tutorialHighlight(elId,on){
-  const el=elId?document.getElementById(elId):null;
-  if(!el) return;
-  if(on){
-    el.style.outline='2px solid #06b6d4';
-    el.style.boxShadow='0 0 12px rgba(6,182,212,0.5)';
-    el.style.borderRadius='4px';
-    el.scrollIntoView({behavior:'smooth',block:'nearest'});
-  } else {
-    el.style.outline='';
-    el.style.boxShadow='';
-  }
+  // supports single id string or array of id strings
+  const ids=Array.isArray(elId)?elId:(elId?[elId]:[]);
+  ids.forEach(function(id,i){
+    const el=document.getElementById(id);
+    if(!el) return;
+    if(on){
+      el.style.outline='2px solid #06b6d4';
+      el.style.boxShadow='0 0 12px rgba(6,182,212,0.5)';
+      el.style.borderRadius='4px';
+      if(i===0) el.scrollIntoView({behavior:'smooth',block:'nearest'});
+    } else {
+      el.style.outline='';
+      el.style.boxShadow='';
+    }
+  });
 }
 
 function _showTutorialCard(stepIndex,totalSteps,title,body,targetElId,onNext,onSkip){
@@ -198,7 +202,7 @@ function showTutorial1(step){
       _showTutorialCard(3,TOTAL,
         'SPEED & RUBBER POSITION',
         'The speed slider sets your pitch velocity. The rubber position slider moves you along the pitching rubber from the 3B side to the 1B side. Changing your position on the rubber changes your release angle — creating new tunnel paths the batter hasn\'t seen. Elite pitchers use rubber position to open up backdoor breaking balls and extend the strike zone.',
-        'rwrap',
+        ['spdwrap','rwrap'],
         ()=>showTutorial1(4),
         ()=>{tutorialActive=false;}
       );
