@@ -202,7 +202,7 @@ function showTutorial1(step){
       _showTutorialCard(3,TOTAL,
         'SPEED & RUBBER POSITION',
         'The speed slider sets your pitch velocity. The rubber position slider moves you along the pitching rubber from the 3B side to the 1B side. Changing your position on the rubber changes your release angle — creating new tunnel paths the batter hasn\'t seen. Elite pitchers use rubber position to open up backdoor breaking balls and extend the strike zone.',
-        ['spdwrap','rwrap'],
+        ['srow','rwrap'],
         ()=>showTutorial1(4),
         ()=>{tutorialActive=false;}
       );
