@@ -115,8 +115,11 @@ function _tutorialHighlight(elId,on){
     const bots=els.map(function(el){return el.getBoundingClientRect().bottom+window.scrollY;});
     const minTop=Math.min.apply(null,tops);
     const maxBot=Math.max.apply(null,bots);
-    const midPoint=minTop+(maxBot-minTop)/2;
-    window.scrollTo({top:midPoint-window.innerHeight/2,behavior:'smooth'});
+    const cardHeight=200; // approximate tutorial card height
+    const visibleHeight=window.innerHeight-cardHeight;
+    const rangeHeight=maxBot-minTop;
+    const scrollTo=minTop-(visibleHeight/2-rangeHeight/2);
+    window.scrollTo({top:Math.max(0,scrollTo),behavior:'smooth'});
   }
 }
 
