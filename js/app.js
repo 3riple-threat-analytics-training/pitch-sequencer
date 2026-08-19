@@ -109,17 +109,33 @@ function _tutorialHighlight(elId,on){
     }
   });
   if(on&&els.length>0){
-    // Scroll to show all highlighted elements
-    // Find the topmost element and scroll so both are visible
-    const tops=els.map(function(el){return el.getBoundingClientRect().top+window.scrollY;});
-    const bots=els.map(function(el){return el.getBoundingClientRect().bottom+window.scrollY;});
-    const minTop=Math.min.apply(null,tops);
-    const maxBot=Math.max.apply(null,bots);
-    const cardHeight=200; // approximate tutorial card height
-    const visibleHeight=window.innerHeight-cardHeight;
-    const rangeHeight=maxBot-minTop;
-    const scrollTo=minTop-(visibleHeight/2-rangeHeight/2);
-    window.scrollTo({top:Math.max(0,scrollTo),behavior:'smooth'});
+    // Check if elements are inside the panel scroll container
+    const panel=document.getElementById('panel');
+    const inPanel=panel&&els.some(function(el){return panel.contains(el);});
+    if(inPanel&&panel){
+      // Scroll the panel container to show the last element
+      const lastEl=els[els.length-1];
+      const panelRect=panel.getBoundingClientRect();
+      const elRect=lastEl.getBoundingClientRect();
+      const cardHeight=220;
+      // Scroll panel so last element is visible above tutorial card
+      const targetScrollTop=panel.scrollTop+(elRect.bottom-panelRect.top)-
+        (panelRect.height-cardHeight);
+      panel.scrollTo({top:Math.max(0,targetScrollTop),behavior:'smooth'});
+    } else {
+      // Fall back to window scroll for elements outside panel
+      const tops=els.map(function(el){
+        return el.getBoundingClientRect().top+window.scrollY;});
+      const bots=els.map(function(el){
+        return el.getBoundingClientRect().bottom+window.scrollY;});
+      const minTop=Math.min.apply(null,tops);
+      const maxBot=Math.max.apply(null,bots);
+      const cardHeight=200;
+      const visibleHeight=window.innerHeight-cardHeight;
+      const rangeHeight=maxBot-minTop;
+      const scrollTo=minTop-(visibleHeight/2-rangeHeight/2);
+      window.scrollTo({top:Math.max(0,scrollTo),behavior:'smooth'});
+    }
   }
 }
 
