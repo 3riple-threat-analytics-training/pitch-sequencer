@@ -176,6 +176,33 @@ function showTutorial1(step){
         ()=>{tutorialActive=false;}
       );
       break;
+    case 1:
+      _showTutorialCard(1,TOTAL,
+        'TARGET ZONE',
+        'The strike zone grid shows the catcher\'s view — exactly what the catcher sees behind home plate. Use the ZONE tab to select where you want the pitch to land. The EDGE tab gives you access to corner and edge locations just outside the strike zone. Hitting edges consistently is the mark of an elite pitcher.',
+        'zonediagram',
+        ()=>showTutorial1(2),
+        ()=>{tutorialActive=false;}
+      );
+      break;
+    case 2:
+      _showTutorialCard(2,TOTAL,
+        'PITCH TYPE',
+        'Select which pitch you want to throw from your arsenal. Each pitch has a unique flight path and movement profile. A 4-seam fastball rises, a slider breaks glove-side, a changeup drops and fades. Building a diverse arsenal with different speeds and movement directions is key to keeping batters off balance.',
+        'pitchtypesection',
+        ()=>showTutorial1(3),
+        ()=>{tutorialActive=false;}
+      );
+      break;
+    case 3:
+      _showTutorialCard(3,TOTAL,
+        'SPEED & RUBBER POSITION',
+        'The speed slider sets your pitch velocity. The rubber position slider moves you along the pitching rubber from the 3B side to the 1B side. Changing your position on the rubber changes your release angle — creating new tunnel paths the batter hasn\'t seen. Elite pitchers use rubber position to open up backdoor breaking balls and extend the strike zone.',
+        'rwrap',
+        ()=>showTutorial1(4),
+        ()=>{tutorialActive=false;}
+      );
+      break;
     default:
       tutorialActive=false;
   }
