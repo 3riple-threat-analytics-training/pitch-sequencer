@@ -97,19 +97,27 @@ function showTutorial2Prompt(){
 function _tutorialHighlight(elId,on){
   // supports single id string or array of id strings
   const ids=Array.isArray(elId)?elId:(elId?[elId]:[]);
-  ids.forEach(function(id,i){
-    const el=document.getElementById(id);
-    if(!el) return;
+  const els=ids.map(function(id){return document.getElementById(id);}).filter(Boolean);
+  els.forEach(function(el){
     if(on){
       el.style.outline='2px solid #06b6d4';
       el.style.boxShadow='0 0 12px rgba(6,182,212,0.5)';
       el.style.borderRadius='4px';
-      if(i===0) el.scrollIntoView({behavior:'smooth',block:'nearest'});
     } else {
       el.style.outline='';
       el.style.boxShadow='';
     }
   });
+  if(on&&els.length>0){
+    // Scroll to show all highlighted elements
+    // Find the topmost element and scroll so both are visible
+    const tops=els.map(function(el){return el.getBoundingClientRect().top+window.scrollY;});
+    const bots=els.map(function(el){return el.getBoundingClientRect().bottom+window.scrollY;});
+    const minTop=Math.min.apply(null,tops);
+    const maxBot=Math.max.apply(null,bots);
+    const midPoint=minTop+(maxBot-minTop)/2;
+    window.scrollTo({top:midPoint-window.innerHeight/2,behavior:'smooth'});
+  }
 }
 
 function _showTutorialCard(stepIndex,totalSteps,title,body,targetElId,onNext,onSkip){
