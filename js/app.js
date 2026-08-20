@@ -239,7 +239,7 @@ function showTutorial1(step){
       _showTutorialCard(4,TOTAL,
         'PITCH ROLE',
         'Before each pitch select your role. SETUP pitches establish patterns and set up future pitches. PUTAWAY pitches are your strikeout pitches when ahead in the count. TUNNEL pitches share the same early flight path as your last pitch to deceive the batter. CHASE pitches are thrown out of the zone when the batter is likely to chase. RESET clears your selection.',
-        'rolesection',
+        'rolepills',
         ()=>showTutorial1(5),
         ()=>{tutorialActive=false;}
       );
