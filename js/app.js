@@ -121,7 +121,7 @@ function _tutorialHighlight(elId,on){
       // Position of last element relative to panel top
       const relativeTop=(lastRect.top-panelRect.top)+panel.scrollTop;
       // Add extra padding so element appears well above tutorial card
-      const targetScrollTop=relativeTop-180;
+      const targetScrollTop=relativeTop-280;
       panel.scrollTo({top:Math.max(0,targetScrollTop),behavior:'smooth'});
     } else {
       // Fall back to window scroll for elements outside panel
