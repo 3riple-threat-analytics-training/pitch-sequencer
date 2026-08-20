@@ -267,7 +267,11 @@ function showTutorial1(step){
         'SMART ROLE ENGINE (SRE)',
         'The Smart Role Engine is your AI pitching coach. After each pitch in SIM MODE it analyzes your sequence and provides coaching hints — suggesting tunnels, speed contrasts, location shifts and putaway pitches based on what the batter has shown you. Enable it in Settings under Smart Role Engine. The more you follow its advice the smarter your sequences become.',
         'sretoggle',
-        ()=>{tutorialActive=false;showSimBannerIfNeeded();},
+        ()=>{
+          tutorialActive=false;
+          showSimBannerIfNeeded();
+          setTimeout(()=>showTutorial2Prompt(),600);
+        },
         ()=>{tutorialActive=false;}
       );
       break;
@@ -279,7 +283,64 @@ function showTutorial1(step){
 function showTutorial2(step){
   const TOTAL=6;
   if(step>=TOTAL){tutorialActive=false;return;}
-  tutorialActive=false;
+  switch(step){
+    case 0:
+      _showTutorialCard(0,TOTAL,
+        'BATTER TYPE & LEVEL',
+        'In SIM MODE you can select the type of batter you face. RANDOM cycles through all types automatically — the best way to simulate a real lineup. PULL hitters look to yank the ball, FREE SWINGERS chase everything, PATIENT hitters wait for their pitch, LOW BALL and HIGH BALL hitters have specific zone preferences. Batter Level sets how skilled the hitter is — from youth rec to pro.',
+        ['battertypewrap','batterlevelwrap'],
+        ()=>showTutorial2(1),
+        ()=>{tutorialActive=false;}
+      );
+      break;
+    case 1:
+      _showTutorialCard(1,TOTAL,
+        'UMPIRE & GAME SITUATION',
+        'The Umpire setting controls how the strike zone is called. GOOD umpires call a tight accurate zone. BAD umpires have a wider inconsistent zone — teaching you to pitch to contact. HOMER umpires favor the home team, shrinking or expanding the zone situationally. Game Situation sets the scenario: runners on base, late inning pressure, or a clean slate. Use these to simulate real game stress.',
+        ['umpirewrap','situationwrap'],
+        ()=>showTutorial2(2),
+        ()=>{tutorialActive=false;}
+      );
+      break;
+    case 2:
+      _showTutorialCard(2,TOTAL,
+        'BACKDOOR & BACK-FOOT PITCHES',
+        'These are advanced pitch movements. A BACKDOOR pitch starts outside the strike zone and breaks back in at the last second — catching the batter frozen. A BACK-FOOT pitch breaks toward the batter\'s back foot low and inside. Select either option then throw — the system automatically uses the correct rubber position and flight path based on pitcher and batter handedness. Only qualifying pitches like slider, sweeper and curveball can throw these.',
+        'optionssection',
+        ()=>showTutorial2(3),
+        ()=>{tutorialActive=false;}
+      );
+      break;
+    case 3:
+      _showTutorialCard(3,TOTAL,
+        'TUNNEL VISUALIZATION',
+        'A tunnel is when two pitches share the same early flight path but break in different directions at the plate. The batter cannot tell them apart until it is too late. Toggle TUNNEL ON to see yellow tunnel zones drawn between pitches that share a path. The goal is to build sequences where your fastball and breaking ball look identical out of your hand. Tunneling is one of the most powerful weapons in pitching.',
+        'tunnelbtn',
+        ()=>showTutorial2(4),
+        ()=>{tutorialActive=false;}
+      );
+      break;
+    case 4:
+      _showTutorialCard(4,TOTAL,
+        'ANCHOR SYSTEM',
+        'The anchor is the zone your pitching sequence is built around — the reference point the batter has to protect. After two or more pitches the system calculates the geometric midpoint of your attack sequence and highlights it in CYAN on the zone grid. Build your tunnels around this anchor. If you throw your first pitch to MM you establish MM as your anchor immediately — giving you maximum tunneling options in all directions.',
+        'zonediagram',
+        ()=>showTutorial2(5),
+        ()=>{tutorialActive=false;}
+      );
+      break;
+    case 5:
+      _showTutorialCard(5,TOTAL,
+        'PLANNING MODE (SIM OFF)',
+        'With SIM MODE off the app becomes a pitch sequence planner. Build attack sequences against specific batters, save them as named plans, and export them as a PDF to print and bring to the dugout. The PDF automatically includes your attack anchor so you always know the corridor to build your tunnels through. Use planning mode to prepare for games and study how different sequences work against different batter types.',
+        'simbtn',
+        ()=>{tutorialActive=false;},
+        ()=>{tutorialActive=false;}
+      );
+      break;
+    default:
+      tutorialActive=false;
+  }
 }
 let tunnelOn=false,role='SETUP',batter='RHB';
 let targetMode='ZONE';
