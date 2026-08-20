@@ -3791,10 +3791,12 @@ if(typeof toggleSimMode==='function'){
     if(typeof updateZoneGlows==='function') updateZoneGlows();
     // Show SRE reminder first time sim mode is turned on
     if(typeof simMode!=='undefined'&&simMode){
-      if(!tutorialActive) showSimBannerIfNeeded();
-      // Show tutorial first time sim mode is turned on
+      // Check if tutorial needs to show — set flag immediately before any timeouts
       if(!localStorage.getItem('pitchseq-tutorial-basic-seen')){
+        tutorialActive=true;
         setTimeout(()=>showTutorialPrompt(),400);
+      } else {
+        if(!tutorialActive) showSimBannerIfNeeded();
       }
     }
     return result;
