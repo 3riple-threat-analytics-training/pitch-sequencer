@@ -281,7 +281,7 @@ function showTutorial1(step){
 }
 
 function showTutorial2(step){
-  const TOTAL=6;
+  const TOTAL=8;
   if(step>=TOTAL){tutorialActive=false;return;}
   switch(step){
     case 0:
@@ -304,33 +304,51 @@ function showTutorial2(step){
       break;
     case 2:
       _showTutorialCard(2,TOTAL,
-        'BACKDOOR & BACK-FOOT PITCHES',
-        'These are advanced pitch movements. A BACKDOOR pitch starts outside the strike zone and breaks back in at the last second — catching the batter frozen. A BACK-FOOT pitch breaks toward the batter\'s back foot low and inside. Select either option then throw — the system automatically uses the correct rubber position and flight path based on pitcher and batter handedness. Only qualifying pitches like slider, sweeper and curveball can throw these.',
-        'optionssection',
+        'THE BACKDOOR PITCH',
+        'A backdoor pitch starts outside the strike zone and breaks back across the plate at the last second — catching the batter completely frozen. The batter sees the ball heading away and relaxes, then it sneaks back in for a called strike. It is thrown from the 3B side of the rubber for a right handed pitcher and the 1B side for a left handed pitcher. Best thrown with a slider, sweeper or curveball.',
+        'ckbd-backdoor',
         ()=>showTutorial2(3),
         ()=>{tutorialActive=false;}
       );
       break;
     case 3:
       _showTutorialCard(3,TOTAL,
-        'TUNNEL VISUALIZATION',
-        'A tunnel is when two pitches share the same early flight path but break in different directions at the plate. The batter cannot tell them apart until it is too late. Toggle TUNNEL ON to see yellow tunnel zones drawn between pitches that share a path. The goal is to build sequences where your fastball and breaking ball look identical out of your hand. Tunneling is one of the most powerful weapons in pitching.',
-        'tunnelbtn',
+        'THE BACK-FOOT PITCH',
+        'A back-foot pitch breaks low and in toward the batter\'s back foot — the foot furthest from the plate. For a right handed pitcher against a left handed batter the ball breaks down and to the right catching the batter off guard near their back foot. It is thrown from the center of the rubber and works best with a slider or sweeper. The batter sees a strike heading their way and then it dives away from the barrel.',
+        'ckbd-backfoot',
         ()=>showTutorial2(4),
         ()=>{tutorialActive=false;}
       );
       break;
     case 4:
       _showTutorialCard(4,TOTAL,
-        'ANCHOR SYSTEM',
-        'The anchor is the zone your pitching sequence is built around — the reference point the batter has to protect. After two or more pitches the system calculates the geometric midpoint of your attack sequence and highlights it in CYAN on the zone grid. Build your tunnels around this anchor. If you throw your first pitch to MM you establish MM as your anchor immediately — giving you maximum tunneling options in all directions.',
-        'zonediagram',
+        'HOW TO THROW BACKDOOR & BACK-FOOT',
+        'Step 1: Select a qualifying pitch — Slider, Sweeper or Curveball. Step 2: Select MM as your target zone. Step 3: Click the BACKDOOR or BACK-FOOT button in the Options section — it will highlight cyan when active. Step 4: Click THROW. The system automatically adjusts the rubber position and flight path based on your pitcher and batter handedness.',
+        ['ckbd-backdoor','ckbd-backfoot','zonediagram'],
         ()=>showTutorial2(5),
         ()=>{tutorialActive=false;}
       );
       break;
     case 5:
       _showTutorialCard(5,TOTAL,
+        'TUNNEL VISUALIZATION',
+        'A tunnel is when two pitches share the same early flight path but break in different directions at the plate. The batter cannot tell them apart until it is too late. Toggle TUNNEL ON to see yellow tunnel zones drawn between pitches that share a path. The goal is to build sequences where your fastball and breaking ball look identical out of your hand. Tunneling is one of the most powerful weapons in pitching.',
+        'tunnelbtn',
+        ()=>showTutorial2(6),
+        ()=>{tutorialActive=false;}
+      );
+      break;
+    case 6:
+      _showTutorialCard(6,TOTAL,
+        'ANCHOR SYSTEM',
+        'The anchor is the zone your pitching sequence is built around — the reference point the batter has to protect. After two or more pitches the system calculates the geometric midpoint of your attack sequence and highlights it in CYAN on the zone grid. Build your tunnels around this anchor. If you throw your first pitch to MM you establish MM as your anchor immediately — giving you maximum tunneling options in all directions.',
+        'zonediagram',
+        ()=>showTutorial2(7),
+        ()=>{tutorialActive=false;}
+      );
+      break;
+    case 7:
+      _showTutorialCard(7,TOTAL,
         'PLANNING MODE (SIM OFF)',
         'With SIM MODE off the app becomes a pitch sequence planner. Build attack sequences against specific batters, save them as named plans, and export them as a PDF to print and bring to the dugout. The PDF automatically includes your attack anchor so you always know the corridor to build your tunnels through. Use planning mode to prepare for games and study how different sequences work against different batter types.',
         'simbtn',
