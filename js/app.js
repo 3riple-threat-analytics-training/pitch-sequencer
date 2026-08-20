@@ -2,6 +2,10 @@ let hand='R',pitch='4FB',zone='MM',rubber=0.5;
 let mrOGVisible=true;
 let sreEnabled=false;
 let tutorialActive=false;
+Object.defineProperty(window,'tutorialActive',{
+  get:function(){return tutorialActive;},
+  set:function(v){tutorialActive=v;}
+});
 let tutorialStep=0;
 
 function showTutorialPrompt(){
