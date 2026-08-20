@@ -113,14 +113,15 @@ function _tutorialHighlight(elId,on){
     const panel=document.getElementById('panel');
     const inPanel=panel&&els.some(function(el){return panel.contains(el);});
     if(inPanel&&panel){
-      // Scroll the panel container to show the last element
+      // Scroll panel so last highlighted element is visible
       const lastEl=els[els.length-1];
+      // Calculate offset within panel and scroll to it
       const panelRect=panel.getBoundingClientRect();
-      const elRect=lastEl.getBoundingClientRect();
-      const cardHeight=220;
-      // Scroll panel so last element is visible above tutorial card
-      const targetScrollTop=panel.scrollTop+(elRect.bottom-panelRect.top)-
-        (panelRect.height-cardHeight);
+      const lastRect=lastEl.getBoundingClientRect();
+      // Position of last element relative to panel top
+      const relativeTop=(lastRect.top-panelRect.top)+panel.scrollTop;
+      // Add extra padding so element appears well above tutorial card
+      const targetScrollTop=relativeTop-80;
       panel.scrollTo({top:Math.max(0,targetScrollTop),behavior:'smooth'});
     } else {
       // Fall back to window scroll for elements outside panel
