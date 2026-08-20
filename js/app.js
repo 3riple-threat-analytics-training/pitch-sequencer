@@ -235,6 +235,42 @@ function showTutorial1(step){
         ()=>{tutorialActive=false;}
       );
       break;
+    case 4:
+      _showTutorialCard(4,TOTAL,
+        'PITCH ROLE',
+        'Before each pitch select your role. SETUP pitches establish patterns and set up future pitches. PUTAWAY pitches are your strikeout pitches when ahead in the count. TUNNEL pitches share the same early flight path as your last pitch to deceive the batter. CHASE pitches are thrown out of the zone when the batter is likely to chase. RESET clears your selection.',
+        'rolesection',
+        ()=>showTutorial1(5),
+        ()=>{tutorialActive=false;}
+      );
+      break;
+    case 5:
+      _showTutorialCard(5,TOTAL,
+        'PITCH COUNT & FATIGUE',
+        'This section tracks how many pitches have been thrown and monitors pitcher fatigue. As pitch count increases the system automatically reduces velocity to simulate arm fatigue — just like in a real game. Every age group has a recommended pitch count limit. Staying within it keeps your arm healthy and your velocity up.',
+        'fatiguewrap',
+        ()=>showTutorial1(6),
+        ()=>{tutorialActive=false;}
+      );
+      break;
+    case 6:
+      _showTutorialCard(6,TOTAL,
+        'SIM MODE',
+        'SIM MODE turns the app into a full game simulator. Toggle it on using the SIM MODE button at the top of the panel. Once on you will face real batters, track balls and strikes, advance through innings and see a live score. The app randomly assigns home or away — away teams bat first, home teams pitch first. Use SIM MODE to practice pitching under real game pressure.',
+        'simbtn',
+        ()=>showTutorial1(7),
+        ()=>{tutorialActive=false;}
+      );
+      break;
+    case 7:
+      _showTutorialCard(7,TOTAL,
+        'SMART ROLE ENGINE (SRE)',
+        'The Smart Role Engine is your AI pitching coach. After each pitch in SIM MODE it analyzes your sequence and provides coaching hints — suggesting tunnels, speed contrasts, location shifts and putaway pitches based on what the batter has shown you. Enable it in Settings under Smart Role Engine. The more you follow its advice the smarter your sequences become.',
+        'sretoggle',
+        ()=>{tutorialActive=false;showSimBannerIfNeeded();},
+        ()=>{tutorialActive=false;}
+      );
+      break;
     default:
       tutorialActive=false;
   }
