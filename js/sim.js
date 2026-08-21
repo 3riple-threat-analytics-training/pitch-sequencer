@@ -438,6 +438,7 @@ function toggleSimMode(){
   if(simMode){
     if(typeof applyFatigueToVelocity==='function')applyFatigueToVelocity();
     // Away game: show opener before first pitch
+    console.log('DEBUG away check: isHomeTeam=',isHomeTeam,'tutorialActive=',window.tutorialActive);
     if(!isHomeTeam&&!window.tutorialActive){
       // Generate away team's first at-bat runs
       setTimeout(function(){
