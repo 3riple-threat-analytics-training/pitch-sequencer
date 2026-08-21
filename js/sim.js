@@ -293,7 +293,83 @@ function confirmPitchingChange(){
   }
 }
 
+function saveGameHistory(){
+  try{
+    const profile=typeof getProfile==='function'?getProfile():null;
+    const pitches=typeof seq!=='undefined'?seq:[];
+    if(!pitches.length) return; // no pitches thrown — skip
+    // Build pitch mix
+    const pitchMix={};
+    const zoneMap={};
+    const firstPitches={};
+    const sequences={};
+    const outcomes={};
+    const countTendencies={};
+    const vsBatterType={};
+    const vsLHB={pitchMix:{},zoneMap:{},outcomes:{}};
+    const vsRHB={pitchMix:{},zoneMap:{},outcomes:{}};
+    pitches.forEach(function(p,i){
+      const pk=p.pk||'';
+      const zk=p.zk||'';
+      const outcome=p.outcome||'';
+      const count=p.count||'0-0';
+      const bh=p.batterHand||'RHB';
+      const bt=p.batterType||'GENERIC';
+      // Pitch mix
+      pitchMix[pk]=(pitchMix[pk]||0)+1;
+      // Zone map
+      if(zk) zoneMap[zk]=(zoneMap[zk]||0)+1;
+      // First pitch of each at-bat (count===0-0)
+      if(count==='0-0') firstPitches[pk]=(firstPitches[pk]||0)+1;
+      // Sequences — what follows what
+      if(i>0){
+        const prev=pitches[i-1].pk||'';
+        const key=prev+'->'+pk;
+        sequences[key]=(sequences[key]||0)+1;
+      }
+      // Outcomes by pitch
+      if(!outcomes[pk]) outcomes[pk]={};
+      outcomes[pk][outcome]=(outcomes[pk][outcome]||0)+1;
+      // Count tendencies
+      if(!countTendencies[count]) countTendencies[count]={};
+      countTendencies[count][pk]=(countTendencies[count][pk]||0)+1;
+      // By batter type
+      if(!vsBatterType[bt]) vsBatterType[bt]={pitchMix:{},outcomes:{}};
+      vsBatterType[bt].pitchMix[pk]=(vsBatterType[bt].pitchMix[pk]||0)+1;
+      if(!vsBatterType[bt].outcomes[outcome]) vsBatterType[bt].outcomes[outcome]=0;
+      vsBatterType[bt].outcomes[outcome]++;
+      // By batter handedness
+      const side=bh==='RHB'?vsRHB:vsLHB;
+      side.pitchMix[pk]=(side.pitchMix[pk]||0)+1;
+      if(zk) side.zoneMap[zk]=(side.zoneMap[zk]||0)+1;
+      if(!side.outcomes[outcome]) side.outcomes[outcome]=0;
+      side.outcomes[outcome]++;
+    });
+    const game={
+      date:Date.now(),
+      pitcher:profile?profile.name:'Pitcher',
+      ageGroup:profile?profile.ageGroup:'hsvar',
+      homeAway:typeof isHomeTeam!=='undefined'?(isHomeTeam?'HOME':'AWAY'):'HOME',
+      innings:typeof inningNumber!=='undefined'?inningNumber:1,
+      pitchCount:typeof totalPitchCount!=='undefined'?totalPitchCount:pitches.length,
+      strikeouts:typeof totalStrikeouts!=='undefined'?totalStrikeouts:0,
+      walks:typeof totalWalks!=='undefined'?totalWalks:0,
+      hits:typeof totalHits!=='undefined'?totalHits:0,
+      runsAllowed:typeof totalScore!=='undefined'?totalScore:0,
+      teamScore:typeof teamScore!=='undefined'?teamScore:0,
+      pitchMix,zoneMap,firstPitches,sequences,
+      outcomes,countTendencies,vsBatterType,vsLHB,vsRHB
+    };
+    // Load existing history
+    const raw=localStorage.getItem('pitchseq-game-history');
+    const history=raw?JSON.parse(raw):[];
+    history.push(game);
+    localStorage.setItem('pitchseq-game-history',JSON.stringify(history));
+  }catch(e){console.error('saveGameHistory error:',e);}
+}
 function endGame(){
+  // Save game history BEFORE resetting data
+  saveGameHistory();
   // Reset everything to inning 1
   totalPitchCount=0;
   totalStrikeouts=0;
