@@ -426,24 +426,174 @@ function confirmEndGame(){
 }
 
 function showGameSummary(){
-  const profile=getProfile();
-  const pitcherName=profile?profile.name:'Pitcher';
-  const summary='GAME SUMMARY\n\n'
-    +'Pitcher: '+pitcherName+'\n'
-    +'Total Pitches: '+totalPitchCount+'\n'
-    +'Strikeouts: '+totalStrikeouts+'\n'
-    +'Walks: '+totalWalks+'\n'
-    +'Hits Allowed: '+totalHits+'\n'
-    +'Final Fatigue: '+getFatigueLevelCurrent().label+'\n\n'
-    +'Great outing!';
-  alert(summary);
-  totalPitchCount=0;
-  totalStrikeouts=0;
-  totalWalks=0;
-  totalHits=0;
-  fatigueWarningShown=false;
-  updateFatigueUI();
-  applyFatigueToVelocity();
+  // Load the most recently saved game
+  try{
+    const raw=localStorage.getItem('pitchseq-game-history');
+    const history=raw?JSON.parse(raw):[];
+    if(!history.length){alert('No game data available.');return;}
+    const game=history[history.length-1];
+    showGameReport(game,'GAME REPORT',function(){});
+  }catch(e){alert('Could not load game report.');}
+}
+function showGameReport(game,title,onClose){
+  const existing=document.getElementById('game-report-overlay');
+  if(existing) existing.remove();
+  const overlay=document.createElement('div');
+  overlay.id='game-report-overlay';
+  overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;'
+    +'z-index:10000;background:rgba(0,0,0,0.85);overflow-y:auto;'
+    +'font-family:\'DM Mono\',monospace;';
+  const card=document.createElement('div');
+  card.style.cssText='background:#0a1520;max-width:480px;width:95%;'
+    +'margin:20px auto;border-radius:12px;padding:20px;'
+    +'border:1px solid #1e3a5c;';
+  // Header
+  const hdr=document.createElement('div');
+  hdr.style.cssText='display:flex;justify-content:space-between;align-items:center;'
+    +'margin-bottom:16px;border-bottom:1px solid #1e3a5c;padding-bottom:12px;';
+  const htitle=document.createElement('div');
+  htitle.style.cssText='font-family:\'Bebas Neue\',sans-serif;font-size:20px;'
+    +'color:#06b6d4;letter-spacing:3px;';
+  htitle.textContent=title;
+  const closeBtn=document.createElement('button');
+  closeBtn.style.cssText='background:transparent;border:0.5px solid #3a5a7a;'
+    +'color:#5a8aaa;padding:4px 10px;border-radius:4px;cursor:pointer;'
+    +'font-family:\'DM Mono\',monospace;font-size:10px;';
+  closeBtn.textContent='CLOSE';
+  closeBtn.onclick=function(){overlay.remove();if(onClose)onClose();};
+  hdr.appendChild(htitle);
+  hdr.appendChild(closeBtn);
+  card.appendChild(hdr);
+  // Summary stats
+  const stats=document.createElement('div');
+  stats.style.cssText='display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px;';
+  function statBox(label,value,color){
+    const b=document.createElement('div');
+    b.style.cssText='background:#0f2035;border:0.5px solid #1e3a5c;border-radius:6px;'
+      +'padding:8px;text-align:center;';
+    const v=document.createElement('div');
+    v.style.cssText='font-family:\'Bebas Neue\',sans-serif;font-size:22px;color:'
+      +(color||'#e8f4fd')+';';
+    v.textContent=value;
+    const l=document.createElement('div');
+    l.style.cssText='font-size:7px;color:#5a8aaa;letter-spacing:1px;margin-top:2px;';
+    l.textContent=label;
+    b.appendChild(v);b.appendChild(l);
+    return b;
+  }
+  stats.appendChild(statBox('PITCHES',game.pitchCount,'#e8f4fd'));
+  stats.appendChild(statBox('STRIKEOUTS',game.strikeouts,'#4ade80'));
+  stats.appendChild(statBox('WALKS',game.walks,'#f87171'));
+  stats.appendChild(statBox('HITS',game.hits,'#fbbf24'));
+  stats.appendChild(statBox('RUNS',game.runsAllowed,'#f87171'));
+  stats.appendChild(statBox('INNINGS',game.innings,'#06b6d4'));
+  card.appendChild(stats);
+  // Section label helper
+  function sectionLabel(text){
+    const s=document.createElement('div');
+    s.style.cssText='font-size:8px;color:#5a8aaa;letter-spacing:2px;'
+      +'margin:14px 0 6px 0;text-transform:uppercase;border-top:0.5px solid #1e3a5c;padding-top:10px;';
+    s.textContent=text;
+    card.appendChild(s);
+  }
+  // Pitch mix chart
+  sectionLabel('PITCH MIX');
+  const totalPitches=Object.values(game.pitchMix||{}).reduce((a,b)=>a+b,0)||1;
+  const pitchColors={'4FB':'#ef4444','2FB':'#f97316','CB':'#3b82f6','SL':'#a855f7',
+    'CH':'#22c55e','CT':'#eab308','SP':'#06b6d4','SK':'#f43f5e',
+    'FK':'#8b5cf6','SCR':'#ec4899','EPH':'#94a3b8','SLV':'#7c3aed',
+    'SWP':'#10b981','KN':'#64748b','KC':'#6366f1'};
+  Object.entries(game.pitchMix||{}).sort((a,b)=>b[1]-a[1]).forEach(function(e){
+    const pk=e[0],cnt=e[1];
+    const pct=Math.round(cnt/totalPitches*100);
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:6px;margin-bottom:4px;';
+    const lbl=document.createElement('div');
+    lbl.style.cssText='font-size:9px;color:#8aabb8;width:40px;flex-shrink:0;';
+    lbl.textContent=pk;
+    const bar=document.createElement('div');
+    bar.style.cssText='flex:1;background:#0f2035;border-radius:2px;height:12px;';
+    const fill=document.createElement('div');
+    fill.style.cssText='height:100%;border-radius:2px;background:'
+      +(pitchColors[pk]||'#5a8aaa')+';width:'+pct+'%;';
+    bar.appendChild(fill);
+    const pctLbl=document.createElement('div');
+    pctLbl.style.cssText='font-size:9px;color:#e8f4fd;width:36px;text-align:right;flex-shrink:0;';
+    pctLbl.textContent=cnt+' ('+pct+'%)';
+    row.appendChild(lbl);row.appendChild(bar);row.appendChild(pctLbl);
+    card.appendChild(row);
+  });
+  // Zone heat map
+  sectionLabel('ZONE HEAT MAP');
+  const zoneGrid=document.createElement('div');
+  zoneGrid.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:2px;max-width:180px;margin:0 auto 8px auto;';
+  const zoneOrder=['TL','TM','TR','ML','MM','MR','BL','BM','BR'];
+  const maxZone=Math.max.apply(null,zoneOrder.map(z=>game.zoneMap[z]||0))||1;
+  zoneOrder.forEach(function(zk){
+    const cnt=game.zoneMap[zk]||0;
+    const intensity=cnt/maxZone;
+    const cell=document.createElement('div');
+    cell.style.cssText='height:36px;border-radius:3px;display:flex;align-items:center;'
+      +'justify-content:center;font-size:9px;font-weight:700;'
+      +'background:rgba(239,68,68,'+Math.max(0.05,intensity)+');'
+      +'color:'+(intensity>0.5?'#fff':'#8aabb8')+';'
+      +'border:0.5px solid #1e3a5c;';
+    cell.textContent=cnt>0?cnt:'';
+    zoneGrid.appendChild(cell);
+  });
+  card.appendChild(zoneGrid);
+  // Count tendencies
+  sectionLabel('COUNT TENDENCIES');
+  const keyCountsOrder=['0-0','0-1','0-2','1-0','1-1','1-2','2-0','2-1','2-2','3-0','3-1','3-2'];
+  keyCountsOrder.forEach(function(ct){
+    const ctData=game.countTendencies[ct];
+    if(!ctData) return;
+    const topPitch=Object.entries(ctData).sort((a,b)=>b[1]-a[1])[0];
+    if(!topPitch) return;
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;justify-content:space-between;'
+      +'font-size:9px;color:#8aabb8;margin-bottom:3px;';
+    const l=document.createElement('div');
+    l.textContent='COUNT '+ct;
+    const r=document.createElement('div');
+    r.style.color=pitchColors[topPitch[0]]||'#e8f4fd';
+    r.textContent=topPitch[0]+' ('+topPitch[1]+'x)';
+    row.appendChild(l);row.appendChild(r);
+    card.appendChild(row);
+  });
+  // Key patterns
+  sectionLabel('PATTERN ALERTS');
+  const alerts=[];
+  // First pitch fastball tendency
+  const fp=game.firstPitches||{};
+  const fpTotal=Object.values(fp).reduce((a,b)=>a+b,0)||1;
+  const fpFB=(fp['4FB']||0)+(fp['2FB']||0)+(fp['SK']||0)+(fp['CT']||0)+(fp['SP']||0);
+  if(fpFB/fpTotal>0.70) alerts.push('⚠ '+Math.round(fpFB/fpTotal*100)+'% fastball first pitch — predictable opener');
+  // Most used pitch
+  const topPitch=Object.entries(game.pitchMix||{}).sort((a,b)=>b[1]-a[1])[0];
+  if(topPitch&&topPitch[1]/totalPitches>0.55) alerts.push('⚠ '+topPitch[0]+' used '+Math.round(topPitch[1]/totalPitches*100)+'% of time — over-reliance');
+  // Most used zone
+  const topZone=Object.entries(game.zoneMap||{}).sort((a,b)=>b[1]-a[1])[0];
+  const totalZonePitches=Object.values(game.zoneMap||{}).reduce((a,b)=>a+b,0)||1;
+  if(topZone&&topZone[1]/totalZonePitches>0.30) alerts.push('⚠ '+topZone[0]+' zone used '+Math.round(topZone[1]/totalZonePitches*100)+'% of time — location pattern');
+  if(!alerts.length) alerts.push('✓ No major patterns detected — good variety!');
+  alerts.forEach(function(a){
+    const al=document.createElement('div');
+    al.style.cssText='font-size:9px;color:'+(a.startsWith('⚠')?'#fbbf24':'#4ade80')
+      +';margin-bottom:4px;line-height:1.4;';
+    al.textContent=a;
+    card.appendChild(al);
+  });
+  // Export PDF button
+  const exportBtn=document.createElement('button');
+  exportBtn.style.cssText='width:100%;margin-top:16px;padding:10px;border-radius:6px;'
+    +'border:0.5px solid #06b6d4;background:transparent;color:#06b6d4;'
+    +'font-family:\'Bebas Neue\',sans-serif;font-size:14px;letter-spacing:2px;cursor:pointer;';
+  exportBtn.textContent='EXPORT REPORT TO PDF';
+  exportBtn.onclick=function(){alert('PDF export coming soon.');};
+  card.appendChild(exportBtn);
+  overlay.appendChild(card);
+  document.body.appendChild(overlay);
 }
 
 function resetPitchCount(){
