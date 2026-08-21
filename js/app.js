@@ -3556,6 +3556,9 @@ function commitPitch(pts3d,pk,zk,spd,bd,rl,ct,outcome){
   if(sreEnabled) setTimeout(()=>showSREHint(),800);
   seq.push({pk,zk,spd,bd,role:rl,count:ct,outcome:outcome||'',
     foulType,checkSwing,
+    batterHand:typeof batter!=='undefined'?batter:'RHB',
+    batterType:typeof secretBatterType!=='undefined'&&secretBatterType?
+      secretBatterType:(typeof batterType!=='undefined'?batterType:'GENERIC'),
     pts3d:pts3d.map(v=>v.clone()),tunnelData});
   if(typeof applyAnchorHighlight==='function') applyAnchorHighlight();
   updateSeqUI();buildTunnels();
