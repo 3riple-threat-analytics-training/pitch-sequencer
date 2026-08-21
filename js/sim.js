@@ -309,7 +309,13 @@ function endGame(){
   simInningBreak=false;
   totalScore=0;
   teamScore=0;
-  isHomeTeam=Math.random()<0.5;
+  // First time ever: always home game so tutorial runs without away opener conflict
+  if(!localStorage.getItem('pitchseq-sim-first-run')){
+    isHomeTeam=true;
+    localStorage.setItem('pitchseq-sim-first-run','1');
+  } else {
+    isHomeTeam=Math.random()<0.5;
+  }
   inningRunsAllowed=0;
   inningHits=0;
   scoreboardData=[];
