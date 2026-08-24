@@ -536,23 +536,144 @@ function showGameReport(game,title,onClose){
   });
   // Zone heat map
   sectionLabel('ZONE HEAT MAP');
-  const zoneGrid=document.createElement('div');
-  zoneGrid.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:2px;max-width:180px;margin:0 auto 8px auto;';
-  const zoneOrder=['TL','TM','TR','ML','MM','MR','BL','BM','BR'];
-  const maxZone=Math.max.apply(null,zoneOrder.map(z=>game.zoneMap[z]||0))||1;
-  zoneOrder.forEach(function(zk){
-    const cnt=game.zoneMap[zk]||0;
-    const intensity=cnt/maxZone;
-    const cell=document.createElement('div');
-    cell.style.cssText='height:36px;border-radius:3px;display:flex;align-items:center;'
-      +'justify-content:center;font-size:9px;font-weight:700;'
-      +'background:rgba(239,68,68,'+Math.max(0.05,intensity)+');'
-      +'color:'+(intensity>0.5?'#fff':'#8aabb8')+';'
-      +'border:0.5px solid #1e3a5c;';
-    cell.textContent=cnt>0?cnt:'';
-    zoneGrid.appendChild(cell);
+  // Legend
+  const legend=document.createElement('div');
+  legend.style.cssText='display:flex;gap:10px;margin-bottom:6px;font-size:8px;';
+  [['#ef4444','IN ZONE'],['#d97706','EDGE'],['#3b82f6','CHASE']].forEach(function(e){
+    const item=document.createElement('div');
+    item.style.cssText='display:flex;align-items:center;gap:3px;color:#8aabb8;';
+    const dot=document.createElement('div');
+    dot.style.cssText='width:8px;height:8px;border-radius:2px;background:'+e[0]+';';
+    item.appendChild(dot);
+    item.appendChild(document.createTextNode(e[1]));
+    legend.appendChild(item);
   });
-  card.appendChild(zoneGrid);
+  card.appendChild(legend);
+  // Chase row top
+  const chaseTop=document.createElement('div');
+  chaseTop.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:2px;max-width:180px;margin:0 auto 2px auto;';
+  ['CUL','CUM','CUR'].forEach(function(zk){
+    const cnt=game.zoneMap[zk]||0;
+    const cell=document.createElement('div');
+    cell.style.cssText='height:22px;border-radius:3px;display:flex;align-items:center;'
+      +'justify-content:center;font-size:8px;font-weight:700;'
+      +'background:rgba(59,130,246,'+(cnt>0?0.6:0.08)+');'
+      +'color:'+(cnt>0?'#93c5fd':'#3a5a7a')+';border:0.5px solid #1e3a5c;';
+    cell.textContent=cnt>0?cnt:'';
+    chaseTop.appendChild(cell);
+  });
+  card.appendChild(chaseTop);
+  // Middle row: CIN + strike zone + COUT
+  const midWrap=document.createElement('div');
+  midWrap.style.cssText='display:flex;gap:2px;max-width:220px;margin:0 auto 2px auto;align-items:stretch;';
+  // Left side chase (COUT = inside from catcher view)
+  const coutCell=document.createElement('div');
+  const coutCnt=game.zoneMap['COUT']||0;
+  coutCell.style.cssText='width:28px;border-radius:3px;display:flex;align-items:center;'
+    +'justify-content:center;font-size:8px;font-weight:700;'
+    +'background:rgba(59,130,246,'+(coutCnt>0?0.6:0.08)+');'
+    +'color:'+(coutCnt>0?'#93c5fd':'#3a5a7a')+';border:0.5px solid #1e3a5c;flex-shrink:0;';
+  coutCell.textContent=coutCnt>0?coutCnt:'';
+  midWrap.appendChild(coutCell);
+  // Strike zone 3x3
+  const strikeWrap=document.createElement('div');
+  strikeWrap.style.cssText='flex:1;';
+  // Edge top row
+  const edgeTop=document.createElement('div');
+  edgeTop.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:2px;margin-bottom:2px;';
+  ['TL-CRN','TOP-EDG','TR-CRN'].forEach(function(zk){
+    const cnt=game.zoneMap[zk]||0;
+    const cell=document.createElement('div');
+    cell.style.cssText='height:18px;border-radius:2px;display:flex;align-items:center;'
+      +'justify-content:center;font-size:7px;font-weight:700;'
+      +'background:rgba(217,119,6,'+(cnt>0?0.7:0.08)+');'
+      +'color:'+(cnt>0?'#fcd34d':'#3a5a7a')+';border:0.5px solid #1e3a5c;';
+    cell.textContent=cnt>0?cnt:'';
+    edgeTop.appendChild(cell);
+  });
+  strikeWrap.appendChild(edgeTop);
+  // Inner zone rows with edge sides
+  [['TL','TM','TR'],['ML','MM','MR'],['BL','BM','BR']].forEach(function(row,ri){
+    const rowWrap=document.createElement('div');
+    rowWrap.style.cssText='display:flex;gap:2px;margin-bottom:2px;';
+    const edgeKeys=[['LFT-EDG'],['RGT-EDG']];
+    // Left edge
+    const leftEdgeKey=ri===1?'LFT-EDG':null;
+    const leftEdgeCell=document.createElement('div');
+    const leftCnt=leftEdgeKey?(game.zoneMap[leftEdgeKey]||0):0;
+    leftEdgeCell.style.cssText='width:18px;border-radius:2px;display:flex;align-items:center;'
+      +'justify-content:center;font-size:7px;font-weight:700;flex-shrink:0;'
+      +'background:rgba(217,119,6,'+(leftEdgeKey&&leftCnt>0?0.7:0.08)+');'
+      +'color:'+(leftEdgeKey&&leftCnt>0?'#fcd34d':'#3a5a7a')+';border:0.5px solid #1e3a5c;';
+    leftEdgeCell.textContent=leftEdgeKey&&leftCnt>0?leftCnt:'';
+    rowWrap.appendChild(leftEdgeCell);
+    // Inner zones
+    const innerWrap=document.createElement('div');
+    innerWrap.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:2px;flex:1;';
+    const maxZone=Math.max.apply(null,['TL','TM','TR','ML','MM','MR','BL','BM','BR'].map(z=>game.zoneMap[z]||0))||1;
+    row.forEach(function(zk){
+      const cnt=game.zoneMap[zk]||0;
+      const intensity=cnt/maxZone;
+      const cell=document.createElement('div');
+      cell.style.cssText='height:30px;border-radius:2px;display:flex;align-items:center;'
+        +'justify-content:center;font-size:9px;font-weight:700;'
+        +'background:rgba(239,68,68,'+Math.max(0.05,intensity)+');'
+        +'color:'+(intensity>0.5?'#fff':'#8aabb8')+';border:0.5px solid #1e3a5c;';
+      cell.textContent=cnt>0?cnt:'';
+      innerWrap.appendChild(cell);
+    });
+    rowWrap.appendChild(innerWrap);
+    // Right edge
+    const rightEdgeKey=ri===1?'RGT-EDG':null;
+    const rightEdgeCell=document.createElement('div');
+    const rightCnt=rightEdgeKey?(game.zoneMap[rightEdgeKey]||0):0;
+    rightEdgeCell.style.cssText='width:18px;border-radius:2px;display:flex;align-items:center;'
+      +'justify-content:center;font-size:7px;font-weight:700;flex-shrink:0;'
+      +'background:rgba(217,119,6,'+(rightEdgeKey&&rightCnt>0?0.7:0.08)+');'
+      +'color:'+(rightEdgeKey&&rightCnt>0?'#fcd34d':'#3a5a7a')+';border:0.5px solid #1e3a5c;';
+    rightEdgeCell.textContent=rightEdgeKey&&rightCnt>0?rightCnt:'';
+    rowWrap.appendChild(rightEdgeCell);
+    strikeWrap.appendChild(rowWrap);
+  });
+  // Edge bottom row
+  const edgeBot=document.createElement('div');
+  edgeBot.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:2px;margin-bottom:2px;';
+  ['BL-CRN','BOT-EDG','BR-CRN'].forEach(function(zk){
+    const cnt=game.zoneMap[zk]||0;
+    const cell=document.createElement('div');
+    cell.style.cssText='height:18px;border-radius:2px;display:flex;align-items:center;'
+      +'justify-content:center;font-size:7px;font-weight:700;'
+      +'background:rgba(217,119,6,'+(cnt>0?0.7:0.08)+');'
+      +'color:'+(cnt>0?'#fcd34d':'#3a5a7a')+';border:0.5px solid #1e3a5c;';
+    cell.textContent=cnt>0?cnt:'';
+    edgeBot.appendChild(cell);
+  });
+  strikeWrap.appendChild(edgeBot);
+  midWrap.appendChild(strikeWrap);
+  // Right side chase (CIN = outside from catcher view)
+  const cinCell=document.createElement('div');
+  const cinCnt=game.zoneMap['CIN']||0;
+  cinCell.style.cssText='width:28px;border-radius:3px;display:flex;align-items:center;'
+    +'justify-content:center;font-size:8px;font-weight:700;'
+    +'background:rgba(59,130,246,'+(cinCnt>0?0.6:0.08)+');'
+    +'color:'+(cinCnt>0?'#93c5fd':'#3a5a7a')+';border:0.5px solid #1e3a5c;flex-shrink:0;';
+  cinCell.textContent=cinCnt>0?cinCnt:'';
+  midWrap.appendChild(cinCell);
+  card.appendChild(midWrap);
+  // Chase row bottom
+  const chaseBot=document.createElement('div');
+  chaseBot.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:2px;max-width:180px;margin:0 auto 2px auto;';
+  ['CLO-R','CLO-M','CLO-L'].forEach(function(zk){
+    const cnt=game.zoneMap[zk]||0;
+    const cell=document.createElement('div');
+    cell.style.cssText='height:22px;border-radius:3px;display:flex;align-items:center;'
+      +'justify-content:center;font-size:8px;font-weight:700;'
+      +'background:rgba(59,130,246,'+(cnt>0?0.6:0.08)+');'
+      +'color:'+(cnt>0?'#93c5fd':'#3a5a7a')+';border:0.5px solid #1e3a5c;';
+    cell.textContent=cnt>0?cnt:'';
+    chaseBot.appendChild(cell);
+  });
+  card.appendChild(chaseBot);
   // Count tendencies
   sectionLabel('COUNT TENDENCIES');
   const keyCountsOrder=['0-0','0-1','0-2','1-0','1-1','1-2','2-0','2-1','2-2','3-0','3-1','3-2'];
