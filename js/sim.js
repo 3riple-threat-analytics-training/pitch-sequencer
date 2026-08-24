@@ -352,9 +352,12 @@ function saveGameHistory(){
       pitcher:profile?profile.name:'Pitcher',
       ageGroup:profile?profile.ageGroup:'hsvar',
       homeAway:typeof isHomeTeam!=='undefined'?(isHomeTeam?'HOME':'AWAY'):'HOME',
-      innings:typeof inningNumber!=='undefined'?inningNumber:1,
+      innings:typeof scoreboardData!=='undefined'&&scoreboardData.length?
+        scoreboardData.length:Math.max(1,(inningNumber||1)-1),
       pitchCount:typeof totalPitchCount!=='undefined'?totalPitchCount:pitches.length,
-      strikeouts:typeof totalStrikeouts!=='undefined'?totalStrikeouts:0,
+      strikeouts:pitches.filter(function(p){
+        return p.outcome==='STRIKEOUT';}).length||
+        (typeof totalStrikeouts!=='undefined'?totalStrikeouts:0),
       walks:typeof totalWalks!=='undefined'?totalWalks:0,
       hits:typeof totalHits!=='undefined'?totalHits:0,
       runsAllowed:typeof totalScore!=='undefined'?totalScore:0,
