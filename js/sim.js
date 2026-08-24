@@ -359,7 +359,10 @@ function saveGameHistory(){
         return p.outcome==='STRIKEOUT';}).length||
         (typeof totalStrikeouts!=='undefined'?totalStrikeouts:0),
       walks:typeof totalWalks!=='undefined'?totalWalks:0,
-      hits:typeof totalHits!=='undefined'?totalHits:0,
+      hits:pitches.filter(function(p){
+        return p.outcome==='SINGLE'||p.outcome==='DOUBLE'||
+          p.outcome==='TRIPLE'||p.outcome==='HOME RUN';}).length||
+        (typeof totalHits!=='undefined'?totalHits:0),
       runsAllowed:typeof totalScore!=='undefined'?totalScore:0,
       teamScore:typeof teamScore!=='undefined'?teamScore:0,
       pitchMix,zoneMap,firstPitches,sequences,
