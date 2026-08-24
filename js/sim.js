@@ -412,6 +412,8 @@ function endGame(){
   // Clear sequence
   if(typeof clearAll==='function') clearAll();
   showFatigueToast('NEW GAME — PLAY BALL!');
+  // Show game report after reset
+  setTimeout(function(){showGameSummary();},500);
 }
 
 function confirmEndGame(){
