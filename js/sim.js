@@ -33,6 +33,7 @@ let isHomeTeam=true;
 let inningRunsAllowed=0;
 let inningHits=0;
 let scoreboardData=[]; // array of {inning, hits, score} per completed inning
+let gameSeq=[]; // accumulates all pitches this game across all batters
 let pendingRunnerUpdate=null; // suggested runner state after a hit
 let lastSimDiamondBadgeText=null; // terminal outcome when opening modal without pendingRunnerUpdate
 
@@ -296,7 +297,8 @@ function confirmPitchingChange(){
 function saveGameHistory(){
   try{
     const profile=typeof getProfile==='function'?getProfile():null;
-    const pitches=typeof seq!=='undefined'?seq:[];
+    const pitches=(typeof gameSeq!=='undefined'&&gameSeq.length)?gameSeq:
+      (typeof seq!=='undefined'?seq:[]);
     if(!pitches.length) return; // no pitches thrown — skip
     // Build pitch mix
     const pitchMix={};
@@ -395,6 +397,7 @@ function endGame(){
   inningRunsAllowed=0;
   inningHits=0;
   scoreboardData=[];
+  gameSeq=[];
   runners={first:false,second:false,third:false};
   pendingRunnerUpdate=null;
   simLog=[];
@@ -1029,6 +1032,10 @@ function resetRunners(){
 
 function cancelSimScheduledClear(){if(simClearTimer){clearTimeout(simClearTimer);simClearTimer=null;}}
 function simClearSequenceOnly(){
+  // Accumulate pitches into gameSeq before clearing seq
+  if(typeof seq!=='undefined'&&seq.length){
+    gameSeq=gameSeq.concat(seq.map(function(p){return Object.assign({},p,{pts3d:null,tunnelData:null});}));
+  }
   seq=[];pathObjs.forEach(o=>removeObj(o));pathObjs=[];landObjs.forEach(o=>scene.remove(o));landObjs=[];clearTunnels();updateSeqUI();refreshGhost();
   if(simMode){ballCount=0;strikeCount=0;renderCount();}
   if(typeof applyAnchorHighlight==='function') applyAnchorHighlight();
