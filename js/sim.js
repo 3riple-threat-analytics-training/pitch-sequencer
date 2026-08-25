@@ -452,23 +452,23 @@ function showGameReport(game,title,onClose){
   const overlay=document.createElement('div');
   overlay.id='game-report-overlay';
   overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;'
-    +'z-index:10000;background:rgba(0,0,0,0.85);overflow-y:auto;'
+    +'z-index:10000;background:#ffffff;overflow-y:auto;'
     +'font-family:\'DM Mono\',monospace;';
   const card=document.createElement('div');
-  card.style.cssText='background:#0a1520;max-width:480px;width:95%;'
-    +'margin:20px auto;border-radius:12px;padding:20px;'
-    +'border:1px solid #1e3a5c;';
+  card.style.cssText='background:#ffffff;max-width:100%;width:100%;'
+    +'margin:0 auto;border-radius:0;padding:20px;'
+    +'border:none;';
   // Header
   const hdr=document.createElement('div');
   hdr.style.cssText='display:flex;justify-content:space-between;align-items:center;'
     +'margin-bottom:16px;border-bottom:1px solid #1e3a5c;padding-bottom:12px;';
   const htitle=document.createElement('div');
   htitle.style.cssText='font-family:\'Bebas Neue\',sans-serif;font-size:20px;'
-    +'color:#06b6d4;letter-spacing:3px;';
+    +'color:#0e7490;letter-spacing:3px;';
   htitle.textContent=title;
   const closeBtn=document.createElement('button');
-  closeBtn.style.cssText='background:transparent;border:0.5px solid #3a5a7a;'
-    +'color:#5a8aaa;padding:4px 10px;border-radius:4px;cursor:pointer;'
+  closeBtn.style.cssText='background:transparent;border:0.5px solid #0e7490;'
+    +'color:#0e7490;padding:4px 10px;border-radius:4px;cursor:pointer;'
     +'font-family:\'DM Mono\',monospace;font-size:10px;';
   closeBtn.textContent='CLOSE';
   closeBtn.onclick=function(){overlay.remove();if(onClose)onClose();};
@@ -480,14 +480,14 @@ function showGameReport(game,title,onClose){
   stats.style.cssText='display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px;';
   function statBox(label,value,color){
     const b=document.createElement('div');
-    b.style.cssText='background:#0f2035;border:0.5px solid #1e3a5c;border-radius:6px;'
+    b.style.cssText='background:#f0f9ff;border:0.5px solid #bae6fd;border-radius:6px;'
       +'padding:8px;text-align:center;';
     const v=document.createElement('div');
     v.style.cssText='font-family:\'Bebas Neue\',sans-serif;font-size:22px;color:'
       +(color||'#e8f4fd')+';';
     v.textContent=value;
     const l=document.createElement('div');
-    l.style.cssText='font-size:7px;color:#5a8aaa;letter-spacing:1px;margin-top:2px;';
+    l.style.cssText='font-size:7px;color:#0e7490;letter-spacing:1px;margin-top:2px;';
     l.textContent=label;
     b.appendChild(v);b.appendChild(l);
     return b;
@@ -502,8 +502,8 @@ function showGameReport(game,title,onClose){
   // Section label helper
   function sectionLabel(text){
     const s=document.createElement('div');
-    s.style.cssText='font-size:8px;color:#5a8aaa;letter-spacing:2px;'
-      +'margin:14px 0 6px 0;text-transform:uppercase;border-top:0.5px solid #1e3a5c;padding-top:10px;';
+    s.style.cssText='font-size:8px;color:#0e7490;letter-spacing:2px;'
+      +'margin:14px 0 6px 0;text-transform:uppercase;border-top:0.5px solid #bae6fd;padding-top:10px;';
     s.textContent=text;
     card.appendChild(s);
   }
@@ -520,16 +520,16 @@ function showGameReport(game,title,onClose){
     const row=document.createElement('div');
     row.style.cssText='display:flex;align-items:center;gap:6px;margin-bottom:4px;';
     const lbl=document.createElement('div');
-    lbl.style.cssText='font-size:9px;color:#8aabb8;width:40px;flex-shrink:0;';
+    lbl.style.cssText='font-size:9px;color:#0369a1;width:40px;flex-shrink:0;';
     lbl.textContent=pk;
     const bar=document.createElement('div');
-    bar.style.cssText='flex:1;background:#0f2035;border-radius:2px;height:12px;';
+    bar.style.cssText='flex:1;background:#e0f2fe;border-radius:2px;height:12px;';
     const fill=document.createElement('div');
     fill.style.cssText='height:100%;border-radius:2px;background:'
       +(pitchColors[pk]||'#5a8aaa')+';width:'+pct+'%;';
     bar.appendChild(fill);
     const pctLbl=document.createElement('div');
-    pctLbl.style.cssText='font-size:9px;color:#e8f4fd;width:36px;text-align:right;flex-shrink:0;';
+    pctLbl.style.cssText='font-size:9px;color:#0369a1;width:36px;text-align:right;flex-shrink:0;';
     pctLbl.textContent=cnt+' ('+pct+'%)';
     row.appendChild(lbl);row.appendChild(bar);row.appendChild(pctLbl);
     card.appendChild(row);
@@ -689,9 +689,9 @@ function showGameReport(game,title,onClose){
     if(!ctData) return;
     const topPitch=Object.entries(ctData).sort((a,b)=>b[1]-a[1])[0];
     if(!topPitch) return;
-    const row=document.createElement('div');
-    row.style.cssText='display:flex;justify-content:space-between;'
-      +'font-size:9px;color:#8aabb8;margin-bottom:3px;';
+      const row=document.createElement('div');
+      row.style.cssText='display:flex;justify-content:space-between;'
+        +'font-size:9px;color:#0369a1;margin-bottom:3px;';
     const l=document.createElement('div');
     l.textContent='COUNT '+ct;
     const r=document.createElement('div');
@@ -726,7 +726,7 @@ function showGameReport(game,title,onClose){
   // Export PDF button
   const exportBtn=document.createElement('button');
   exportBtn.style.cssText='width:100%;margin-top:16px;padding:10px;border-radius:6px;'
-    +'border:0.5px solid #06b6d4;background:transparent;color:#06b6d4;'
+    +'border:0.5px solid #0e7490;background:#f0f9ff;color:#0e7490;'
     +'font-family:\'Bebas Neue\',sans-serif;font-size:14px;letter-spacing:2px;cursor:pointer;';
   exportBtn.textContent='EXPORT REPORT TO PDF';
   exportBtn.onclick=function(){alert('PDF export coming soon.');};
