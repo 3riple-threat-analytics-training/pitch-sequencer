@@ -552,7 +552,8 @@ function showGameReport(game,title,onClose){
   // Chase row top
   const chaseTop=document.createElement('div');
   chaseTop.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:2px;max-width:180px;margin:0 auto 2px auto;';
-  ['CUL','CUM','CUR'].forEach(function(zk){
+  // Chase top: CUR is left on screen, CUL is right (catcher's POV swap)
+  ['CUR','CUM','CUL'].forEach(function(zk){
     const cnt=game.zoneMap[zk]||0;
     const cell=document.createElement('div');
     cell.style.cssText='height:22px;border-radius:3px;display:flex;align-items:center;'
@@ -581,7 +582,8 @@ function showGameReport(game,title,onClose){
   // Edge top row
   const edgeTop=document.createElement('div');
   edgeTop.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:2px;margin-bottom:2px;';
-  ['TL-CRN','TOP-EDG','TR-CRN'].forEach(function(zk){
+  // Edge top: TR-CRN is left on screen, TL-CRN is right (catcher's POV swap)
+  ['TR-CRN','TOP-EDG','TL-CRN'].forEach(function(zk){
     const cnt=game.zoneMap[zk]||0;
     const cell=document.createElement('div');
     cell.style.cssText='height:18px;border-radius:2px;display:flex;align-items:center;'
@@ -593,12 +595,14 @@ function showGameReport(game,title,onClose){
   });
   strikeWrap.appendChild(edgeTop);
   // Inner zone rows with edge sides
-  [['TL','TM','TR'],['ML','MM','MR'],['BL','BM','BR']].forEach(function(row,ri){
+  // ZKC order matches catcher's POV display — TR/TM/TL left-to-right on screen
+  [['TR','TM','TL'],['MR','MM','ML'],['BR','BM','BL']].forEach(function(row,ri){
     const rowWrap=document.createElement('div');
     rowWrap.style.cssText='display:flex;gap:2px;margin-bottom:2px;';
     const edgeKeys=[['LFT-EDG'],['RGT-EDG']];
     // Left edge
-    const leftEdgeKey=ri===1?'LFT-EDG':null;
+    // LFT-EDG is on the RIGHT side of screen from catcher's view
+    const leftEdgeKey=ri===1?'RGT-EDG':null;
     const leftEdgeCell=document.createElement('div');
     const leftCnt=leftEdgeKey?(game.zoneMap[leftEdgeKey]||0):0;
     leftEdgeCell.style.cssText='width:18px;border-radius:2px;display:flex;align-items:center;'
@@ -624,7 +628,8 @@ function showGameReport(game,title,onClose){
     });
     rowWrap.appendChild(innerWrap);
     // Right edge
-    const rightEdgeKey=ri===1?'RGT-EDG':null;
+    // RGT-EDG is on the LEFT side of screen from catcher's view
+    const rightEdgeKey=ri===1?'LFT-EDG':null;
     const rightEdgeCell=document.createElement('div');
     const rightCnt=rightEdgeKey?(game.zoneMap[rightEdgeKey]||0):0;
     rightEdgeCell.style.cssText='width:18px;border-radius:2px;display:flex;align-items:center;'
@@ -638,7 +643,8 @@ function showGameReport(game,title,onClose){
   // Edge bottom row
   const edgeBot=document.createElement('div');
   edgeBot.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:2px;margin-bottom:2px;';
-  ['BL-CRN','BOT-EDG','BR-CRN'].forEach(function(zk){
+  // Edge bottom: BR-CRN is left on screen, BL-CRN is right (catcher's POV swap)
+  ['BR-CRN','BOT-EDG','BL-CRN'].forEach(function(zk){
     const cnt=game.zoneMap[zk]||0;
     const cell=document.createElement('div');
     cell.style.cssText='height:18px;border-radius:2px;display:flex;align-items:center;'
@@ -663,7 +669,8 @@ function showGameReport(game,title,onClose){
   // Chase row bottom
   const chaseBot=document.createElement('div');
   chaseBot.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:2px;max-width:180px;margin:0 auto 2px auto;';
-  ['CLO-R','CLO-M','CLO-L'].forEach(function(zk){
+  // Chase bottom: CLO-L is right on screen, CLO-R is left (catcher's POV swap)
+  ['CLO-L','CLO-M','CLO-R'].forEach(function(zk){
     const cnt=game.zoneMap[zk]||0;
     const cell=document.createElement('div');
     cell.style.cssText='height:22px;border-radius:3px;display:flex;align-items:center;'
