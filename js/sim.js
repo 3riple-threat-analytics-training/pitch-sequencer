@@ -695,7 +695,7 @@ function showGameReport(game,title,onClose){
     const l=document.createElement('div');
     l.textContent='COUNT '+ct;
     const r=document.createElement('div');
-    r.style.color=pitchColors[topPitch[0]]||'#e8f4fd';
+    r.style.color='#0c4a6e';
     r.textContent=topPitch[0]+' ('+topPitch[1]+'x)';
     row.appendChild(l);row.appendChild(r);
     card.appendChild(row);
@@ -718,8 +718,8 @@ function showGameReport(game,title,onClose){
   if(!alerts.length) alerts.push('✓ No major patterns detected — good variety!');
   alerts.forEach(function(a){
     const al=document.createElement('div');
-    al.style.cssText='font-size:9px;color:'+(a.startsWith('⚠')?'#fbbf24':'#4ade80')
-      +';margin-bottom:4px;line-height:1.4;';
+    al.style.cssText='font-size:9px;color:#0c4a6e'
+      +';margin-bottom:4px;line-height:1.4;font-weight:600;';
     al.textContent=a;
     card.appendChild(al);
   });
