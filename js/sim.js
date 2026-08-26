@@ -492,11 +492,11 @@ function showGameReport(game,title,onClose){
     b.appendChild(v);b.appendChild(l);
     return b;
   }
-  stats.appendChild(statBox('PITCHES',game.pitchCount,'#e8f4fd'));
-  stats.appendChild(statBox('STRIKEOUTS',game.strikeouts,'#4ade80'));
-  stats.appendChild(statBox('WALKS',game.walks,'#f87171'));
-  stats.appendChild(statBox('HITS',game.hits,'#fbbf24'));
-  stats.appendChild(statBox('RUNS',game.runsAllowed,'#f87171'));
+  stats.appendChild(statBox('PITCHES',game.pitchCount,'#0c4a6e'));
+  stats.appendChild(statBox('STRIKEOUTS',game.strikeouts,'#166534'));
+  stats.appendChild(statBox('WALKS',game.walks,'#991b1b'));
+  stats.appendChild(statBox('HITS',game.hits,'#92400e'));
+  stats.appendChild(statBox('RUNS',game.runsAllowed,'#991b1b'));
   stats.appendChild(statBox('INNINGS',game.innings,'#06b6d4'));
   card.appendChild(stats);
   // Section label helper
