@@ -475,6 +475,43 @@ function showGameReport(game,title,onClose){
   hdr.appendChild(htitle);
   hdr.appendChild(closeBtn);
   card.appendChild(hdr);
+  // Tab bar
+  const tabBar=document.createElement('div');
+  tabBar.style.cssText='display:flex;gap:4px;margin-bottom:16px;border-bottom:2px solid #bae6fd;';
+  const tabs=['GAME','BUNDLES','CAREER'];
+  const tabContents={};
+  tabs.forEach(function(t){
+    const btn=document.createElement('button');
+    btn.id='report-tab-'+t;
+    btn.style.cssText='padding:8px 16px;border:none;background:transparent;'
+      +'font-family:\'Bebas Neue\',sans-serif;font-size:14px;letter-spacing:2px;'
+      +'cursor:pointer;color:#5a8aaa;border-bottom:3px solid transparent;margin-bottom:-2px;';
+    btn.textContent=t;
+    btn.onclick=function(){
+      tabs.forEach(function(t2){
+        const b=document.getElementById('report-tab-'+t2);
+        const c=document.getElementById('report-content-'+t2);
+        if(b) b.style.cssText=b.style.cssText.replace('color:#0c4a6e;border-bottom:3px solid #0c4a6e;','color:#5a8aaa;border-bottom:3px solid transparent;');
+        if(c) c.style.display='none';
+      });
+      btn.style.cssText=btn.style.cssText.replace('color:#5a8aaa;border-bottom:3px solid transparent;','color:#0c4a6e;border-bottom:3px solid #0c4a6e;');
+      const content=document.getElementById('report-content-'+t);
+      if(content) content.style.display='block';
+    };
+    tabBar.appendChild(btn);
+    const content=document.createElement('div');
+    content.id='report-content-'+t;
+    content.style.display=t==='GAME'?'block':'none';
+    tabContents[t]=content;
+  });
+  card.appendChild(tabBar);
+  // Activate first tab
+  const firstTab=document.getElementById('report-tab-GAME');
+  if(firstTab) firstTab.style.cssText=firstTab.style.cssText.replace('color:#5a8aaa;border-bottom:3px solid transparent;','color:#0c4a6e;border-bottom:3px solid #0c4a6e;');
+  // Add tab content containers to card
+  tabs.forEach(function(t){card.appendChild(tabContents[t]);});
+  // All game content goes into GAME tab
+  const gameTab=tabContents['GAME'];
   // Summary stats
   const stats=document.createElement('div');
   stats.style.cssText='display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px;';
@@ -498,14 +535,14 @@ function showGameReport(game,title,onClose){
   stats.appendChild(statBox('HITS',game.hits,'#92400e'));
   stats.appendChild(statBox('RUNS',game.runsAllowed,'#991b1b'));
   stats.appendChild(statBox('INNINGS',game.innings,'#06b6d4'));
-  card.appendChild(stats);
+  gameTab.appendChild(stats);
   // Section label helper
   function sectionLabel(text){
     const s=document.createElement('div');
     s.style.cssText='font-size:8px;color:#0c4a6e;letter-spacing:2px;font-weight:700;'
       +'margin:14px 0 6px 0;text-transform:uppercase;border-top:0.5px solid #bae6fd;padding-top:10px;';
     s.textContent=text;
-    card.appendChild(s);
+    gameTab.appendChild(s);
   }
   // Pitch mix chart
   sectionLabel('PITCH MIX');
@@ -532,7 +569,7 @@ function showGameReport(game,title,onClose){
     pctLbl.style.cssText='font-size:9px;color:#0c4a6e;width:36px;text-align:right;flex-shrink:0;font-weight:600;';
     pctLbl.textContent=cnt+' ('+pct+'%)';
     row.appendChild(lbl);row.appendChild(bar);row.appendChild(pctLbl);
-    card.appendChild(row);
+    gameTab.appendChild(row);
   });
   // Zone heat map
   sectionLabel('ZONE HEAT MAP');
@@ -548,7 +585,7 @@ function showGameReport(game,title,onClose){
     item.appendChild(document.createTextNode(e[1]));
     legend.appendChild(item);
   });
-  card.appendChild(legend);
+  gameTab.appendChild(legend);
   // Chase row top
   const chaseTop=document.createElement('div');
   chaseTop.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:2px;max-width:180px;margin:0 auto 2px auto;';
@@ -563,7 +600,7 @@ function showGameReport(game,title,onClose){
     cell.textContent=cnt>0?cnt:'';
     chaseTop.appendChild(cell);
   });
-  card.appendChild(chaseTop);
+  gameTab.appendChild(chaseTop);
   // Middle row: CIN + strike zone + COUT
   const midWrap=document.createElement('div');
   midWrap.style.cssText='display:flex;gap:2px;max-width:220px;margin:0 auto 2px auto;align-items:stretch;';
@@ -665,7 +702,7 @@ function showGameReport(game,title,onClose){
     +'color:'+(cinCnt>0?'#93c5fd':'#3a5a7a')+';border:0.5px solid #1e3a5c;flex-shrink:0;';
   cinCell.textContent=cinCnt>0?cinCnt:'';
   midWrap.appendChild(cinCell);
-  card.appendChild(midWrap);
+  gameTab.appendChild(midWrap);
   // Chase row bottom
   const chaseBot=document.createElement('div');
   chaseBot.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:2px;max-width:180px;margin:0 auto 2px auto;';
@@ -680,7 +717,7 @@ function showGameReport(game,title,onClose){
     cell.textContent=cnt>0?cnt:'';
     chaseBot.appendChild(cell);
   });
-  card.appendChild(chaseBot);
+  gameTab.appendChild(chaseBot);
   // Count tendencies
   sectionLabel('COUNT TENDENCIES');
   const keyCountsOrder=['0-0','0-1','0-2','1-0','1-1','1-2','2-0','2-1','2-2','3-0','3-1','3-2'];
@@ -698,7 +735,7 @@ function showGameReport(game,title,onClose){
     r.style.color='#0c4a6e';
     r.textContent=topPitch[0]+' ('+topPitch[1]+'x)';
     row.appendChild(l);row.appendChild(r);
-    card.appendChild(row);
+    gameTab.appendChild(row);
   });
   // Key patterns
   sectionLabel('PATTERN ALERTS');
@@ -721,7 +758,7 @@ function showGameReport(game,title,onClose){
     al.style.cssText='font-size:9px;color:#0c4a6e'
       +';margin-bottom:4px;line-height:1.4;font-weight:600;';
     al.textContent=a;
-    card.appendChild(al);
+    gameTab.appendChild(al);
   });
   // Export PDF button
   const exportBtn=document.createElement('button');
@@ -730,7 +767,7 @@ function showGameReport(game,title,onClose){
     +'font-family:\'Bebas Neue\',sans-serif;font-size:14px;letter-spacing:2px;cursor:pointer;';
   exportBtn.textContent='EXPORT REPORT TO PDF';
   exportBtn.onclick=function(){alert('PDF export coming soon.');};
-  card.appendChild(exportBtn);
+  gameTab.appendChild(exportBtn);
   overlay.appendChild(card);
   document.body.appendChild(overlay);
 }
