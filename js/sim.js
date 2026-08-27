@@ -768,6 +768,207 @@ function showGameReport(game,title,onClose){
   exportBtn.textContent='EXPORT REPORT TO PDF';
   exportBtn.onclick=function(){alert('PDF export coming soon.');};
   gameTab.appendChild(exportBtn);
+  // Build BUNDLES tab
+  const bundlesTab=tabContents['BUNDLES'];
+  try{
+    const raw=localStorage.getItem('pitchseq-game-history');
+    const allGames=raw?JSON.parse(raw):[];
+    if(allGames.length<2){
+      const msg=document.createElement('div');
+      msg.style.cssText='padding:20px;text-align:center;font-size:11px;color:#334155;';
+      msg.textContent='Play at least 2 games to see bundle analysis.';
+      bundlesTab.appendChild(msg);
+    } else {
+      // Split into bundles of 10
+      const bundles=[];
+      for(let i=0;i<allGames.length;i+=10){
+        bundles.push(allGames.slice(i,i+10));
+      }
+      // Bundle section label
+      function bLabel(text){
+        const s=document.createElement('div');
+        s.style.cssText='font-size:11px;color:#0c4a6e;letter-spacing:2px;font-weight:700;'
+          +'margin:16px 0 8px 0;text-transform:uppercase;border-top:2px solid #0c4a6e;padding-top:10px;';
+        s.textContent=text;
+        bundlesTab.appendChild(s);
+      }
+      // Bundle avg helper
+      function bundleAvg(bundle,key){
+        const vals=bundle.map(function(g){return g[key]||0;});
+        return Math.round(vals.reduce(function(a,b){return a+b;},0)/bundle.length*10)/10;
+      }
+      // 1. Strikeout rate line chart
+      bLabel('STRIKEOUT RATE PER GAME');
+      const soCanvas=document.createElement('canvas');
+      soCanvas.style.cssText='width:100%;max-height:200px;';
+      bundlesTab.appendChild(soCanvas);
+      const soLabels=allGames.map(function(g,i){return 'G'+(i+1);});
+      const soData=allGames.map(function(g){return g.strikeouts||0;});
+      new Chart(soCanvas,{
+        type:'line',
+        data:{
+          labels:soLabels,
+          datasets:[{
+            label:'Strikeouts',
+            data:soData,
+            borderColor:'#166534',
+            backgroundColor:'rgba(22,101,52,0.1)',
+            borderWidth:2,
+            pointBackgroundColor:'#166534',
+            tension:0.3,
+            fill:true
+          }]
+        },
+        options:{
+          responsive:true,
+          plugins:{legend:{display:false}},
+          scales:{
+            y:{beginAtZero:true,ticks:{color:'#0c4a6e',font:{weight:'bold'}},grid:{color:'#e0f2fe'}},
+            x:{ticks:{color:'#0c4a6e',font:{weight:'bold'}},grid:{display:false}}
+          }
+        }
+      });
+      // Bundle divider lines on chart
+      // 2. Pitch mix by bundle — grouped bar chart
+      bLabel('PITCH MIX BY BUNDLE');
+      const pmCanvas=document.createElement('canvas');
+      pmCanvas.style.cssText='width:100%;max-height:220px;';
+      bundlesTab.appendChild(pmCanvas);
+      // Get all pitch types across all games
+      const allPitchTypes={};
+      allGames.forEach(function(g){Object.keys(g.pitchMix||{}).forEach(function(pk){allPitchTypes[pk]=true;});});
+      const pitchTypeList=Object.keys(allPitchTypes);
+      const pitchChartColors={'4FB':'#dc2626','2FB':'#ea580c','CB':'#2563eb','SL':'#9333ea',
+        'CH':'#16a34a','CT':'#ca8a04','SP':'#0891b2','SK':'#e11d48',
+        'FK':'#7c3aed','SCR':'#db2777','EPH':'#475569','SLV':'#6d28d9',
+        'SWP':'#059669','KN':'#475569','KC':'#4f46e5'};
+      const bundleLabels=bundles.map(function(b,i){
+        return 'Bundle '+(i+1)+'\n('+b.length+' games)';
+      });
+      const pmDatasets=pitchTypeList.map(function(pk){
+        return {
+          label:pk,
+          data:bundles.map(function(bundle){
+            const total=bundle.reduce(function(s,g){return s+Object.values(g.pitchMix||{}).reduce(function(a,b){return a+b;},0);},0)||1;
+            const count=bundle.reduce(function(s,g){return s+(g.pitchMix||{})[pk]||0;},0);
+            return Math.round(count/total*100);
+          }),
+          backgroundColor:pitchChartColors[pk]||'#475569'
+        };
+      });
+      new Chart(pmCanvas,{
+        type:'bar',
+        data:{labels:bundleLabels,datasets:pmDatasets},
+        options:{
+          responsive:true,
+          plugins:{legend:{position:'bottom',labels:{color:'#0c4a6e',font:{weight:'bold'},boxWidth:12}}},
+          scales:{
+            x:{stacked:false,ticks:{color:'#0c4a6e',font:{weight:'bold'}},grid:{display:false}},
+            y:{stacked:false,beginAtZero:true,max:100,
+              ticks:{color:'#0c4a6e',font:{weight:'bold'},callback:function(v){return v+'%';}},
+              grid:{color:'#e0f2fe'}}
+          }
+        }
+      });
+      // 3. Zone heat maps side by side per bundle
+      bLabel('ZONE DISTRIBUTION BY BUNDLE');
+      const hmWrap=document.createElement('div');
+      hmWrap.style.cssText='display:flex;gap:12px;flex-wrap:wrap;justify-content:center;';
+      bundles.forEach(function(bundle,bi){
+        const hmBox=document.createElement('div');
+        hmBox.style.cssText='flex:1;min-width:140px;max-width:220px;';
+        const hmTitle=document.createElement('div');
+        hmTitle.style.cssText='font-size:10px;color:#0c4a6e;font-weight:700;'
+          +'text-align:center;margin-bottom:4px;letter-spacing:1px;';
+        hmTitle.textContent='BUNDLE '+(bi+1)+' ('+bundle.length+' games)';
+        hmBox.appendChild(hmTitle);
+        // Aggregate zone map for this bundle
+        const zoneAgg={};
+        bundle.forEach(function(g){
+          Object.entries(g.zoneMap||{}).forEach(function(e){
+            zoneAgg[e[0]]=(zoneAgg[e[0]]||0)+e[1];
+          });
+        });
+        const zoneOrder=[['TR','TM','TL'],['MR','MM','ML'],['BR','BM','BL']];
+        const maxZ=Math.max.apply(null,['TL','TM','TR','ML','MM','MR','BL','BM','BR'].map(function(z){return zoneAgg[z]||0;}))||1;
+        const grid=document.createElement('div');
+        grid.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:2px;';
+        zoneOrder.forEach(function(row){
+          row.forEach(function(zk){
+            const cnt=zoneAgg[zk]||0;
+            const intensity=cnt/maxZ;
+            const cell=document.createElement('div');
+            cell.style.cssText='height:32px;border-radius:3px;display:flex;align-items:center;'
+              +'justify-content:center;font-size:9px;font-weight:700;'
+              +'background:rgba(220,38,38,'+Math.max(0.06,intensity)+');'
+              +'color:'+(intensity>0.4?'#fff':'#334155')+';border:1px solid #e0f2fe;';
+            cell.textContent=cnt>0?cnt:'';
+            grid.appendChild(cell);
+          });
+        });
+        hmBox.appendChild(grid);
+        hmWrap.appendChild(hmBox);
+      });
+      bundlesTab.appendChild(hmWrap);
+      // 4. First pitch strike % by bundle — stat with trend arrows
+      bLabel('FIRST PITCH TENDENCIES BY BUNDLE');
+      const fpTable=document.createElement('div');
+      fpTable.style.cssText='width:100%;';
+      // Header
+      const fpHdr=document.createElement('div');
+      fpHdr.style.cssText='display:grid;grid-template-columns:1fr repeat('+bundles.length+',1fr);'
+        +'gap:4px;margin-bottom:4px;';
+      const fpHdrLabel=document.createElement('div');
+      fpHdrLabel.style.cssText='font-size:9px;color:#0c4a6e;font-weight:700;';
+      fpHdrLabel.textContent='PITCH';
+      fpHdr.appendChild(fpHdrLabel);
+      bundles.forEach(function(b,i){
+        const h=document.createElement('div');
+        h.style.cssText='font-size:9px;color:#0c4a6e;font-weight:700;text-align:center;';
+        h.textContent='B'+(i+1);
+        fpHdr.appendChild(h);
+      });
+      fpTable.appendChild(fpHdr);
+      // Get all first pitch types
+      const fpTypes={};
+      allGames.forEach(function(g){Object.keys(g.firstPitches||{}).forEach(function(pk){fpTypes[pk]=true;});});
+      Object.keys(fpTypes).forEach(function(pk){
+        const row=document.createElement('div');
+        row.style.cssText='display:grid;grid-template-columns:1fr repeat('+bundles.length+',1fr);'
+          +'gap:4px;margin-bottom:3px;padding:3px 0;border-bottom:1px solid #e0f2fe;';
+        const label=document.createElement('div');
+        label.style.cssText='font-size:9px;color:#0c4a6e;font-weight:700;';
+        label.textContent=pk;
+        row.appendChild(label);
+        let prevPct=null;
+        bundles.forEach(function(bundle){
+          const totalFP=bundle.reduce(function(s,g){return s+Object.values(g.firstPitches||{}).reduce(function(a,b){return a+b;},0);},0)||1;
+          const count=bundle.reduce(function(s,g){return s+(g.firstPitches||{})[pk]||0;},0);
+          const pct=Math.round(count/totalFP*100);
+          const cell=document.createElement('div');
+          cell.style.cssText='font-size:9px;font-weight:700;text-align:center;';
+          let arrow='';
+          let arrowColor='#0c4a6e';
+          if(prevPct!==null){
+            if(pct>prevPct){arrow=' ↑';arrowColor='#166534';}
+            else if(pct<prevPct){arrow=' ↓';arrowColor='#991b1b';}
+            else{arrow=' →';arrowColor='#475569';}
+          }
+          cell.innerHTML='<span style="color:#0c4a6e;">'+pct+'%</span>'
+            +'<span style="color:'+arrowColor+';">'+arrow+'</span>';
+          row.appendChild(cell);
+          prevPct=pct;
+        });
+        fpTable.appendChild(row);
+      });
+      bundlesTab.appendChild(fpTable);
+    }
+  }catch(e){
+    const err=document.createElement('div');
+    err.style.cssText='padding:20px;color:#991b1b;font-size:11px;';
+    err.textContent='Error loading bundle data: '+e.message;
+    bundlesTab.appendChild(err);
+  }
   overlay.appendChild(card);
   document.body.appendChild(overlay);
 }
