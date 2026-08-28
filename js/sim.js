@@ -969,10 +969,147 @@ function showGameReport(game,title,onClose){
     err.textContent='Error loading bundle data: '+e.message;
     bundlesTab.appendChild(err);
   }
+  // Build CAREER tab
+  const careerTab=tabContents['CAREER'];
+  try{
+    const raw=localStorage.getItem('pitchseq-game-history');
+    const allGames=raw?JSON.parse(raw):[];
+    if(allGames.length<1){
+      const msg=document.createElement('div');
+      msg.style.cssText='padding:20px;text-align:center;font-size:11px;color:#334155;';
+      msg.textContent='Play at least 1 game to see career stats.';
+      careerTab.appendChild(msg);
+    } else {
+      // Career section label helper
+      function cLabel(text){
+        const s=document.createElement('div');
+        s.style.cssText='font-size:11px;color:#0c4a6e;letter-spacing:2px;font-weight:700;'
+          +'margin:16px 0 8px 0;text-transform:uppercase;border-top:2px solid #0c4a6e;padding-top:10px;';
+        s.textContent=text;
+        careerTab.appendChild(s);
+      }
+      // Build bundles for trend comparison
+      const cBundles=[];
+      for(let i=0;i<allGames.length;i+=10){
+        cBundles.push(allGames.slice(i,i+10));
+      }
+      const recentBundle=cBundles[cBundles.length-1];
+      const histBundles=cBundles.slice(0,cBundles.length-1);
+      // Helper: average a stat across a set of games
+      function gameAvg(games,key){
+        if(!games.length) return 0;
+        return games.reduce(function(s,g){return s+(g[key]||0);},0)/games.length;
+      }
+      // Helper: trend flag comparing recent bundle vs historical average
+      function trendFlag(recentVal,histVal){
+        if(histBundles.length===0) return {arrow:'—',color:'#475569',label:'BASELINE'};
+        const diff=recentVal-histVal;
+        const pct=histVal>0?Math.abs(diff/histVal)*100:0;
+        if(pct<5) return {arrow:'→',color:'#475569',label:'STABLE'};
+        if(diff>0) return {arrow:'↑',color:'#166534',label:'IMPROVING'};
+        return {arrow:'↓',color:'#991b1b',label:'DECLINING'};
+      }
+      // Helper: strength label based on rate
+      function strengthLabel(metric,value){
+        const thresholds={
+          kRate:{strength:4,developing:2},
+          bbRate:{strength:1,developing:2,invert:true},
+          hRate:{strength:2,developing:4,invert:true},
+          runsRate:{strength:1,developing:2,invert:true}
+        };
+        const t=thresholds[metric];
+        if(!t) return {label:'—',color:'#475569'};
+        if(t.invert){
+          if(value<=t.strength) return {label:'STRENGTH',color:'#166534'};
+          if(value<=t.developing) return {label:'DEVELOPING',color:'#ca8a04'};
+          return {label:'FOCUS AREA',color:'#991b1b'};
+        }
+        if(value>=t.strength) return {label:'STRENGTH',color:'#166534'};
+        if(value>=t.developing) return {label:'DEVELOPING',color:'#ca8a04'};
+        return {label:'FOCUS AREA',color:'#991b1b'};
+      }
+      // Calculate career stats
+      const totalGames=allGames.length;
+      const totalPitches=allGames.reduce(function(s,g){return s+(g.pitchCount||0);},0);
+      const careerK=gameAvg(allGames,'strikeouts');
+      const careerBB=gameAvg(allGames,'walks');
+      const careerH=gameAvg(allGames,'hits');
+      const careerR=gameAvg(allGames,'runsAllowed');
+      // Recent bundle averages
+      const recentK=gameAvg(recentBundle,'strikeouts');
+      const recentBB=gameAvg(recentBundle,'walks');
+      const recentH=gameAvg(recentBundle,'hits');
+      const recentR=gameAvg(recentBundle,'runsAllowed');
+      // Historical averages
+      const histGames=histBundles.flat();
+      const histK=gameAvg(histGames,'strikeouts');
+      const histBB=gameAvg(histGames,'walks');
+      const histH=gameAvg(histGames,'hits');
+      const histR=gameAvg(histGames,'runsAllowed');
+      // Trend flags
+      const kTrend=trendFlag(recentK,histK);
+      const bbTrend=trendFlag(recentBB,histBB);
+      const hTrend=trendFlag(recentH,histH);
+      const rTrend=trendFlag(recentR,histR);
+      // Summary header
+      cLabel('CAREER OVERVIEW');
+      const summaryGrid=document.createElement('div');
+      summaryGrid.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;';
+      function careerStatBox(label,value,metric,trend,strength){
+        const box=document.createElement('div');
+        box.style.cssText='background:#f0f9ff;border:1px solid #7dd3fc;border-radius:6px;padding:10px;';
+        const val=document.createElement('div');
+        val.style.cssText='font-family:\'Bebas Neue\',sans-serif;font-size:24px;color:#0c4a6e;';
+        val.textContent=typeof value==='number'?value.toFixed(1):value;
+        const lbl=document.createElement('div');
+        lbl.style.cssText='font-size:8px;color:#0c4a6e;font-weight:700;letter-spacing:1px;margin-top:2px;';
+        lbl.textContent=label;
+        const trendRow=document.createElement('div');
+        trendRow.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-top:6px;';
+        const trendEl=document.createElement('div');
+        trendEl.style.cssText='font-size:12px;font-weight:700;color:'+trend.color+';';
+        trendEl.textContent=trend.arrow+' '+trend.label;
+        const strengthEl=document.createElement('div');
+        strengthEl.style.cssText='font-size:8px;font-weight:700;color:'+strength.color+
+          ';background:'+(strength.color==='#166534'?'#dcfce7':strength.color==='#ca8a04'?'#fef9c3':'#fee2e2')+
+          ';padding:2px 6px;border-radius:4px;';
+        strengthEl.textContent=strength.label;
+        trendRow.appendChild(trendEl);
+        trendRow.appendChild(strengthEl);
+        box.appendChild(val);
+        box.appendChild(lbl);
+        box.appendChild(trendRow);
+        return box;
+      }
+      // Two wide boxes at top
+      const topGrid=document.createElement('div');
+      topGrid.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;';
+      const gamesBox=document.createElement('div');
+      gamesBox.style.cssText='background:#f0f9ff;border:1px solid #7dd3fc;border-radius:6px;padding:10px;text-align:center;';
+      gamesBox.innerHTML='<div style="font-family:\'Bebas Neue\',sans-serif;font-size:32px;color:#0c4a6e;">'+totalGames+'</div>'
+        +'<div style="font-size:8px;color:#0c4a6e;font-weight:700;letter-spacing:1px;">TOTAL GAMES</div>';
+      const pitchesBox=document.createElement('div');
+      pitchesBox.style.cssText='background:#f0f9ff;border:1px solid #7dd3fc;border-radius:6px;padding:10px;text-align:center;';
+      pitchesBox.innerHTML='<div style="font-family:\'Bebas Neue\',sans-serif;font-size:32px;color:#0c4a6e;">'+totalPitches+'</div>'
+        +'<div style="font-size:8px;color:#0c4a6e;font-weight:700;letter-spacing:1px;">TOTAL PITCHES</div>';
+      topGrid.appendChild(gamesBox);
+      topGrid.appendChild(pitchesBox);
+      careerTab.appendChild(topGrid);
+      summaryGrid.appendChild(careerStatBox('K PER GAME',careerK,'kRate',kTrend,strengthLabel('kRate',careerK)));
+      summaryGrid.appendChild(careerStatBox('BB PER GAME',careerBB,'bbRate',bbTrend,strengthLabel('bbRate',careerBB)));
+      summaryGrid.appendChild(careerStatBox('HITS PER GAME',careerH,'hRate',hTrend,strengthLabel('hRate',careerH)));
+      summaryGrid.appendChild(careerStatBox('RUNS PER GAME',careerR,'runsRate',rTrend,strengthLabel('runsRate',careerR)));
+      careerTab.appendChild(summaryGrid);
+    }
+  }catch(e){
+    const err=document.createElement('div');
+    err.style.cssText='padding:20px;color:#991b1b;font-size:11px;';
+    err.textContent='Error loading career data: '+e.message;
+    careerTab.appendChild(err);
+  }
   overlay.appendChild(card);
   document.body.appendChild(overlay);
 }
-
 function resetPitchCount(){
   totalPitchCount=0;
   totalStrikeouts=0;
