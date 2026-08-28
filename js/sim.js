@@ -1184,6 +1184,404 @@ function showGameReport(game,title,onClose){
         dividerNote.textContent='Bundle breaks every 10 games — vertical reference for trend comparison';
         careerTab.appendChild(dividerNote);
       }
+      // Stage C — Pitch analysis
+      // Career pitch mix
+      cLabel('CAREER PITCH MIX');
+      const careerPitchMix={};
+      allGames.forEach(function(g){
+        Object.entries(g.pitchMix||{}).forEach(function(e){
+          careerPitchMix[e[0]]=(careerPitchMix[e[0]]||0)+e[1];
+        });
+      });
+      const cPitchTotal=Object.values(careerPitchMix).reduce(function(a,b){return a+b;},0)||1;
+      const cPitchColors={'4FB':'#dc2626','2FB':'#ea580c','CB':'#2563eb','SL':'#9333ea',
+        'CH':'#16a34a','CT':'#ca8a04','SP':'#0891b2','SK':'#e11d48',
+        'FK':'#7c3aed','SCR':'#db2777','EPH':'#334155','SLV':'#6d28d9',
+        'SWP':'#059669','KN':'#334155','KC':'#4f46e5'};
+      Object.entries(careerPitchMix).sort(function(a,b){return b[1]-a[1];}).forEach(function(e){
+        const pk=e[0],cnt=e[1];
+        const pct=Math.round(cnt/cPitchTotal*100);
+        const row=document.createElement('div');
+        row.style.cssText='display:flex;align-items:center;gap:6px;margin-bottom:5px;';
+        const lbl=document.createElement('div');
+        lbl.style.cssText='font-size:9px;color:#0c4a6e;width:40px;flex-shrink:0;font-weight:700;';
+        lbl.textContent=pk;
+        const bar=document.createElement('div');
+        bar.style.cssText='flex:1;background:#bae6fd;border-radius:2px;height:14px;';
+        const fill=document.createElement('div');
+        fill.style.cssText='height:100%;border-radius:2px;background:'+(cPitchColors[pk]||'#334155')+';width:'+pct+'%;';
+        bar.appendChild(fill);
+        const pctLbl=document.createElement('div');
+        pctLbl.style.cssText='font-size:9px;color:#0c4a6e;width:48px;text-align:right;flex-shrink:0;font-weight:700;';
+        pctLbl.textContent=cnt+' ('+pct+'%)';
+        row.appendChild(lbl);row.appendChild(bar);row.appendChild(pctLbl);
+        careerTab.appendChild(row);
+      });
+      // Career zone heat map
+      cLabel('CAREER ZONE DISTRIBUTION');
+      const careerZoneMap={};
+      allGames.forEach(function(g){
+        Object.entries(g.zoneMap||{}).forEach(function(e){
+          careerZoneMap[e[0]]=(careerZoneMap[e[0]]||0)+e[1];
+        });
+      });
+      const czLegend=document.createElement('div');
+      czLegend.style.cssText='display:flex;gap:10px;margin-bottom:6px;font-size:8px;';
+      [['#dc2626','IN ZONE'],['#d97706','EDGE'],['#2563eb','CHASE']].forEach(function(e){
+        const item=document.createElement('div');
+        item.style.cssText='display:flex;align-items:center;gap:3px;color:#0c4a6e;font-weight:700;';
+        const dot=document.createElement('div');
+        dot.style.cssText='width:8px;height:8px;border-radius:2px;background:'+e[0]+';';
+        item.appendChild(dot);
+        item.appendChild(document.createTextNode(e[1]));
+        czLegend.appendChild(item);
+      });
+      careerTab.appendChild(czLegend);
+      // Chase top
+      const czChaseTop=document.createElement('div');
+      czChaseTop.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:2px;max-width:200px;margin:0 auto 2px auto;';
+      ['CUR','CUM','CUL'].forEach(function(zk){
+        const cnt=careerZoneMap[zk]||0;
+        const cell=document.createElement('div');
+        cell.style.cssText='height:22px;border-radius:3px;display:flex;align-items:center;'
+          +'justify-content:center;font-size:8px;font-weight:700;'
+          +'background:rgba(37,99,235,'+(cnt>0?0.6:0.08)+');'
+          +'color:'+(cnt>0?'#1e3a8a':'#94a3b8')+';border:1px solid #bae6fd;';
+        cell.textContent=cnt>0?cnt:'';
+        czChaseTop.appendChild(cell);
+      });
+      careerTab.appendChild(czChaseTop);
+      // Main zone grid with edges
+      const czMidWrap=document.createElement('div');
+      czMidWrap.style.cssText='display:flex;gap:2px;max-width:240px;margin:0 auto 2px auto;align-items:stretch;';
+      const czLeft=document.createElement('div');
+      const czLeftCnt=careerZoneMap['COUT']||0;
+      czLeft.style.cssText='width:28px;border-radius:3px;display:flex;align-items:center;'
+        +'justify-content:center;font-size:8px;font-weight:700;'
+        +'background:rgba(37,99,235,'+(czLeftCnt>0?0.6:0.08)+');'
+        +'color:'+(czLeftCnt>0?'#1e3a8a':'#94a3b8')+';border:1px solid #bae6fd;flex-shrink:0;';
+      czLeft.textContent=czLeftCnt>0?czLeftCnt:'';
+      czMidWrap.appendChild(czLeft);
+      const czStrikeWrap=document.createElement('div');
+      czStrikeWrap.style.cssText='flex:1;';
+      // Edge top
+      const czEdgeTop=document.createElement('div');
+      czEdgeTop.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:2px;margin-bottom:2px;';
+      ['TR-CRN','TOP-EDG','TL-CRN'].forEach(function(zk){
+        const cnt=careerZoneMap[zk]||0;
+        const cell=document.createElement('div');
+        cell.style.cssText='height:18px;border-radius:2px;display:flex;align-items:center;'
+          +'justify-content:center;font-size:7px;font-weight:700;'
+          +'background:rgba(217,119,6,'+(cnt>0?0.7:0.08)+');'
+          +'color:'+(cnt>0?'#7c2d12':'#94a3b8')+';border:1px solid #bae6fd;';
+        cell.textContent=cnt>0?cnt:'';
+        czEdgeTop.appendChild(cell);
+      });
+      czStrikeWrap.appendChild(czEdgeTop);
+      const czMaxZone=Math.max.apply(null,['TL','TM','TR','ML','MM','MR','BL','BM','BR'].map(function(z){return careerZoneMap[z]||0;}))||1;
+      [['TR','TM','TL'],['MR','MM','ML'],['BR','BM','BL']].forEach(function(row,ri){
+        const rowWrap=document.createElement('div');
+        rowWrap.style.cssText='display:flex;gap:2px;margin-bottom:2px;';
+        const leftEdgeKey=ri===1?'RGT-EDG':null;
+        const leftEdgeCell=document.createElement('div');
+        const leftCnt=leftEdgeKey?(careerZoneMap[leftEdgeKey]||0):0;
+        leftEdgeCell.style.cssText='width:18px;border-radius:2px;display:flex;align-items:center;'
+          +'justify-content:center;font-size:7px;font-weight:700;flex-shrink:0;'
+          +'background:rgba(217,119,6,'+(leftEdgeKey&&leftCnt>0?0.7:0.08)+');'
+          +'color:'+(leftEdgeKey&&leftCnt>0?'#7c2d12':'#94a3b8')+';border:1px solid #bae6fd;';
+        leftEdgeCell.textContent=leftEdgeKey&&leftCnt>0?leftCnt:'';
+        rowWrap.appendChild(leftEdgeCell);
+        const innerWrap=document.createElement('div');
+        innerWrap.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:2px;flex:1;';
+        row.forEach(function(zk){
+          const cnt=careerZoneMap[zk]||0;
+          const intensity=cnt/czMaxZone;
+          const cell=document.createElement('div');
+          cell.style.cssText='height:32px;border-radius:2px;display:flex;align-items:center;'
+            +'justify-content:center;font-size:9px;font-weight:700;'
+            +'background:rgba(220,38,38,'+Math.max(0.06,intensity)+');'
+            +'color:'+(intensity>0.4?'#fff':'#334155')+';border:1px solid #bae6fd;';
+          cell.textContent=cnt>0?cnt:'';
+          innerWrap.appendChild(cell);
+        });
+        rowWrap.appendChild(innerWrap);
+        const rightEdgeKey=ri===1?'LFT-EDG':null;
+        const rightEdgeCell=document.createElement('div');
+        const rightCnt=rightEdgeKey?(careerZoneMap[rightEdgeKey]||0):0;
+        rightEdgeCell.style.cssText='width:18px;border-radius:2px;display:flex;align-items:center;'
+          +'justify-content:center;font-size:7px;font-weight:700;flex-shrink:0;'
+          +'background:rgba(217,119,6,'+(rightEdgeKey&&rightCnt>0?0.7:0.08)+');'
+          +'color:'+(rightEdgeKey&&rightCnt>0?'#7c2d12':'#94a3b8')+';border:1px solid #bae6fd;';
+        rightEdgeCell.textContent=rightEdgeKey&&rightCnt>0?rightCnt:'';
+        rowWrap.appendChild(rightEdgeCell);
+        czStrikeWrap.appendChild(rowWrap);
+      });
+      const czEdgeBot=document.createElement('div');
+      czEdgeBot.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:2px;margin-bottom:2px;';
+      ['BR-CRN','BOT-EDG','BL-CRN'].forEach(function(zk){
+        const cnt=careerZoneMap[zk]||0;
+        const cell=document.createElement('div');
+        cell.style.cssText='height:18px;border-radius:2px;display:flex;align-items:center;'
+          +'justify-content:center;font-size:7px;font-weight:700;'
+          +'background:rgba(217,119,6,'+(cnt>0?0.7:0.08)+');'
+          +'color:'+(cnt>0?'#7c2d12':'#94a3b8')+';border:1px solid #bae6fd;';
+        cell.textContent=cnt>0?cnt:'';
+        czEdgeBot.appendChild(cell);
+      });
+      czStrikeWrap.appendChild(czEdgeBot);
+      czMidWrap.appendChild(czStrikeWrap);
+      const czRight=document.createElement('div');
+      const czRightCnt=careerZoneMap['CIN']||0;
+      czRight.style.cssText='width:28px;border-radius:3px;display:flex;align-items:center;'
+        +'justify-content:center;font-size:8px;font-weight:700;'
+        +'background:rgba(37,99,235,'+(czRightCnt>0?0.6:0.08)+');'
+        +'color:'+(czRightCnt>0?'#1e3a8a':'#94a3b8')+';border:1px solid #bae6fd;flex-shrink:0;';
+      czRight.textContent=czRightCnt>0?czRightCnt:'';
+      czMidWrap.appendChild(czRight);
+      careerTab.appendChild(czMidWrap);
+      const czChaseBot=document.createElement('div');
+      czChaseBot.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:2px;max-width:200px;margin:0 auto 2px auto;';
+      ['CLO-L','CLO-M','CLO-R'].forEach(function(zk){
+        const cnt=careerZoneMap[zk]||0;
+        const cell=document.createElement('div');
+        cell.style.cssText='height:22px;border-radius:3px;display:flex;align-items:center;'
+          +'justify-content:center;font-size:8px;font-weight:700;'
+          +'background:rgba(37,99,235,'+(cnt>0?0.6:0.08)+');'
+          +'color:'+(cnt>0?'#1e3a8a':'#94a3b8')+';border:1px solid #bae6fd;';
+        cell.textContent=cnt>0?cnt:'';
+        czChaseBot.appendChild(cell);
+      });
+      careerTab.appendChild(czChaseBot);
+      // Strikeout pitch selection
+      cLabel('STRIKEOUT PITCH SELECTION');
+      const soByPitch={};
+      allGames.forEach(function(g){
+        Object.entries(g.outcomes||{}).forEach(function(e){
+          const pk=e[0];
+          const outcomeMap=e[1];
+          if(outcomeMap['STRIKEOUT']){
+            soByPitch[pk]=(soByPitch[pk]||0)+outcomeMap['STRIKEOUT'];
+          }
+        });
+      });
+      const soTotal=Object.values(soByPitch).reduce(function(a,b){return a+b;},0)||1;
+      if(Object.keys(soByPitch).length===0){
+        const noSO=document.createElement('div');
+        noSO.style.cssText='font-size:9px;color:#475569;margin-bottom:8px;';
+        noSO.textContent='No strikeout data yet.';
+        careerTab.appendChild(noSO);
+      } else {
+        Object.entries(soByPitch).sort(function(a,b){return b[1]-a[1];}).forEach(function(e){
+          const pk=e[0],cnt=e[1];
+          const pct=Math.round(cnt/soTotal*100);
+          const row=document.createElement('div');
+          row.style.cssText='display:flex;align-items:center;gap:6px;margin-bottom:5px;';
+          const lbl=document.createElement('div');
+          lbl.style.cssText='font-size:9px;color:#0c4a6e;width:40px;flex-shrink:0;font-weight:700;';
+          lbl.textContent=pk;
+          const bar=document.createElement('div');
+          bar.style.cssText='flex:1;background:#bae6fd;border-radius:2px;height:14px;';
+          const fill=document.createElement('div');
+          fill.style.cssText='height:100%;border-radius:2px;background:'+(cPitchColors[pk]||'#334155')+';width:'+pct+'%;';
+          bar.appendChild(fill);
+          const pctLbl=document.createElement('div');
+          pctLbl.style.cssText='font-size:9px;color:#0c4a6e;width:60px;text-align:right;flex-shrink:0;font-weight:700;';
+          pctLbl.textContent=cnt+' K ('+pct+'%)';
+          row.appendChild(lbl);row.appendChild(bar);row.appendChild(pctLbl);
+          careerTab.appendChild(row);
+        });
+      }
+      // Stage D — Splits and breakdowns
+      // vs LHB and vs RHB heat maps
+      cLabel('VS LEFT-HANDED vs RIGHT-HANDED BATTERS');
+      const handednessWrap=document.createElement('div');
+      handednessWrap.style.cssText='display:flex;gap:16px;flex-wrap:wrap;justify-content:center;';
+      // Aggregate vsLHB and vsRHB across all games
+      const careerVsLHB={pitchMix:{},zoneMap:{},outcomes:{}};
+      const careerVsRHB={pitchMix:{},zoneMap:{},outcomes:{}};
+      allGames.forEach(function(g){
+        ['pitchMix','zoneMap','outcomes'].forEach(function(key){
+          Object.entries((g.vsLHB||{})[key]||{}).forEach(function(e){
+            if(key==='outcomes'){
+              if(!careerVsLHB.outcomes[e[0]]) careerVsLHB.outcomes[e[0]]=0;
+              careerVsLHB.outcomes[e[0]]+=e[1];
+            } else {
+              careerVsLHB[key][e[0]]=(careerVsLHB[key][e[0]]||0)+e[1];
+            }
+          });
+          Object.entries((g.vsRHB||{})[key]||{}).forEach(function(e){
+            if(key==='outcomes'){
+              if(!careerVsRHB.outcomes[e[0]]) careerVsRHB.outcomes[e[0]]=0;
+              careerVsRHB.outcomes[e[0]]+=e[1];
+            } else {
+              careerVsRHB[key][e[0]]=(careerVsRHB[key][e[0]]||0)+e[1];
+            }
+          });
+        });
+      });
+      function buildHandHeatMap(container,zoneData,title){
+        const box=document.createElement('div');
+        box.style.cssText='flex:1;min-width:140px;max-width:220px;';
+        const ttl=document.createElement('div');
+        ttl.style.cssText='font-size:10px;color:#0c4a6e;font-weight:700;'
+          +'text-align:center;margin-bottom:4px;letter-spacing:1px;';
+        ttl.textContent=title;
+        box.appendChild(ttl);
+        const maxZ=Math.max.apply(null,['TL','TM','TR','ML','MM','MR','BL','BM','BR']
+          .map(function(z){return zoneData[z]||0;}))||1;
+        const grid=document.createElement('div');
+        grid.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:2px;';
+        [['TR','TM','TL'],['MR','MM','ML'],['BR','BM','BL']].forEach(function(row){
+          row.forEach(function(zk){
+            const cnt=zoneData[zk]||0;
+            const intensity=cnt/maxZ;
+            const cell=document.createElement('div');
+            cell.style.cssText='height:32px;border-radius:3px;display:flex;align-items:center;'
+              +'justify-content:center;font-size:9px;font-weight:700;'
+              +'background:rgba(220,38,38,'+Math.max(0.06,intensity)+');'
+              +'color:'+(intensity>0.4?'#fff':'#334155')+';border:1px solid #bae6fd;';
+            cell.textContent=cnt>0?cnt:'';
+            grid.appendChild(cell);
+          });
+        });
+        box.appendChild(grid);
+        container.appendChild(box);
+      }
+      buildHandHeatMap(handednessWrap,careerVsLHB.zoneMap,'VS LHB');
+      buildHandHeatMap(handednessWrap,careerVsRHB.zoneMap,'VS RHB');
+      careerTab.appendChild(handednessWrap);
+      // By batter type breakdown
+      cLabel('BY BATTER TYPE');
+      const careerVsBT={};
+      allGames.forEach(function(g){
+        Object.entries(g.vsBatterType||{}).forEach(function(e){
+          const bt=e[0];
+          if(!careerVsBT[bt]) careerVsBT[bt]={pitchMix:{},outcomes:{}};
+          Object.entries(e[1].pitchMix||{}).forEach(function(pe){
+            careerVsBT[bt].pitchMix[pe[0]]=(careerVsBT[bt].pitchMix[pe[0]]||0)+pe[1];
+          });
+          Object.entries(e[1].outcomes||{}).forEach(function(oe){
+            careerVsBT[bt].outcomes[oe[0]]=(careerVsBT[bt].outcomes[oe[0]]||0)+oe[1];
+          });
+        });
+      });
+      const btNames={'GENERIC':'Generic','FREE_SWINGER':'Free Swinger','PATIENT':'Patient',
+        'LOW_BALL':'Low Ball','HIGH_BALL':'High Ball','PULL':'Pull Hitter'};
+      Object.entries(careerVsBT).forEach(function(e){
+        const bt=e[0],btData=e[1];
+        const btTotal=Object.values(btData.pitchMix).reduce(function(a,b){return a+b;},0)||1;
+        const btKs=btData.outcomes['STRIKEOUT']||0;
+        const btRow=document.createElement('div');
+        btRow.style.cssText='background:#f0f9ff;border:1px solid #7dd3fc;border-radius:6px;'
+          +'padding:8px;margin-bottom:8px;';
+        const btHeader=document.createElement('div');
+        btHeader.style.cssText='display:flex;justify-content:space-between;margin-bottom:6px;';
+        const btName=document.createElement('div');
+        btName.style.cssText='font-size:10px;color:#0c4a6e;font-weight:700;letter-spacing:1px;';
+        btName.textContent=btNames[bt]||bt;
+        const btKLabel=document.createElement('div');
+        btKLabel.style.cssText='font-size:10px;color:#166534;font-weight:700;';
+        btKLabel.textContent=btKs+' K';
+        btHeader.appendChild(btName);
+        btHeader.appendChild(btKLabel);
+        btRow.appendChild(btHeader);
+        // Top 3 pitches against this batter type
+        Object.entries(btData.pitchMix).sort(function(a,b){return b[1]-a[1];})
+          .slice(0,3).forEach(function(pe){
+          const pk=pe[0],cnt=pe[1];
+          const pct=Math.round(cnt/btTotal*100);
+          const pRow=document.createElement('div');
+          pRow.style.cssText='display:flex;align-items:center;gap:6px;margin-bottom:3px;';
+          const pLbl=document.createElement('div');
+          pLbl.style.cssText='font-size:9px;color:#0c4a6e;width:36px;flex-shrink:0;font-weight:700;';
+          pLbl.textContent=pk;
+          const pBar=document.createElement('div');
+          pBar.style.cssText='flex:1;background:#bae6fd;border-radius:2px;height:10px;';
+          const pFill=document.createElement('div');
+          pFill.style.cssText='height:100%;border-radius:2px;background:'+(cPitchColors[pk]||'#334155')+';width:'+pct+'%;';
+          pBar.appendChild(pFill);
+          const pPct=document.createElement('div');
+          pPct.style.cssText='font-size:9px;color:#0c4a6e;width:40px;text-align:right;flex-shrink:0;font-weight:700;';
+          pPct.textContent=pct+'%';
+          pRow.appendChild(pLbl);pRow.appendChild(pBar);pRow.appendChild(pPct);
+          btRow.appendChild(pRow);
+        });
+        careerTab.appendChild(btRow);
+      });
+      // Home vs Away splits
+      cLabel('HOME VS AWAY SPLITS');
+      const homeGames=allGames.filter(function(g){return g.homeAway==='HOME';});
+      const awayGames=allGames.filter(function(g){return g.homeAway==='AWAY';});
+      const splitsGrid=document.createElement('div');
+      splitsGrid.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:8px;';
+      function splitBox(title,games,color){
+        const box=document.createElement('div');
+        box.style.cssText='background:#f0f9ff;border:2px solid '+color+';border-radius:6px;padding:10px;';
+        const ttl=document.createElement('div');
+        ttl.style.cssText='font-size:11px;color:'+color+';font-weight:700;letter-spacing:2px;margin-bottom:8px;';
+        ttl.textContent=title+' ('+games.length+' games)';
+        box.appendChild(ttl);
+        if(!games.length){
+          const none=document.createElement('div');
+          none.style.cssText='font-size:9px;color:#475569;';
+          none.textContent='No data yet';
+          box.appendChild(none);
+          return box;
+        }
+        [
+          ['K/game',gameAvg(games,'strikeouts').toFixed(1),'#166534'],
+          ['BB/game',gameAvg(games,'walks').toFixed(1),'#991b1b'],
+          ['H/game',gameAvg(games,'hits').toFixed(1),'#92400e'],
+          ['R/game',gameAvg(games,'runsAllowed').toFixed(1),'#991b1b']
+        ].forEach(function(stat){
+          const row=document.createElement('div');
+          row.style.cssText='display:flex;justify-content:space-between;margin-bottom:4px;';
+          const l=document.createElement('div');
+          l.style.cssText='font-size:9px;color:#0c4a6e;font-weight:700;';
+          l.textContent=stat[0];
+          const v=document.createElement('div');
+          v.style.cssText='font-size:9px;color:'+stat[2]+';font-weight:700;';
+          v.textContent=stat[1];
+          row.appendChild(l);row.appendChild(v);
+          box.appendChild(row);
+        });
+        return box;
+      }
+      splitsGrid.appendChild(splitBox('HOME',homeGames,'#166534'));
+      splitsGrid.appendChild(splitBox('AWAY',awayGames,'#991b1b'));
+      careerTab.appendChild(splitsGrid);
+      // Career count tendencies
+      cLabel('CAREER COUNT TENDENCIES');
+      const careerCountTend={};
+      allGames.forEach(function(g){
+        Object.entries(g.countTendencies||{}).forEach(function(e){
+          const ct=e[0];
+          if(!careerCountTend[ct]) careerCountTend[ct]={};
+          Object.entries(e[1]).forEach(function(pe){
+            careerCountTend[ct][pe[0]]=(careerCountTend[ct][pe[0]]||0)+pe[1];
+          });
+        });
+      });
+      const keyCountsOrder=['0-0','0-1','0-2','1-0','1-1','1-2','2-0','2-1','2-2','3-0','3-1','3-2'];
+      keyCountsOrder.forEach(function(ct){
+        const ctData=careerCountTend[ct];
+        if(!ctData) return;
+        const topPitch=Object.entries(ctData).sort(function(a,b){return b[1]-a[1];})[0];
+        if(!topPitch) return;
+        const total=Object.values(ctData).reduce(function(a,b){return a+b;},0)||1;
+        const pct=Math.round(topPitch[1]/total*100);
+        const row=document.createElement('div');
+        row.style.cssText='display:flex;justify-content:space-between;align-items:center;'
+          +'font-size:9px;margin-bottom:4px;padding:4px 0;border-bottom:1px solid #e0f2fe;';
+        const l=document.createElement('div');
+        l.style.cssText='color:#0c4a6e;font-weight:700;';
+        l.textContent='COUNT '+ct;
+        const r=document.createElement('div');
+        r.style.cssText='color:'+(cPitchColors[topPitch[0]]||'#0c4a6e')+';font-weight:700;';
+        r.textContent=topPitch[0]+' '+pct+'% ('+topPitch[1]+'x)';
+        row.appendChild(l);row.appendChild(r);
+        careerTab.appendChild(row);
+      });
     }
   }catch(e){
     const err=document.createElement('div');
