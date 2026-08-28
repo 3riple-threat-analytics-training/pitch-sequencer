@@ -1100,6 +1100,90 @@ function showGameReport(game,title,onClose){
       summaryGrid.appendChild(careerStatBox('HITS PER GAME',careerH,'hRate',hTrend,strengthLabel('hRate',careerH)));
       summaryGrid.appendChild(careerStatBox('RUNS PER GAME',careerR,'runsRate',rTrend,strengthLabel('runsRate',careerR)));
       careerTab.appendChild(summaryGrid);
+      // Stage B — Trend line charts
+      cLabel('PERFORMANCE TRENDS');
+      const trendCanvas=document.createElement('canvas');
+      trendCanvas.style.cssText='width:100%;max-height:250px;';
+      careerTab.appendChild(trendCanvas);
+      const gameLabels=allGames.map(function(g,i){return 'G'+(i+1);});
+      new Chart(trendCanvas,{
+        type:'line',
+        data:{
+          labels:gameLabels,
+          datasets:[
+            {
+              label:'K per game',
+              data:allGames.map(function(g){return g.strikeouts||0;}),
+              borderColor:'#166534',
+              backgroundColor:'rgba(22,101,52,0.05)',
+              borderWidth:2,
+              pointBackgroundColor:'#166534',
+              pointRadius:3,
+              tension:0.3,
+              fill:false
+            },
+            {
+              label:'BB per game',
+              data:allGames.map(function(g){return g.walks||0;}),
+              borderColor:'#991b1b',
+              backgroundColor:'rgba(153,27,27,0.05)',
+              borderWidth:2,
+              pointBackgroundColor:'#991b1b',
+              pointRadius:3,
+              tension:0.3,
+              fill:false
+            },
+            {
+              label:'H per game',
+              data:allGames.map(function(g){return g.hits||0;}),
+              borderColor:'#92400e',
+              backgroundColor:'rgba(146,64,14,0.05)',
+              borderWidth:2,
+              pointBackgroundColor:'#92400e',
+              pointRadius:3,
+              tension:0.3,
+              fill:false
+            }
+          ]
+        },
+        options:{
+          responsive:true,
+          interaction:{mode:'index',intersect:false},
+          plugins:{
+            legend:{
+              position:'bottom',
+              labels:{
+                color:'#0c4a6e',
+                font:{weight:'bold'},
+                boxWidth:12
+              }
+            },
+            tooltip:{
+              callbacks:{
+                title:function(items){return 'Game '+items[0].label.replace('G','');}
+              }
+            }
+          },
+          scales:{
+            y:{
+              beginAtZero:true,
+              ticks:{color:'#0c4a6e',font:{weight:'bold'}},
+              grid:{color:'#e0f2fe'}
+            },
+            x:{
+              ticks:{color:'#0c4a6e',font:{weight:'bold'}},
+              grid:{display:false}
+            }
+          }
+        }
+      });
+      // Bundle divider annotations
+      if(cBundles.length>1){
+        const dividerNote=document.createElement('div');
+        dividerNote.style.cssText='font-size:8px;color:#475569;text-align:center;margin-top:4px;';
+        dividerNote.textContent='Bundle breaks every 10 games — vertical reference for trend comparison';
+        careerTab.appendChild(dividerNote);
+      }
     }
   }catch(e){
     const err=document.createElement('div');
