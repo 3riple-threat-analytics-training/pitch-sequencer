@@ -760,6 +760,79 @@ function showGameReport(game,title,onClose){
     al.textContent=a;
     gameTab.appendChild(al);
   });
+  // Strikeout pitch selection for this game
+  sectionLabel('STRIKEOUT PITCH SELECTION');
+  const gameSoPitches={};
+  Object.entries(game.outcomes||{}).forEach(function(e){
+    const pk=e[0];
+    if(e[1]['STRIKEOUT']) gameSoPitches[pk]=(gameSoPitches[pk]||0)+e[1]['STRIKEOUT'];
+  });
+  const gameSoTotal=Object.values(gameSoPitches).reduce(function(a,b){return a+b;},0)||1;
+  const gamePitchColors={'4FB':'#dc2626','2FB':'#ea580c','CB':'#2563eb','SL':'#9333ea',
+    'CH':'#16a34a','CT':'#ca8a04','SP':'#0891b2','SK':'#e11d48',
+    'FK':'#7c3aed','SCR':'#db2777','EPH':'#334155','SLV':'#6d28d9',
+    'SWP':'#059669','KN':'#334155','KC':'#4f46e5'};
+  if(Object.keys(gameSoPitches).length===0){
+    const noSO=document.createElement('div');
+    noSO.style.cssText='font-size:9px;color:#475569;margin-bottom:8px;';
+    noSO.textContent='No strikeouts recorded this game.';
+    gameTab.appendChild(noSO);
+  } else {
+    Object.entries(gameSoPitches).sort(function(a,b){return b[1]-a[1];}).forEach(function(e){
+      const pk=e[0],cnt=e[1];
+      const pct=Math.round(cnt/gameSoTotal*100);
+      const row=document.createElement('div');
+      row.style.cssText='display:flex;align-items:center;gap:6px;margin-bottom:5px;';
+      const lbl=document.createElement('div');
+      lbl.style.cssText='font-size:9px;color:#0c4a6e;width:40px;flex-shrink:0;font-weight:700;';
+      lbl.textContent=pk;
+      const bar=document.createElement('div');
+      bar.style.cssText='flex:1;background:#bae6fd;border-radius:2px;height:14px;';
+      const fill=document.createElement('div');
+      fill.style.cssText='height:100%;border-radius:2px;background:'+(gamePitchColors[pk]||'#334155')+';width:'+pct+'%;';
+      bar.appendChild(fill);
+      const pctLbl=document.createElement('div');
+      pctLbl.style.cssText='font-size:9px;color:#0c4a6e;width:60px;text-align:right;flex-shrink:0;font-weight:700;';
+      pctLbl.textContent=cnt+' K ('+pct+'%)';
+      row.appendChild(lbl);row.appendChild(bar);row.appendChild(pctLbl);
+      gameTab.appendChild(row);
+    });
+  }
+  // VS LHB and VS RHB heat maps
+  sectionLabel('VS LEFT-HANDED VS RIGHT-HANDED BATTERS');
+  const gameHandWrap=document.createElement('div');
+  gameHandWrap.style.cssText='display:flex;gap:16px;flex-wrap:wrap;justify-content:center;';
+  function buildGameHandHeatMap(container,zoneData,title){
+    const box=document.createElement('div');
+    box.style.cssText='flex:1;min-width:140px;max-width:220px;';
+    const ttl=document.createElement('div');
+    ttl.style.cssText='font-size:10px;color:#0c4a6e;font-weight:700;'
+      +'text-align:center;margin-bottom:4px;letter-spacing:1px;';
+    ttl.textContent=title;
+    box.appendChild(ttl);
+    const maxZ=Math.max.apply(null,['TL','TM','TR','ML','MM','MR','BL','BM','BR']
+      .map(function(z){return zoneData[z]||0;}))||1;
+    const grid=document.createElement('div');
+    grid.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:2px;';
+    [['TR','TM','TL'],['MR','MM','ML'],['BR','BM','BL']].forEach(function(row){
+      row.forEach(function(zk){
+        const cnt=zoneData[zk]||0;
+        const intensity=cnt/maxZ;
+        const cell=document.createElement('div');
+        cell.style.cssText='height:32px;border-radius:3px;display:flex;align-items:center;'
+          +'justify-content:center;font-size:9px;font-weight:700;'
+          +'background:rgba(220,38,38,'+Math.max(0.06,intensity)+');'
+          +'color:'+(intensity>0.4?'#fff':'#334155')+';border:1px solid #bae6fd;';
+        cell.textContent=cnt>0?cnt:'';
+        grid.appendChild(cell);
+      });
+    });
+    box.appendChild(grid);
+    container.appendChild(box);
+  }
+  buildGameHandHeatMap(gameHandWrap,game.vsLHB&&game.vsLHB.zoneMap||{},'VS LHB');
+  buildGameHandHeatMap(gameHandWrap,game.vsRHB&&game.vsRHB.zoneMap||{},'VS RHB');
+  gameTab.appendChild(gameHandWrap);
   // Export PDF button
   const exportBtn=document.createElement('button');
   exportBtn.style.cssText='width:100%;margin-top:16px;padding:10px;border-radius:6px;'
@@ -962,6 +1035,92 @@ function showGameReport(game,title,onClose){
         fpTable.appendChild(row);
       });
       bundlesTab.appendChild(fpTable);
+      // Strikeout pitch selection across all games
+      bLabel('STRIKEOUT PITCH SELECTION');
+      const bundleSoPitches={};
+      allGames.forEach(function(g){
+        Object.entries(g.outcomes||{}).forEach(function(e){
+          const pk=e[0];
+          if(e[1]['STRIKEOUT']) bundleSoPitches[pk]=(bundleSoPitches[pk]||0)+e[1]['STRIKEOUT'];
+        });
+      });
+      const bundleSoTotal=Object.values(bundleSoPitches).reduce(function(a,b){return a+b;},0)||1;
+      const bundlePitchColors={'4FB':'#dc2626','2FB':'#ea580c','CB':'#2563eb','SL':'#9333ea',
+        'CH':'#16a34a','CT':'#ca8a04','SP':'#0891b2','SK':'#e11d48',
+        'FK':'#7c3aed','SCR':'#db2777','EPH':'#334155','SLV':'#6d28d9',
+        'SWP':'#059669','KN':'#334155','KC':'#4f46e5'};
+      if(Object.keys(bundleSoPitches).length===0){
+        const noSO=document.createElement('div');
+        noSO.style.cssText='font-size:9px;color:#475569;margin-bottom:8px;';
+        noSO.textContent='No strikeout data yet.';
+        bundlesTab.appendChild(noSO);
+      } else {
+        Object.entries(bundleSoPitches).sort(function(a,b){return b[1]-a[1];}).forEach(function(e){
+          const pk=e[0],cnt=e[1];
+          const pct=Math.round(cnt/bundleSoTotal*100);
+          const row=document.createElement('div');
+          row.style.cssText='display:flex;align-items:center;gap:6px;margin-bottom:5px;';
+          const lbl=document.createElement('div');
+          lbl.style.cssText='font-size:9px;color:#0c4a6e;width:40px;flex-shrink:0;font-weight:700;';
+          lbl.textContent=pk;
+          const bar=document.createElement('div');
+          bar.style.cssText='flex:1;background:#bae6fd;border-radius:2px;height:14px;';
+          const fill=document.createElement('div');
+          fill.style.cssText='height:100%;border-radius:2px;background:'+(bundlePitchColors[pk]||'#334155')+';width:'+pct+'%;';
+          bar.appendChild(fill);
+          const pctLbl=document.createElement('div');
+          pctLbl.style.cssText='font-size:9px;color:#0c4a6e;width:60px;text-align:right;flex-shrink:0;font-weight:700;';
+          pctLbl.textContent=cnt+' K ('+pct+'%)';
+          row.appendChild(lbl);row.appendChild(bar);row.appendChild(pctLbl);
+          bundlesTab.appendChild(row);
+        });
+      }
+      // VS LHB and VS RHB heat maps
+      bLabel('VS LEFT-HANDED VS RIGHT-HANDED BATTERS');
+      const bundleHandWrap=document.createElement('div');
+      bundleHandWrap.style.cssText='display:flex;gap:16px;flex-wrap:wrap;justify-content:center;';
+      // Aggregate vsLHB and vsRHB across all games
+      const bundleVsLHB={zoneMap:{}};
+      const bundleVsRHB={zoneMap:{}};
+      allGames.forEach(function(g){
+        Object.entries((g.vsLHB||{}).zoneMap||{}).forEach(function(e){
+          bundleVsLHB.zoneMap[e[0]]=(bundleVsLHB.zoneMap[e[0]]||0)+e[1];
+        });
+        Object.entries((g.vsRHB||{}).zoneMap||{}).forEach(function(e){
+          bundleVsRHB.zoneMap[e[0]]=(bundleVsRHB.zoneMap[e[0]]||0)+e[1];
+        });
+      });
+      function buildBundleHandHeatMap(container,zoneData,title){
+        const box=document.createElement('div');
+        box.style.cssText='flex:1;min-width:140px;max-width:220px;';
+        const ttl=document.createElement('div');
+        ttl.style.cssText='font-size:10px;color:#0c4a6e;font-weight:700;'
+          +'text-align:center;margin-bottom:4px;letter-spacing:1px;';
+        ttl.textContent=title;
+        box.appendChild(ttl);
+        const maxZ=Math.max.apply(null,['TL','TM','TR','ML','MM','MR','BL','BM','BR']
+          .map(function(z){return zoneData[z]||0;}))||1;
+        const grid=document.createElement('div');
+        grid.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:2px;';
+        [['TR','TM','TL'],['MR','MM','ML'],['BR','BM','BL']].forEach(function(row){
+          row.forEach(function(zk){
+            const cnt=zoneData[zk]||0;
+            const intensity=cnt/maxZ;
+            const cell=document.createElement('div');
+            cell.style.cssText='height:32px;border-radius:3px;display:flex;align-items:center;'
+              +'justify-content:center;font-size:9px;font-weight:700;'
+              +'background:rgba(220,38,38,'+Math.max(0.06,intensity)+');'
+              +'color:'+(intensity>0.4?'#fff':'#334155')+';border:1px solid #bae6fd;';
+            cell.textContent=cnt>0?cnt:'';
+            grid.appendChild(cell);
+          });
+        });
+        box.appendChild(grid);
+        container.appendChild(box);
+      }
+      buildBundleHandHeatMap(bundleHandWrap,bundleVsLHB.zoneMap,'VS LHB');
+      buildBundleHandHeatMap(bundleHandWrap,bundleVsRHB.zoneMap,'VS RHB');
+      bundlesTab.appendChild(bundleHandWrap);
     }
   }catch(e){
     const err=document.createElement('div');
