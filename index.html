@@ -955,6 +955,116 @@ function openProfileFromSettings(){
   openProfileOverlay();
 }
 
+// ── Auth Modal ──
+let _authMode='signin';
+function openAuthModal(){
+  closeSettingsModal();
+  _authMode='signin';
+  document.getElementById('authtitle').textContent='SIGN IN';
+  document.getElementById('auth-submit-btn').textContent='SIGN IN';
+  document.getElementById('auth-toggle-btn').textContent='Need an account? Sign up';
+  document.getElementById('auth-password2').style.display='none';
+  document.getElementById('auth-email').value='';
+  document.getElementById('auth-password').value='';
+  document.getElementById('auth-password2').value='';
+  document.getElementById('autherror').style.display='none';
+  const overlay=document.getElementById('authoverlay');
+  overlay.style.display='flex';
+}
+function closeAuthModal(){
+  document.getElementById('authoverlay').style.display='none';
+}
+function toggleAuthMode(){
+  _authMode=_authMode==='signin'?'signup':'signin';
+  const isSignUp=_authMode==='signup';
+  document.getElementById('authtitle').textContent=isSignUp?'CREATE ACCOUNT':'SIGN IN';
+  document.getElementById('auth-submit-btn').textContent=isSignUp?'CREATE ACCOUNT':'SIGN IN';
+  document.getElementById('auth-toggle-btn').textContent=isSignUp?'Already have an account? Sign in':'Need an account? Sign up';
+  document.getElementById('auth-password2').style.display=isSignUp?'block':'none';
+  document.getElementById('autherror').style.display='none';
+}
+async function handleAuthSubmit(){
+  const email=document.getElementById('auth-email').value.trim();
+  const password=document.getElementById('auth-password').value;
+  const password2=document.getElementById('auth-password2').value;
+  const errEl=document.getElementById('autherror');
+  errEl.style.display='none';
+  if(!email||!password){
+    errEl.textContent='Please enter email and password.';
+    errEl.style.display='block';
+    return;
+  }
+  if(_authMode==='signup'&&password!==password2){
+    errEl.textContent='Passwords do not match.';
+    errEl.style.display='block';
+    return;
+  }
+  const btn=document.getElementById('auth-submit-btn');
+  btn.textContent='PLEASE WAIT...';
+  btn.disabled=true;
+  let result;
+  if(_authMode==='signup'){
+    result=await fbSignUp(email,password);
+  } else {
+    result=await fbSignIn(email,password);
+  }
+  btn.disabled=false;
+  btn.textContent=_authMode==='signup'?'CREATE ACCOUNT':'SIGN IN';
+  if(result.success){
+    closeAuthModal();
+    updateAuthStatus(result.user);
+    // Offer migration if local data exists
+    const hasLocalData=localStorage.getItem('pitchseq-pitcher-profile')||
+      localStorage.getItem('pitchseq-game-history');
+    if(hasLocalData&&_authMode==='signup'){
+      setTimeout(function(){
+        if(confirm('Migrate your existing local data to your new cloud account?')){
+          fbMigrateFromLocalStorage().then(function(r){
+            if(r.success){
+              alert('Data migrated successfully! Your profile, plans and game history are now saved to your account.');
+            }
+          });
+        }
+      },500);
+    }
+  } else {
+    errEl.textContent=result.error||'Authentication failed. Please try again.';
+    errEl.style.display='block';
+  }
+}
+function updateAuthStatus(user){
+  const statusEl=document.getElementById('auth-status');
+  const btnEl=document.getElementById('auth-action-btn');
+  if(user){
+    if(statusEl) statusEl.textContent='Signed in: '+user.email;
+    if(btnEl){
+      btnEl.textContent='🔓 SIGN OUT';
+      btnEl.onclick=async function(){
+        await fbSignOut();
+        updateAuthStatus(null);
+      };
+    }
+  } else {
+    if(statusEl) statusEl.textContent='Not signed in';
+    if(btnEl){
+      btnEl.textContent='🔐 SIGN IN / CREATE ACCOUNT';
+      btnEl.onclick=function(){openAuthModal();};
+    }
+  }
+}
+// Listen for Firebase auth state changes
+document.addEventListener('fbAuthStateChanged',function(e){
+  updateAuthStatus(e.detail.user);
+  if(e.detail.user){
+    // User signed in — sync data from Firestore
+    fbLoadGameHistory().then(function(r){
+      if(r.success&&r.data.length){
+        localStorage.setItem('pitchseq-game-history',JSON.stringify(r.data));
+      }
+    });
+  }
+});
+
 // ── Apply saved theme on load (light is default) ──
 (function(){
   const saved = localStorage.getItem('pitchseq-theme');
