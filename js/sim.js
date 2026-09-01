@@ -373,6 +373,10 @@ function saveGameHistory(){
     const history=raw?JSON.parse(raw):[];
     history.push(game);
     localStorage.setItem('pitchseq-game-history',JSON.stringify(history));
+    // Sync to Firestore if signed in
+    if(typeof fbSaveGameHistory==='function'&&typeof fbCurrentUser==='function'&&fbCurrentUser()){
+      fbSaveGameHistory(game).catch(function(e){console.warn('Firestore game history sync failed:',e);});
+    }
   }catch(e){console.error('saveGameHistory error:',e);}
 }
 function endGame(){
