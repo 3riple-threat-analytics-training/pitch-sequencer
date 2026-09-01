@@ -36,7 +36,12 @@ function getSavedPlans(){
   }catch(e){return [];}
 }
 
-function setSavedPlans(plans){localStorage.setItem(PLAN_STORAGE_KEY,JSON.stringify(plans));}
+function setSavedPlans(plans){
+  localStorage.setItem(PLAN_STORAGE_KEY,JSON.stringify(plans));
+  if(typeof fbSavePlans==='function'&&typeof fbCurrentUser==='function'&&fbCurrentUser()){
+    fbSavePlans(plans).catch(function(e){console.warn('Firestore plan sync failed:',e);});
+  }
+}
 
 function getOpponents(){
   try{
@@ -330,6 +335,12 @@ function deletePitcherFromRoster(id){
 // ── Pitcher-scoped plans ──
 function getSavedPlansForPitcher(pitcherId){
   return getSavedPlans().filter(p=>p.pitcherId===pitcherId);
+}
+function syncRosterToFirestore(){
+  if(typeof fbSaveRoster==='function'&&typeof fbCurrentUser==='function'&&fbCurrentUser()){
+    const roster=typeof getRoster==='function'?getRoster():[];
+    fbSaveRoster(roster).catch(function(e){console.warn('Firestore roster sync failed:',e);});
+  }
 }
 function savePlanForPitcher(pitcherId,planData){
   const plans=getSavedPlans();

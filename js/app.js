@@ -2602,6 +2602,10 @@ function saveProfileAndStart(){
     (AGE_GROUP_MAX_VELOCITY[ageGroup]||80);
   const profile={name,hand:profHand,ageGroup,arsenal:profSelectedPitches,maxVelocity};
   saveProfile(profile);
+  // Sync to Firestore if signed in
+  if(typeof fbSaveProfile==='function'&&typeof fbCurrentUser==='function'&&fbCurrentUser()){
+    fbSaveProfile(profile).catch(function(e){console.warn('Firestore profile sync failed:',e);});
+  }
   applyProfile(profile);
   closeProfileOverlay();
   refreshPlanDropdown('');
