@@ -2297,10 +2297,16 @@ function skipSplash(){
 }
 function openSplashSignIn(){
   // Open auth modal from splash screen
-  // After sign in, profile loads from Firestore and splash dismisses
-  if(typeof openAuthModal==='function') openAuthModal();
-  // Override the auth success handler to also dismiss splash
-  const originalUpdate=window._splashAuthOverride;
+  // Use setTimeout to ensure inline scripts have fully initialized
+  setTimeout(function(){
+    if(typeof openAuthModal==='function'){
+      openAuthModal();
+    } else {
+      // Fallback: show auth overlay directly
+      const overlay=document.getElementById('authoverlay');
+      if(overlay) overlay.style.display='flex';
+    }
+  },100);
   window._splashAuthOverride=true;
 }
 function chooseSplashMode(mode){
