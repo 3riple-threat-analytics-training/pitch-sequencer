@@ -2275,14 +2275,26 @@ function playSplashAnimation(){
 }
 
 function skipSplash(){
+  const s3=document.getElementById('splash-s3');
   const s1=document.getElementById('splash-s1');
   const s2=document.getElementById('splash-s2');
-  const s3=document.getElementById('splash-s3');
   if(s1) s1.classList.remove('visible');
   if(s2) s2.classList.remove('visible');
   if(s3) s3.classList.add('visible');
+  // If already has a profile, skip to canvas entirely
+  const profile=typeof getProfile==='function'?getProfile():null;
+  if(profile){
+    document.getElementById('splashoverlay').classList.add('hidden');
+  }
 }
-
+function openSplashSignIn(){
+  // Open auth modal from splash screen
+  // After sign in, profile loads from Firestore and splash dismisses
+  if(typeof openAuthModal==='function') openAuthModal();
+  // Override the auth success handler to also dismiss splash
+  const originalUpdate=window._splashAuthOverride;
+  window._splashAuthOverride=true;
+}
 function chooseSplashMode(mode){
   setAppMode(mode);
   document.getElementById('splashoverlay').classList.add('hidden');

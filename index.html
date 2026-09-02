@@ -97,6 +97,12 @@
       <button class="splash-mode-btn" id="splashMyPitcher" onclick="chooseSplashMode('individual')">MY PITCHER</button>
       <button class="splash-mode-btn" id="splashMyTeam" onclick="chooseSplashMode('team')">MY TEAM</button>
     </div>
+    <button onclick="openSplashSignIn()" style="margin-top:16px;padding:10px 24px;
+      border-radius:8px;border:1px solid #06b6d4;background:transparent;
+      color:#06b6d4;font-family:'Bebas Neue',sans-serif;font-size:16px;
+      letter-spacing:2px;cursor:pointer;">🔐 SIGN IN TO YOUR ACCOUNT</button>
+    <div style="font-size:9px;color:#5a8aaa;margin-top:8px;
+      font-family:'DM Mono',monospace;">Returning users — sign in to load your profile</div>
   </div>
   <button class="splash-skip" onclick="skipSplash()">SKIP</button>
 </div>
@@ -1099,6 +1105,11 @@ document.addEventListener('fbAuthStateChanged',function(e){
         // Hide profile overlay if showing
         const overlay=document.getElementById('profileoverlay');
         if(overlay) overlay.style.display='none';
+        // Dismiss splash screen if showing
+        const splash=document.getElementById('splashoverlay');
+        if(splash&&!splash.classList.contains('hidden')){
+          splash.classList.add('hidden');
+        }
         console.log('Profile loaded from Firestore:',profile.name);
       }
     });
