@@ -148,6 +148,24 @@ async function fbLoadRoster(){
 }
 
 // Migrate localStorage data to Firestore
+async function fbLoadGamesByAgeGroup(ageGroup){
+  const user=fbCurrentUser();
+  if(!user) return {success:false,error:'Not signed in'};
+  try{
+    const col=window._fbFns.collection(
+      window._fbDb,'users',user.uid,'gameHistory');
+    const q=window._fbFns.query(col,window._fbFns.orderBy('savedAt','asc'));
+    const snap=await window._fbFns.getDocs(q);
+    const games=[];
+    snap.forEach(function(d){
+      const game=d.data();
+      if(!ageGroup||game.ageGroup===ageGroup) games.push(game);
+    });
+    return {success:true,data:games};
+  }catch(e){
+    return {success:false,error:e.message};
+  }
+}
 async function fbMigrateFromLocalStorage(){
   const user=fbCurrentUser();
   if(!user) return {success:false,error:'Not signed in'};

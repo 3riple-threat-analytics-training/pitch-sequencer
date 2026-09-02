@@ -365,6 +365,19 @@ function saveGameHistory(){
         (typeof totalHits!=='undefined'?totalHits:0),
       runsAllowed:typeof totalScore!=='undefined'?totalScore:0,
       teamScore:typeof teamScore!=='undefined'?teamScore:0,
+      // Raw velocity sequence for ML velocity profiling
+      velocities:pitches.map(function(p){return p.spd||0;}),
+      // Velocity by pitch type for differential analysis
+      veloByPitchType:(function(){
+        const vbt={};
+        pitches.forEach(function(p){
+          const pk=p.pk||'';
+          const spd=p.spd||0;
+          if(!vbt[pk]) vbt[pk]=[];
+          vbt[pk].push(spd);
+        });
+        return vbt;
+      })(),
       pitchMix,zoneMap,firstPitches,sequences,
       outcomes,countTendencies,vsBatterType,vsLHB,vsRHB
     };
@@ -425,6 +438,10 @@ function endGame(){
   // Clear sequence
   if(typeof clearAll==='function') clearAll();
   showFatigueToast('NEW GAME — PLAY BALL!');
+  // Run ML update after game ends
+  setTimeout(function(){
+    if(typeof runMLUpdate==='function') runMLUpdate();
+  },800);
   // Show game report after reset
   setTimeout(function(){showGameSummary();},500);
 }
