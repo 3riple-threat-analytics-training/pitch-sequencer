@@ -814,6 +814,9 @@ body[data-theme="light"] .simitem-prominent .simline-rest {
   transition:opacity 0.8s ease;
   text-align:center;
   padding:24px;
+  width:100%;
+  max-height:90vh;
+  overflow-y:auto;
 }
 .splash-step.visible{opacity:1;}
 .splash-step.fade{opacity:0;}

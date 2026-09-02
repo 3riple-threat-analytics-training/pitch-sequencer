@@ -2271,7 +2271,11 @@ function playSplashAnimation(){
   // Step 2: logo fades out
   setTimeout(()=>{s2.classList.remove('visible');},5000);
   // Step 3: app icon + mode selection fades in
-  setTimeout(()=>{s3.classList.add('visible');},5800);
+  setTimeout(()=>{
+    s3.classList.add('visible');
+    const signinBtn=document.getElementById('splash-signin-btn');
+    if(signinBtn) signinBtn.style.display='block';
+  },5800);
 }
 
 function skipSplash(){
@@ -2281,10 +2285,14 @@ function skipSplash(){
   if(s1) s1.classList.remove('visible');
   if(s2) s2.classList.remove('visible');
   if(s3) s3.classList.add('visible');
+  // Show sign in button when on step 3
+  const signinBtn=document.getElementById('splash-signin-btn');
+  if(signinBtn) signinBtn.style.display='block';
   // If already has a profile, skip to canvas entirely
   const profile=typeof getProfile==='function'?getProfile():null;
   if(profile){
     document.getElementById('splashoverlay').classList.add('hidden');
+    if(signinBtn) signinBtn.style.display='none';
   }
 }
 function openSplashSignIn(){
@@ -2297,6 +2305,8 @@ function openSplashSignIn(){
 }
 function chooseSplashMode(mode){
   setAppMode(mode);
+  const signinBtn=document.getElementById('splash-signin-btn');
+  if(signinBtn) signinBtn.style.display='none';
   document.getElementById('splashoverlay').classList.add('hidden');
   if(mode==='team'){
     initTeamMode();

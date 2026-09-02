@@ -97,13 +97,13 @@
       <button class="splash-mode-btn" id="splashMyPitcher" onclick="chooseSplashMode('individual')">MY PITCHER</button>
       <button class="splash-mode-btn" id="splashMyTeam" onclick="chooseSplashMode('team')">MY TEAM</button>
     </div>
-    <button onclick="openSplashSignIn()" style="margin-top:16px;padding:10px 24px;
-      border-radius:8px;border:1px solid #06b6d4;background:transparent;
-      color:#06b6d4;font-family:'Bebas Neue',sans-serif;font-size:16px;
-      letter-spacing:2px;cursor:pointer;">🔐 SIGN IN TO YOUR ACCOUNT</button>
-    <div style="font-size:9px;color:#5a8aaa;margin-top:8px;
-      font-family:'DM Mono',monospace;">Returning users — sign in to load your profile</div>
   </div>
+  <button onclick="openSplashSignIn()" id="splash-signin-btn"
+    style="position:fixed;bottom:60px;left:50%;transform:translateX(-50%);
+    padding:10px 24px;border-radius:8px;border:1px solid #06b6d4;
+    background:transparent;color:#06b6d4;font-family:'Bebas Neue',sans-serif;
+    font-size:16px;letter-spacing:2px;cursor:pointer;z-index:2001;
+    display:none;">🔐 SIGN IN TO YOUR ACCOUNT</button>
   <button class="splash-skip" onclick="skipSplash()">SKIP</button>
 </div>
 <div id="profileoverlay">
