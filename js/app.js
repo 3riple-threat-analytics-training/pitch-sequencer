@@ -2296,17 +2296,16 @@ function skipSplash(){
   }
 }
 function openSplashSignIn(){
-  // Open auth modal from splash screen
-  // Use setTimeout to ensure inline scripts have fully initialized
-  setTimeout(function(){
-    if(typeof openAuthModal==='function'){
-      openAuthModal();
-    } else {
-      // Fallback: show auth overlay directly
-      const overlay=document.getElementById('authoverlay');
-      if(overlay) overlay.style.display='flex';
-    }
-  },100);
+  console.log('openSplashSignIn called');
+  console.log('openAuthModal type:',typeof openAuthModal);
+  const overlay=document.getElementById('authoverlay');
+  console.log('authoverlay found:',!!overlay);
+  // Show auth overlay directly — most reliable approach
+  if(overlay){
+    overlay.style.display='flex';
+  } else if(typeof openAuthModal==='function'){
+    openAuthModal();
+  }
   window._splashAuthOverride=true;
 }
 function chooseSplashMode(mode){
