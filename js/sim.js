@@ -2308,20 +2308,118 @@ function getBreakingBallModifier(pitchKey){
   return {swingMissBonus:(1-lvl.breakingBallRecognition)*0.20};
 }
 
+function getMLVelocityMultiplier(){
+  if(!window._mlWeights||!window._mlWeights.velocityProfile) return 1;
+  const vp=window._mlWeights.velocityProfile;
+  const confidence=window._mlWeights.confidence||0;
+  if(confidence<0.15) return 1;
+  // Get current pitch speed from UI
+  const spdEl=document.getElementById('spd');
+  const currentSpeed=spdEl?parseInt(spdEl.value,10)||0:0;
+  if(!currentSpeed) return 1;
+  const maxVelo=vp.maxVelocity||75;
+  const currentPct=currentSpeed/maxVelo;
+  const learnedMeanPct=vp.allPitches.meanPct||0.9;
+  const diff=currentPct-learnedMeanPct;
+  // Faster than learned average → batter fooled → harder to hit
+  // Slower than learned average → batter catches up → easier to hit
+  let veloMult=1;
+  if(diff>0.05){
+    // Significantly faster than normal — batter is early
+    veloMult=Math.max(0.7,1-diff*confidence*1.5);
+  } else if(diff<-0.05){
+    // Significantly slower than normal — batter catches up
+    veloMult=Math.min(1.7,1+Math.abs(diff)*confidence*1.5);
+  }
+  // Apply velocity variation reward
+  // High variation score = pitcher is deceptive with speed = batter contact penalty
+  const varReward=vp.velocityVariation?vp.velocityVariation.rewardMultiplier:1;
+  // Apply fatigue curve adaptation
+  // Batter learns pitcher gets slower late — adjusts timing proactively
+  const fatigue=vp.fatigueCurve;
+  let fatigueMult=1;
+  if(fatigue&&typeof totalPitchCount!=='undefined'){
+    const pitchPct=totalPitchCount/Math.max(1,(vp.allPitches.count/Math.max(1,window._mlWeights.gamesAnalyzed)));
+    if(pitchPct>0.66&&fatigue.totalDropPct>0.05){
+      // Late game — batter knows velocity will drop, adjusts timing
+      fatigueMult=Math.min(1.4,1+fatigue.totalDropPct*confidence*2);
+    }
+  }
+  return Math.max(0.6,Math.min(1.8,veloMult*varReward*fatigueMult));
+}
+function getMLZoneMultiplier(zk){
+  // Returns a multiplier based on ML learned zone tendencies
+  // Hot zones get higher multiplier — batter looks there more
+  if(!window._mlWeights||!window._mlWeights.zoneWeights) return 1;
+  const confidence=window._mlWeights.confidence||0;
+  if(confidence<0.15) return 1; // not enough data yet
+  const zoneWeight=window._mlWeights.zoneWeights[zk]||1;
+  // Blend: at confidence 0.15 → 15% ML influence, at 0.85 → 85% ML influence
+  // Zone weight > 1 means pitcher goes here often → batter anticipates → harder to fool
+  // Zone weight < 1 means pitcher rarely goes here → batter less ready → easier
+  const mlMult=zoneWeight>1?
+    1+(zoneWeight-1)*confidence: // hot zone: batter more ready
+    1-(1-zoneWeight)*confidence; // cold zone: batter less ready
+  return Math.max(0.25,Math.min(2.8,mlMult));
+}
+function getMLCountMultiplier(zk,strikes){
+  // Returns multiplier based on ML learned count tendencies
+  if(!window._mlWeights||!window._mlWeights.countWeights) return 1;
+  const confidence=window._mlWeights.confidence||0;
+  if(confidence<0.15) return 1;
+  const count=ballCount+'-'+strikes;
+  const countData=window._mlWeights.countWeights[count];
+  if(!countData) return 1;
+  // Current pitch being thrown
+  const currentPitch=typeof pitch!=='undefined'?pitch:'4FB';
+  const pitchProb=countData[currentPitch]||0;
+  // If pitcher throws this pitch often in this count, batter is more ready
+  // pitchProb > 0.5 means very predictable → batter anticipates → higher swing mult
+  // pitchProb < 0.2 means unpredictable → batter less ready → lower swing mult
+  const mlMult=pitchProb>0.5?
+    1+(pitchProb-0.5)*confidence*2: // predictable: batter more ready
+    pitchProb<0.2?
+    Math.max(0.6,1-(0.2-pitchProb)*confidence*2): // unpredictable: batter less ready
+    1;
+  return Math.max(0.6,Math.min(2.0,mlMult));
+}
 function getBatterSwingMultiplier(zk,strikes){
   const effType=getEffectiveBatterType();
-  if(effType==='GENERIC') return 1;
-  if(effType==='FREE_SWINGER') return 2;
-  if(effType==='PATIENT') return strikes===0?0.55:strikes===1?0.65:0.88;
-  if(effType==='LOW_BALL'){if(['BOT-EDG','BL-CRN','BR-CRN'].includes(zk)) return 1.8;if(['TOP-EDG','TL-CRN','TR-CRN'].includes(zk)) return 0.5;return 1;}
-  if(effType==='HIGH_BALL'){if(['TOP-EDG','TL-CRN','TR-CRN'].includes(zk)) return 1.8;if(['BOT-EDG','BL-CRN','BR-CRN'].includes(zk)) return 0.5;return 1;}
-  if(effType==='PULL'){
+  // Base multiplier from batter type
+  let baseMult=1;
+  if(effType==='GENERIC') baseMult=1;
+  else if(effType==='FREE_SWINGER') baseMult=2;
+  else if(effType==='PATIENT') baseMult=strikes===0?0.55:strikes===1?0.65:0.88;
+  else if(effType==='LOW_BALL'){
+    if(['BOT-EDG','BL-CRN','BR-CRN'].includes(zk)) baseMult=1.8;
+    else if(['TOP-EDG','TL-CRN','TR-CRN'].includes(zk)) baseMult=0.5;
+    else baseMult=1;
+  }
+  else if(effType==='HIGH_BALL'){
+    if(['TOP-EDG','TL-CRN','TR-CRN'].includes(zk)) baseMult=1.8;
+    else if(['BOT-EDG','BL-CRN','BR-CRN'].includes(zk)) baseMult=0.5;
+    else baseMult=1;
+  }
+  else if(effType==='PULL'){
     const pullR=['LFT-EDG','BL-CRN','TL-CRN'],oppR=['RGT-EDG','BR-CRN','TR-CRN'];
     const pullL=['RGT-EDG','BR-CRN','TR-CRN'],oppL=['LFT-EDG','BL-CRN','TL-CRN'];
-    if(batter==='RHB'){if(pullR.includes(zk)) return 1.9;if(oppR.includes(zk)) return 0.4;return 1;}
-    if(batter==='LHB'){if(pullL.includes(zk)) return 1.9;if(oppL.includes(zk)) return 0.4;return 1;}
+    if(batter==='RHB'){
+      if(pullR.includes(zk)) baseMult=1.9;
+      else if(oppR.includes(zk)) baseMult=0.4;
+      else baseMult=1;
+    } else if(batter==='LHB'){
+      if(pullL.includes(zk)) baseMult=1.9;
+      else if(oppL.includes(zk)) baseMult=0.4;
+      else baseMult=1;
+    }
   }
-  return 1;
+  // Apply ML zone, count and velocity multipliers
+  const mlZoneMult=getMLZoneMultiplier(zk);
+  const mlCountMult=getMLCountMultiplier(zk,strikes);
+  const mlVeloMult=getMLVelocityMultiplier();
+  // Blend ML multipliers with base — cap total influence to avoid extremes
+  const finalMult=baseMult*Math.max(0.5,Math.min(1.8,mlZoneMult*mlCountMult*mlVeloMult));
+  return Math.max(0.2,Math.min(3.0,finalMult));
 }
 
 function getChaseZoneSwingProbability(strikes){
