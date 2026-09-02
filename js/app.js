@@ -694,7 +694,7 @@ function getAutoRole(count,seq,zk,batter,gameState){
   const bestDropPitch=dropPitches.length?dropPitches[0]:null;
 
   // ── AGE GROUP AWARENESS ──
-  const ageGroup=profile?profile.ageGroup||'youth':'youth';
+  const ageGroup=profile?profile.ageGroup||'rec12':'rec12';
   const isYouthOrHS=ageGroup==='youth'||ageGroup==='hs';
 
   // Hanging changeup warning
@@ -2529,7 +2529,7 @@ function saveAndAddAnotherPitcher(){
   profHand='R';
   profSetHand('R');
   profSelectedPitches=['4FB','CH'];
-  document.getElementById('prof-age').value='youth';
+  document.getElementById('prof-age').value='rec12';
   const mvIn=document.getElementById('prof-maxvel');
   const mvSl=document.getElementById('prof-maxvel-slider');
   const yv=AGE_GROUP_MAX_VELOCITY['youth']||60;
@@ -2556,13 +2556,13 @@ function openProfileOverlay(isTeamMode){
     document.getElementById('prof-name').value=profile.name||'';
     profHand=profile.hand||'R';
     profSetHand(profHand);
-    document.getElementById('prof-age').value=profile.ageGroup||'youth';
+    document.getElementById('prof-age').value=profile.ageGroup||'rec12';
     const maxVelInput=document.getElementById('prof-maxvel');
     if(maxVelInput){
-      maxVelInput.value=profile.maxVelocity||AGE_GROUP_MAX_VELOCITY[profile.ageGroup||'youth']||80;
+      maxVelInput.value=profile.maxVelocity||AGE_GROUP_MAX_VELOCITY[profile.ageGroup||'rec12']||80;
     }
     const maxVelSlider=document.getElementById('prof-maxvel-slider');
-    if(maxVelSlider) maxVelSlider.value=maxVelInput?maxVelInput.value:AGE_GROUP_MAX_VELOCITY[profile.ageGroup||'youth']||80;
+    if(maxVelSlider) maxVelSlider.value=maxVelInput?maxVelInput.value:AGE_GROUP_MAX_VELOCITY[profile.ageGroup||'rec12']||80;
     profSelectedPitches=[...(profile.arsenal||['4FB','CH'])];
     document.getElementById('profilesubtitle').textContent=mode?'Manage your roster':'Update your profile';
     document.getElementById('profsavebtn').textContent='SAVE PROFILE';
@@ -2572,10 +2572,10 @@ function openProfileOverlay(isTeamMode){
     profSetHand('R');
     profSelectedPitches=['4FB','CH'];
     document.getElementById('prof-name').value='';
-    document.getElementById('prof-age').value='youth';
+    document.getElementById('prof-age').value='rec12';
     const maxVelInputNew=document.getElementById('prof-maxvel');
     if(maxVelInputNew){
-      maxVelInputNew.value=AGE_GROUP_MAX_VELOCITY['youth']||60;
+      maxVelInputNew.value=AGE_GROUP_MAX_VELOCITY['rec12']||60;
     }
     const maxVelSliderNew=document.getElementById('prof-maxvel-slider');
     if(maxVelSliderNew) maxVelSliderNew.value=AGE_GROUP_MAX_VELOCITY['youth']||60;
