@@ -346,7 +346,10 @@ async function runMLUpdate(){
     const profile=typeof getProfile==='function'?getProfile():null;
     console.log('ML runMLUpdate: profile=',profile?profile.ageGroup:'none');
     if(!profile) return;
-    const currentAgeGroup=profile.ageGroup||'rec12';
+    // Normalize legacy age group keys
+    const ageGroupMap={'youth':'rec12','hs':'hsvar','hsrec':'hsvar'};
+    const rawAgeGroup=profile.ageGroup||'rec12';
+    const currentAgeGroup=ageGroupMap[rawAgeGroup]||rawAgeGroup;
     console.log('ML runMLUpdate: ageGroup=',currentAgeGroup);
     // Load games from Firestore if signed in, else use localStorage
     let games=[];
