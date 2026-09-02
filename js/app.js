@@ -2296,15 +2296,22 @@ function skipSplash(){
   }
 }
 function openSplashSignIn(){
-  console.log('openSplashSignIn called');
-  console.log('openAuthModal type:',typeof openAuthModal);
   const overlay=document.getElementById('authoverlay');
-  console.log('authoverlay found:',!!overlay);
-  // Show auth overlay directly — most reliable approach
   if(overlay){
+    // Bring auth overlay above splash screen
+    overlay.style.zIndex='3000';
     overlay.style.display='flex';
-  } else if(typeof openAuthModal==='function'){
-    openAuthModal();
+    // Reset auth form state
+    const errEl=document.getElementById('autherror');
+    if(errEl) errEl.style.display='none';
+    const emailEl=document.getElementById('auth-email');
+    if(emailEl) emailEl.value='';
+    const pwEl=document.getElementById('auth-password');
+    if(pwEl) pwEl.value='';
+    const titleEl=document.getElementById('authtitle');
+    if(titleEl) titleEl.textContent='SIGN IN';
+    const submitBtn=document.getElementById('auth-submit-btn');
+    if(submitBtn) submitBtn.textContent='SIGN IN';
   }
   window._splashAuthOverride=true;
 }
