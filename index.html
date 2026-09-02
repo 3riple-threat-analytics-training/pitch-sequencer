@@ -1086,10 +1086,27 @@ function updateAuthStatus(user){
 document.addEventListener('fbAuthStateChanged',function(e){
   updateAuthStatus(e.detail.user);
   if(e.detail.user){
-    // User signed in — sync data from Firestore
+    // User signed in — load profile from Firestore and apply it
+    fbLoadProfile().then(function(r){
+      if(r.success&&r.data){
+        const profile=r.data;
+        // Save to localStorage
+        localStorage.setItem('pitchseq-pitcher-profile',JSON.stringify(profile));
+        // Apply profile if function exists
+        if(typeof applyProfile==='function'){
+          applyProfile(profile);
+        }
+        // Hide profile overlay if showing
+        const overlay=document.getElementById('profileoverlay');
+        if(overlay) overlay.style.display='none';
+        console.log('Profile loaded from Firestore:',profile.name);
+      }
+    });
+    // Sync game history from Firestore
     fbLoadGameHistory().then(function(r){
       if(r.success&&r.data.length){
         localStorage.setItem('pitchseq-game-history',JSON.stringify(r.data));
+        console.log('Game history loaded from Firestore:',r.data.length,'games');
       }
     });
   }

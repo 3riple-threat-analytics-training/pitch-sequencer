@@ -344,8 +344,10 @@ function computeMLWeights(games){
 async function runMLUpdate(){
   try{
     const profile=typeof getProfile==='function'?getProfile():null;
+    console.log('ML runMLUpdate: profile=',profile?profile.ageGroup:'none');
     if(!profile) return;
     const currentAgeGroup=profile.ageGroup||'rec12';
+    console.log('ML runMLUpdate: ageGroup=',currentAgeGroup);
     // Load games from Firestore if signed in, else use localStorage
     let games=[];
     if(typeof fbCurrentUser==='function'&&fbCurrentUser()&&
