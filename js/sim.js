@@ -440,10 +440,21 @@ function endGame(){
   showFatigueToast('NEW GAME — PLAY BALL!');
   // Run ML update after game ends
   setTimeout(function(){
-    if(typeof runMLUpdate==='function') runMLUpdate();
+    // ML update runs after game summary loads (see setTimeout below)
   },800);
   // Show game report after reset
-  setTimeout(function(){showGameSummary();},500);
+  // Run ML update first, then show report with fresh weights
+  setTimeout(function(){
+    if(typeof runMLUpdate==='function'){
+      runMLUpdate().then(function(){
+        showGameSummary();
+      }).catch(function(){
+        showGameSummary();
+      });
+    } else {
+      showGameSummary();
+    }
+  },500);
 }
 
 function confirmEndGame(){
