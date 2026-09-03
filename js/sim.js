@@ -1280,6 +1280,178 @@ function showGameReport(game,title,onClose){
       summaryGrid.appendChild(careerStatBox('HITS PER GAME',careerH,'hRate',hTrend,strengthLabel('hRate',careerH)));
       summaryGrid.appendChild(careerStatBox('RUNS PER GAME',careerR,'runsRate',rTrend,strengthLabel('runsRate',careerR)));
       careerTab.appendChild(summaryGrid);
+      // ML Transparency Section
+      if(window._mlWeights&&window._mlWeights.confidence>=0.15){
+        const ml=window._mlWeights;
+        const conf=ml.confidence||0;
+        const confPct=Math.round(conf*100);
+        cLabel('WHAT THE BATTER HAS LEARNED');
+        // Adaptation score header
+        const adaptBox=document.createElement('div');
+        adaptBox.style.cssText='background:#fff8f0;border:2px solid #92400e;border-radius:8px;'
+          +'padding:12px;margin-bottom:12px;';
+        const adaptTitle=document.createElement('div');
+        adaptTitle.style.cssText='font-family:\'Bebas Neue\',sans-serif;font-size:16px;'
+          +'color:#92400e;letter-spacing:2px;margin-bottom:4px;';
+        adaptTitle.textContent='BATTER ADAPTATION: '+confPct+'%'
+          +' ('+ml.gamesAnalyzed+' games)';
+        const adaptBar=document.createElement('div');
+        adaptBar.style.cssText='width:100%;background:#fde8d0;border-radius:4px;height:8px;margin-bottom:6px;';
+        const adaptFill=document.createElement('div');
+        adaptFill.style.cssText='width:'+confPct+'%;height:100%;border-radius:4px;'
+          +'background:#92400e;';
+        adaptBar.appendChild(adaptFill);
+        const adaptNote=document.createElement('div');
+        adaptNote.style.cssText='font-size:9px;color:#92400e;line-height:1.5;';
+        adaptNote.textContent=confPct<40?
+          'The batter is just starting to learn your patterns. Keep playing to increase adaptation.':
+          confPct<70?
+          'The batter has learned several of your tendencies. Mix your sequences to stay unpredictable.':
+          'The batter is highly adapted to your patterns. Significant variety is needed to fool it.';
+        adaptBox.appendChild(adaptTitle);
+        adaptBox.appendChild(adaptBar);
+        adaptBox.appendChild(adaptNote);
+        careerTab.appendChild(adaptBox);
+        // Count predictability
+        const mlSubLabel=function(text){
+          const s=document.createElement('div');
+          s.style.cssText='font-size:9px;color:#92400e;font-weight:700;letter-spacing:1px;'
+            +'margin:10px 0 4px 0;text-transform:uppercase;';
+          s.textContent=text;
+          careerTab.appendChild(s);
+        };
+        mlSubLabel('COUNT PREDICTABILITY');
+        const counts=['0-0','0-1','0-2','1-0','1-1','1-2','2-0','2-1','2-2','3-2'];
+        counts.forEach(function(ct){
+          const ctData=ml.countWeights&&ml.countWeights[ct];
+          if(!ctData) return;
+          const topEntry=Object.entries(ctData).sort(function(a,b){return b[1]-a[1];})[0];
+          if(!topEntry||topEntry[1]<0.3) return;
+          const pct=Math.round(topEntry[1]*100);
+          const isHigh=pct>=60;
+          const row=document.createElement('div');
+          row.style.cssText='display:flex;justify-content:space-between;align-items:center;'
+            +'margin-bottom:4px;padding:4px 6px;border-radius:4px;'
+            +'background:'+(isHigh?'#fff1f0':'#f0f9ff')+';';
+          const l=document.createElement('div');
+          l.style.cssText='font-size:9px;color:#0c4a6e;font-weight:700;';
+          l.textContent=ct+' COUNT — '+topEntry[0]+' '+pct+'% of the time';
+          const r=document.createElement('div');
+          r.style.cssText='font-size:9px;font-weight:700;color:'+(isHigh?'#991b1b':'#166534')+';';
+          r.textContent=isHigh?'⚠ HIGH':'✓ OK';
+          row.appendChild(l);row.appendChild(r);
+          careerTab.appendChild(row);
+        });
+        // Zone tendencies
+        mlSubLabel('ZONE TENDENCIES');
+        if(ml.hotZones&&ml.hotZones.length){
+          const zoneRow=document.createElement('div');
+          zoneRow.style.cssText='margin-bottom:4px;';
+          const hotEl=document.createElement('div');
+          hotEl.style.cssText='font-size:9px;color:#991b1b;font-weight:700;margin-bottom:3px;';
+          hotEl.textContent='⚠ BATTER LOOKS HERE: '+ml.hotZones.join(', ');
+          const coldEl=document.createElement('div');
+          coldEl.style.cssText='font-size:9px;color:#166534;font-weight:700;';
+          coldEl.textContent='✓ BATTER IGNORES: '+(ml.coldZones||[]).join(', ');
+          zoneRow.appendChild(hotEl);
+          zoneRow.appendChild(coldEl);
+          careerTab.appendChild(zoneRow);
+        }
+        // Sequence patterns
+        mlSubLabel('SEQUENCE PATTERNS');
+        const seqWeights=ml.sequenceWeights||{};
+        Object.entries(seqWeights).forEach(function(e){
+          const prev=e[0],nextMap=e[1];
+          const topNext=Object.entries(nextMap).sort(function(a,b){return b[1]-a[1];})[0];
+          if(!topNext||topNext[1]<0.5) return;
+          const pct=Math.round(topNext[1]*100);
+          const row=document.createElement('div');
+          row.style.cssText='display:flex;justify-content:space-between;align-items:center;'
+            +'margin-bottom:4px;padding:4px 6px;border-radius:4px;background:#fff1f0;';
+          const l=document.createElement('div');
+          l.style.cssText='font-size:9px;color:#0c4a6e;font-weight:700;';
+          l.textContent='After '+prev+' → '+topNext[0]+' '+pct+'% of the time';
+          const r=document.createElement('div');
+          r.style.cssText='font-size:9px;font-weight:700;color:#991b1b;';
+          r.textContent='⚠ PREDICTABLE';
+          row.appendChild(l);row.appendChild(r);
+          careerTab.appendChild(row);
+        });
+        // Velocity patterns
+        if(ml.velocityProfile){
+          mlSubLabel('VELOCITY PATTERNS');
+          const vp=ml.velocityProfile;
+          const varScore=vp.velocityVariation?Math.round(vp.velocityVariation.variationScore*100):0;
+          const avgPct=Math.round((vp.allPitches.meanPct||0)*100);
+          const dropPct=Math.round((vp.fatigueCurve.totalDropPct||0)*100);
+          const veloBox=document.createElement('div');
+          veloBox.style.cssText='background:#f0f9ff;border:1px solid #7dd3fc;border-radius:6px;'
+            +'padding:8px;margin-bottom:6px;';
+          veloBox.innerHTML='<div style="font-size:9px;color:#0c4a6e;font-weight:700;margin-bottom:4px;">'
+            +'Average velocity: '+avgPct+'% of max'
+            +(dropPct>5?'<br>Late game drop: -'+dropPct+'% after pitch 40':'')
+            +'<br>Speed variation score: '+varScore+'%'
+            +(varScore<40?' — <span style="color:#991b1b;font-weight:700;">LOW — batter has timed your velocity</span>':
+              varScore<65?' — <span style="color:#ca8a04;font-weight:700;">MODERATE</span>':
+              ' — <span style="color:#166534;font-weight:700;">HIGH — velocity deception working</span>')
+            +'</div>';
+          if(dropPct>5){
+            const dropNote=document.createElement('div');
+            dropNote.style.cssText='font-size:9px;color:#991b1b;font-weight:700;';
+            dropNote.textContent='⚠ Batter adjusts timing after pitch 40 as your velocity drops.';
+            veloBox.appendChild(dropNote);
+          }
+          careerTab.appendChild(veloBox);
+        }
+        // First pitch tendency
+        mlSubLabel('FIRST PITCH TENDENCY');
+        const fpWeights=ml.firstPitchWeights||{};
+        const topFP=Object.entries(fpWeights).sort(function(a,b){return b[1]-a[1];})[0];
+        if(topFP&&topFP[1]>0.5){
+          const fpEl=document.createElement('div');
+          fpEl.style.cssText='padding:4px 6px;border-radius:4px;background:#fff1f0;'
+            +'font-size:9px;color:#991b1b;font-weight:700;margin-bottom:4px;';
+          fpEl.textContent='⚠ '+Math.round(topFP[1]*100)+'% first pitch '
+            +topFP[0]+' — the batter is sitting on your opener.';
+          careerTab.appendChild(fpEl);
+        } else {
+          const fpEl=document.createElement('div');
+          fpEl.style.cssText='padding:4px 6px;border-radius:4px;background:#f0fff4;'
+            +'font-size:9px;color:#166534;font-weight:700;margin-bottom:4px;';
+          fpEl.textContent='✓ Good first pitch variety — batter cannot predict your opener.';
+          careerTab.appendChild(fpEl);
+        }
+        // Coaching recommendations
+        mlSubLabel('COACHING RECOMMENDATIONS');
+        const recs=[];
+        if(topFP&&topFP[1]>0.6)
+          recs.push('Vary your first pitch — throw '+topFP[0]+' less than 50% of the time to open at-bats.');
+        const highCountEntries=counts.filter(function(ct){
+          const ctData=ml.countWeights&&ml.countWeights[ct];
+          if(!ctData) return false;
+          const top=Object.entries(ctData).sort(function(a,b){return b[1]-a[1];})[0];
+          return top&&top[1]>=0.65;
+        });
+        if(highCountEntries.length>2)
+          recs.push('You are predictable in '+highCountEntries.length+' counts. Change pitch selection in at least 2 of them.');
+        if(ml.hotZones&&ml.hotZones.length)
+          recs.push('Expand your zone coverage — the batter ignores '+((ml.coldZones||[]).slice(0,2).join(' and '))+'. Use these zones more.');
+        const vp=ml.velocityProfile;
+        if(vp&&vp.velocityVariation&&vp.velocityVariation.variationScore<0.4)
+          recs.push('Increase speed variation — try throwing 5+ mph below your average occasionally to disrupt batter timing.');
+        if(vp&&vp.fatigueCurve&&vp.fatigueCurve.totalDropPct>0.07)
+          recs.push('Your velocity drops significantly late in games. Use more breaking balls and changeups after pitch 40.');
+        if(!recs.length)
+          recs.push('Good variety overall — keep mixing your sequences and locations to stay unpredictable.');
+        recs.forEach(function(rec){
+          const recEl=document.createElement('div');
+          recEl.style.cssText='font-size:9px;color:#0c4a6e;font-weight:600;'
+            +'margin-bottom:5px;padding:4px 6px;border-left:3px solid #0c4a6e;'
+            +'background:#f0f9ff;line-height:1.5;';
+          recEl.textContent='→ '+rec;
+          careerTab.appendChild(recEl);
+        });
+      }
       // Stage B — Trend line charts
       cLabel('PERFORMANCE TRENDS');
       const trendCanvas=document.createElement('canvas');
