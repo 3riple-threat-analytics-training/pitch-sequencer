@@ -1292,7 +1292,7 @@ function showGameReport(game,title,onClose){
       summaryGrid.appendChild(careerStatBox('RUNS PER GAME',careerR,'runsRate',rTrend,strengthLabel('runsRate',careerR)));
       careerTab.appendChild(summaryGrid);
       // ML Transparency Section
-      if(window._mlWeights&&window._mlWeights.confidence>=0.15){
+      if(window._mlWeights&&window._mlWeights.confidence>=0.10){
         const ml=window._mlWeights;
         const conf=ml.confidence||0;
         const confPct=Math.round(conf*100);

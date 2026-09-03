@@ -362,7 +362,10 @@ async function runMLUpdate(){
     if(!games.length){
       const raw=localStorage.getItem('pitchseq-game-history');
       const allGames=raw?JSON.parse(raw):[];
-      games=allGames.filter(function(g){return g.ageGroup===currentAgeGroup;});
+      games=allGames.filter(function(g){
+      const gAgeGroup=ageGroupMap[g.ageGroup]||g.ageGroup;
+      return gAgeGroup===currentAgeGroup;
+    });
     }
     if(games.length<2){
       window._mlWeights=null;
