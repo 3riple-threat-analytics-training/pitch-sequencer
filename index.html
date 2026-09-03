@@ -1102,15 +1102,16 @@ document.addEventListener('fbAuthStateChanged',function(e){
         if(typeof applyProfile==='function'){
           applyProfile(profile);
         }
-        // Hide profile overlay if showing — remove inline style so CSS class controls it
-        const overlay=document.getElementById('profileoverlay');
-        if(overlay){
-          overlay.style.display='';
-          overlay.classList.remove('visible');
-        }
         // Dismiss splash screen if showing
         const splash=document.getElementById('splashoverlay');
-        if(splash&&!splash.classList.contains('hidden')){
+        const splashVisible=splash&&!splash.classList.contains('hidden');
+        if(splashVisible){
+          // Only hide profile overlay during initial splash flow
+          const overlay=document.getElementById('profileoverlay');
+          if(overlay){
+            overlay.style.display='';
+            overlay.classList.remove('visible');
+          }
           splash.classList.add('hidden');
         }
         console.log('Profile loaded from Firestore:',profile.name);
