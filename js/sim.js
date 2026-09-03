@@ -1153,6 +1153,242 @@ function showGameReport(game,title,onClose){
       buildBundleHandHeatMap(bundleHandWrap,bundleVsLHB.zoneMap,'VS LHB');
       buildBundleHandHeatMap(bundleHandWrap,bundleVsRHB.zoneMap,'VS RHB');
       bundlesTab.appendChild(bundleHandWrap);
+      // ── Trends & Evolution Section ──
+      bLabel('TRENDS & EVOLUTION');
+      // Dynamic comparison window based on ML confidence
+      const mlConf=window._mlWeights?window._mlWeights.confidence:0;
+      let windowSize;
+      let windowLabel;
+      if(mlConf>=0.60){
+        windowSize=3;
+        windowLabel='Last 3 games vs career average (HIGH adaptation speed)';
+      } else if(mlConf>=0.30){
+        windowSize=5;
+        windowLabel='Last 5 games vs career average (MEDIUM adaptation speed)';
+      } else {
+        windowSize=Math.max(1,Math.floor(allGames.length/2));
+        windowLabel='First half vs second half (LOW adaptation speed)';
+      }
+      const recentGames=allGames.slice(-windowSize);
+      const baselineGames=allGames.slice(0,-windowSize);
+      if(baselineGames.length===0){
+        const notEnough=document.createElement('div');
+        notEnough.style.cssText='font-size:9px;color:#475569;padding:8px;';
+        notEnough.textContent='Play more games to see trend analysis. Need at least '+(windowSize+1)+' games total.';
+        bundlesTab.appendChild(notEnough);
+      } else {
+        // Helper: aggregate count tendencies across games
+        function aggCountTend(games){
+          const agg={};
+          games.forEach(function(g){
+            Object.entries(g.countTendencies||{}).forEach(function(e){
+              const ct=e[0];
+              if(!agg[ct]) agg[ct]={};
+              Object.entries(e[1]).forEach(function(pe){
+                agg[ct][pe[0]]=(agg[ct][pe[0]]||0)+pe[1];
+              });
+            });
+          });
+          return agg;
+        }
+        // Helper: get top pitch pct for a count
+        function topPitchPct(ctData){
+          if(!ctData) return {pk:'',pct:0};
+          const total=Object.values(ctData).reduce(function(a,b){return a+b;},0)||1;
+          const top=Object.entries(ctData).sort(function(a,b){return b[1]-a[1];})[0];
+          return top?{pk:top[0],pct:Math.round(top[1]/total*100)}:{pk:'',pct:0};
+        }
+        // Helper: zone coverage score (how many zones used >5%)
+        function zoneCoverageScore(games){
+          const zm={};
+          games.forEach(function(g){
+            Object.entries(g.zoneMap||{}).forEach(function(e){
+              zm[e[0]]=(zm[e[0]]||0)+e[1];
+            });
+          });
+          const total=Object.values(zm).reduce(function(a,b){return a+b;},0)||1;
+          const zones=['TL','TM','TR','ML','MM','MR','BL','BM','BR'];
+          return zones.filter(function(z){return (zm[z]||0)/total>0.05;}).length;
+        }
+        // Helper: sequence variety score
+        function seqVarietyScore(games){
+          const seqs={};
+          games.forEach(function(g){
+            Object.entries(g.sequences||{}).forEach(function(e){
+              seqs[e[0]]=(seqs[e[0]]||0)+e[1];
+            });
+          });
+          const total=Object.values(seqs).reduce(function(a,b){return a+b;},0)||1;
+          const topSeq=Object.values(seqs).sort(function(a,b){return b-a;})[0]||0;
+          return Math.round((1-topSeq/total)*100);
+        }
+        // Helper: velocity variation score
+        function veloVarScore(games){
+          const velos=[];
+          games.forEach(function(g){(g.velocities||[]).forEach(function(v){if(v>0)velos.push(v);});});
+          if(velos.length<2) return 0;
+          const mean=velos.reduce(function(a,b){return a+b;},0)/velos.length;
+          const std=Math.sqrt(velos.reduce(function(s,v){return s+(v-mean)*(v-mean);},0)/velos.length);
+          return Math.min(100,Math.round(std/mean*500));
+        }
+        // Calculate Pattern Intelligence Scores
+        function calcPatternScore(games){
+          if(!games.length) return 0;
+          const ctAgg=aggCountTend(games);
+          // Count variety (25pts): avg predictability across key counts
+          const keyCounts=['0-0','0-2','1-0','3-2'];
+          let countScore=25;
+          keyCounts.forEach(function(ct){
+            const top=topPitchPct(ctAgg[ct]);
+            if(top.pct>=70) countScore-=6;
+            else if(top.pct>=55) countScore-=3;
+          });
+          countScore=Math.max(0,countScore);
+          // Zone coverage (25pts)
+          const zones=zoneCoverageScore(games);
+          const zoneScore=Math.min(25,Math.round(zones/9*25));
+          // Sequence variety (25pts)
+          const seqScore=Math.min(25,Math.round(seqVarietyScore(games)/100*25));
+          // Velocity variation (25pts)
+          const veloScore=Math.min(25,Math.round(veloVarScore(games)/100*25));
+          return countScore+zoneScore+seqScore+veloScore;
+        }
+        const recentScore=calcPatternScore(recentGames);
+        const baselineScore=calcPatternScore(baselineGames);
+        const scoreDiff=recentScore-baselineScore;
+        // ── Pattern Intelligence Score — shown immediately ──
+        const scoreBox=document.createElement('div');
+        scoreBox.style.cssText='border-radius:8px;padding:14px;margin-bottom:12px;'
+          +'border:2px solid '+(scoreDiff>=0?'#166534':'#991b1b')+';'
+          +'background:'+(scoreDiff>=0?'#f0fff4':'#fff1f0')+';';
+        const scoreTitle=document.createElement('div');
+        scoreTitle.style.cssText='font-family:\'Bebas Neue\',sans-serif;font-size:18px;'
+          +'letter-spacing:2px;color:#0c4a6e;margin-bottom:6px;';
+        scoreTitle.textContent='PATTERN INTELLIGENCE SCORE';
+        const scoreRow=document.createElement('div');
+        scoreRow.style.cssText='display:flex;align-items:baseline;gap:12px;margin-bottom:6px;';
+        const scoreNum=document.createElement('div');
+        scoreNum.style.cssText='font-family:\'Bebas Neue\',sans-serif;font-size:42px;'
+          +'color:'+(scoreDiff>=0?'#166534':'#991b1b')+';';
+        scoreNum.textContent=recentScore;
+        const scoreDiffEl=document.createElement('div');
+        scoreDiffEl.style.cssText='font-size:14px;font-weight:700;'
+          +'color:'+(scoreDiff>=0?'#166534':'#991b1b')+';';
+        scoreDiffEl.textContent=(scoreDiff>=0?'↑ +':'↓ ')+scoreDiff+' from baseline';
+        scoreRow.appendChild(scoreNum);
+        scoreRow.appendChild(scoreDiffEl);
+        const scoreNote=document.createElement('div');
+        scoreNote.style.cssText='font-size:9px;color:#475569;margin-bottom:4px;';
+        scoreNote.textContent=windowLabel;
+        const mlSpeedEl=document.createElement('div');
+        mlSpeedEl.style.cssText='font-size:9px;font-weight:700;color:#0c4a6e;';
+        mlSpeedEl.textContent='ML ADAPTATION: '+(mlConf>=0.60?'HIGH':mlConf>=0.30?'MEDIUM':'LOW')
+          +' ('+Math.round(mlConf*100)+'% confidence)';
+        scoreBox.appendChild(scoreTitle);
+        scoreBox.appendChild(scoreRow);
+        scoreBox.appendChild(scoreNote);
+        scoreBox.appendChild(mlSpeedEl);
+        bundlesTab.appendChild(scoreBox);
+        // ── Regression Alert ──
+        if(scoreDiff<=-10){
+          const regAlert=document.createElement('div');
+          regAlert.style.cssText='background:#991b1b;border-radius:8px;padding:12px;'
+            +'margin-bottom:12px;';
+          regAlert.innerHTML='<div style="font-family:\'Bebas Neue\',sans-serif;font-size:16px;'
+            +'color:#fff;letter-spacing:2px;margin-bottom:4px;">🚨 REGRESSION DETECTED</div>'
+            +'<div style="font-size:9px;color:#fecaca;line-height:1.6;">'
+            +'Your pitching patterns have become MORE predictable in recent games. '
+            +'The batter is learning faster than you are adjusting. '
+            +'Review the count predictability and sequence patterns below and make changes immediately.</div>';
+          bundlesTab.appendChild(regAlert);
+        } else if(scoreDiff>=-5&&scoreDiff<0){
+          const warnAlert=document.createElement('div');
+          warnAlert.style.cssText='background:#92400e;border-radius:8px;padding:12px;'
+            +'margin-bottom:12px;';
+          warnAlert.innerHTML='<div style="font-family:\'Bebas Neue\',sans-serif;font-size:16px;'
+            +'color:#fff;letter-spacing:2px;margin-bottom:4px;">⚠ SLIGHT REGRESSION</div>'
+            +'<div style="font-size:9px;color:#fde68a;line-height:1.6;">'
+            +'Your patterns are slightly more predictable recently. '
+            +'Monitor your count tendencies and sequence variety closely.</div>';
+          bundlesTab.appendChild(warnAlert);
+        }
+        // ── Count Predictability Trend ──
+        const trendSubLabel=function(text){
+          const s=document.createElement('div');
+          s.style.cssText='font-size:9px;color:#0c4a6e;font-weight:700;letter-spacing:1px;'
+            +'margin:10px 0 4px 0;text-transform:uppercase;';
+          s.textContent=text;
+          bundlesTab.appendChild(s);
+        };
+        trendSubLabel('COUNT PREDICTABILITY TREND');
+        const baseCtAgg=aggCountTend(baselineGames);
+        const recentCtAgg=aggCountTend(recentGames);
+        const keyCounts=['0-0','0-1','0-2','1-0','1-2','2-2','3-2'];
+        keyCounts.forEach(function(ct){
+          const baseTop=topPitchPct(baseCtAgg[ct]);
+          const recentTop=topPitchPct(recentCtAgg[ct]);
+          if(!baseTop.pk||!recentTop.pk) return;
+          const improving=recentTop.pct<baseTop.pct;
+          const row=document.createElement('div');
+          row.style.cssText='margin-bottom:5px;padding:5px 6px;border-radius:4px;'
+            +'background:'+(improving?'#f0fff4':'#fff1f0')+';';
+          row.innerHTML='<div style="font-size:9px;font-weight:700;color:#0c4a6e;margin-bottom:2px;">'
+            +ct+' COUNT — '+baseTop.pk+'</div>'
+            +'<div style="display:flex;gap:12px;font-size:9px;font-weight:700;">'
+            +'<span style="color:#475569;">Baseline: '+baseTop.pct+'%</span>'
+            +'<span style="color:'+(improving?'#166534':'#991b1b')+';">'
+            +(improving?'↓ ':'↑ ')+'Recent: '+recentTop.pct+'%</span>'
+            +'<span style="color:'+(improving?'#166534':'#991b1b')+';font-size:10px;">'
+            +(improving?'✓ IMPROVING':'⚠ REGRESSING')+'</span>'
+            +'</div>';
+          bundlesTab.appendChild(row);
+        });
+        // ── Zone Coverage Trend ──
+        trendSubLabel('ZONE COVERAGE TREND');
+        const baseZones=zoneCoverageScore(baselineGames);
+        const recentZones=zoneCoverageScore(recentGames);
+        const zoneImproving=recentZones>=baseZones;
+        const zoneTrendEl=document.createElement('div');
+        zoneTrendEl.style.cssText='padding:5px 6px;border-radius:4px;margin-bottom:5px;'
+          +'background:'+(zoneImproving?'#f0fff4':'#fff1f0')+';'
+          +'font-size:9px;font-weight:700;';
+        zoneTrendEl.innerHTML='<span style="color:#475569;">Zones used (baseline): '+baseZones+'/9</span> '
+          +'<span style="color:'+(zoneImproving?'#166534':'#991b1b')+';">'
+          +(zoneImproving?'↑ ':'↓ ')+'Recent: '+recentZones+'/9 '
+          +(zoneImproving?'✓ EXPANDING':'⚠ SHRINKING')+'</span>';
+        bundlesTab.appendChild(zoneTrendEl);
+        // ── Sequence Variety Trend ──
+        trendSubLabel('SEQUENCE VARIETY TREND');
+        const baseSeq=seqVarietyScore(baselineGames);
+        const recentSeq=seqVarietyScore(recentGames);
+        const seqImproving=recentSeq>=baseSeq;
+        const seqTrendEl=document.createElement('div');
+        seqTrendEl.style.cssText='padding:5px 6px;border-radius:4px;margin-bottom:5px;'
+          +'background:'+(seqImproving?'#f0fff4':'#fff1f0')+';'
+          +'font-size:9px;font-weight:700;';
+        seqTrendEl.innerHTML='<span style="color:#475569;">Sequence variety (baseline): '+baseSeq+'%</span> '
+          +'<span style="color:'+(seqImproving?'#166534':'#991b1b')+';">'
+          +(seqImproving?'↑ ':'↓ ')+'Recent: '+recentSeq+'% '
+          +(seqImproving?'✓ MORE VARIETY':'⚠ LESS VARIETY')+'</span>';
+        bundlesTab.appendChild(seqTrendEl);
+        // ── Velocity Variation Trend ──
+        trendSubLabel('VELOCITY VARIATION TREND');
+        const baseVelo=veloVarScore(baselineGames);
+        const recentVelo=veloVarScore(recentGames);
+        const veloImproving=recentVelo>=baseVelo;
+        const veloTrendEl=document.createElement('div');
+        veloTrendEl.style.cssText='padding:5px 6px;border-radius:4px;margin-bottom:5px;'
+          +'background:'+(veloImproving?'#f0fff4':'#fff1f0')+';'
+          +'font-size:9px;font-weight:700;';
+        veloTrendEl.innerHTML='<span style="color:#475569;">Speed variation (baseline): '+baseVelo+'%</span> '
+          +'<span style="color:'+(veloImproving?'#166534':'#991b1b')+';">'
+          +(veloImproving?'↑ ':'↓ ')+'Recent: '+recentVelo+'% '
+          +(veloImproving?'✓ MORE DECEPTIVE':'⚠ MORE PREDICTABLE')+'</span>';
+        bundlesTab.appendChild(veloTrendEl);
+      }
+      buildBundleHandHeatMap(bundleHandWrap,bundleVsLHB.zoneMap,'VS LHB');
+      buildBundleHandHeatMap(bundleHandWrap,bundleVsRHB.zoneMap,'VS RHB');
+      bundlesTab.appendChild(bundleHandWrap);
     }
   }catch(e){
     const err=document.createElement('div');
