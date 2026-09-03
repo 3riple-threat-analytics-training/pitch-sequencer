@@ -1102,9 +1102,12 @@ document.addEventListener('fbAuthStateChanged',function(e){
         if(typeof applyProfile==='function'){
           applyProfile(profile);
         }
-        // Hide profile overlay if showing
+        // Hide profile overlay if showing — remove inline style so CSS class controls it
         const overlay=document.getElementById('profileoverlay');
-        if(overlay) overlay.style.display='none';
+        if(overlay){
+          overlay.style.display='';
+          overlay.classList.remove('visible');
+        }
         // Dismiss splash screen if showing
         const splash=document.getElementById('splashoverlay');
         if(splash&&!splash.classList.contains('hidden')){
