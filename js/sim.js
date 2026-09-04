@@ -1424,20 +1424,45 @@ function showGameReport(game,title,onClose){
               verdict='→ MONITOR — less predictable but finish rate unchanged';
               verdictColor='#475569';bgColor='#f0f9ff';
             }
+            const isCritical=bgColor==='#991b1b';
+            const textColor=isCritical?'#fef3c7':'#0c4a6e';
+            const subTextColor=isCritical?'#fde68a':'#475569';
+            const hasOutcomeData=recentCtOut[ct]&&Object.keys(recentCtOut[ct]).length>0;
+            const finishPct=getFinishRate(recentCtOut[ct]);
+            const foulPct=getFoulRate(recentCtOut[ct]);
+            function miniBar(pct,color){
+              return '<div style="display:inline-flex;align-items:center;gap:4px;vertical-align:middle;">'
+                +'<div style="width:60px;height:8px;background:rgba(0,0,0,0.15);border-radius:4px;display:inline-block;">'
+                +'<div style="width:'+pct+'%;height:100%;background:'+color+';border-radius:4px;"></div></div>'
+                +'<span style="font-size:9px;font-weight:700;">'+pct+'%</span></div>';
+            }
             const row=document.createElement('div');
-            row.style.cssText='margin-bottom:6px;padding:6px;border-radius:4px;background:'+bgColor+';';
-            row.innerHTML='<div style="font-size:9px;font-weight:700;color:'
-              +(bgColor==='#991b1b'?'#fff':'#0c4a6e')+';margin-bottom:3px;">'
+            row.style.cssText='margin-bottom:6px;padding:8px;border-radius:6px;background:'+bgColor+';'
+              +(isCritical?'border:2px solid #7f1d1d;':'');
+            let outcomeHtml='';
+            if(hasOutcomeData){
+              outcomeHtml='<div style="margin:6px 0;display:flex;flex-direction:column;gap:4px;">'
+                +'<div style="display:flex;align-items:center;gap:8px;">'
+                +'<span style="font-size:8px;color:'+subTextColor+';width:72px;flex-shrink:0;">FINISH RATE</span>'
+                +miniBar(finishPct,finishPct>=50?'#166534':finishPct>=30?'#ca8a04':'#991b1b')
+                +'</div>'
+                +'<div style="display:flex;align-items:center;gap:8px;">'
+                +'<span style="font-size:8px;color:'+subTextColor+';width:72px;flex-shrink:0;">FOUL RATE</span>'
+                +miniBar(foulPct,foulPct<=15?'#166534':foulPct<=25?'#ca8a04':'#991b1b')
+                +'</div></div>';
+            } else {
+              outcomeHtml='<div style="font-size:8px;color:'+subTextColor+';margin:4px 0;font-style:italic;">'
+                +'Outcome data building — play more games for full analysis</div>';
+            }
+            row.innerHTML='<div style="font-size:9px;font-weight:700;color:'+textColor+';margin-bottom:3px;">'
               +ct+' COUNT ('+countGoals[countType]+')</div>'
-              +'<div style="display:flex;gap:8px;flex-wrap:wrap;font-size:8px;font-weight:700;margin-bottom:3px;">'
-              +'<span style="color:#475569;">Top pitch: '+(baseTop.pk||'?')+' '+baseTop.pct+'% → '
-              +recentTop.pct+'% '+(predImproving?'✓':'⚠')+'</span>'
-              +'<span style="color:#475569;">Finish rate: '+getFinishRate(baseCtOut[ct])+'% → '
-              +getFinishRate(recentCtOut[ct])+'%</span>'
-              +'<span style="color:#475569;">Foul rate: '+getFoulRate(baseCtOut[ct])+'% → '
-              +getFoulRate(recentCtOut[ct])+'%</span>'
-              +'</div>'
-              +'<div style="font-size:9px;font-weight:700;color:'+verdictColor+';">'+verdict+'</div>';
+              +'<div style="font-size:8px;font-weight:700;color:'+subTextColor+';margin-bottom:2px;">'
+              +'Top pitch: '+(baseTop.pk||'?')+' '
+              +'<span style="color:'+(predImproving?(isCritical?'#86efac':'#166534'):(isCritical?'#fca5a5':'#991b1b'))+'">'
+              +baseTop.pct+'% → '+recentTop.pct+'% '+(predImproving?'↓ less predictable':'↑ more predictable')
+              +'</span></div>'
+              +outcomeHtml
+              +'<div style="font-size:9px;font-weight:700;color:'+(isCritical?'#fef3c7':verdictColor)+';">'+verdict+'</div>';
             bundlesTab.appendChild(row);
           } else {
             const baseStrike=getStrikeRate(baseCtOut[ct]);
@@ -1462,18 +1487,45 @@ function showGameReport(game,title,onClose){
               verdict='→ MONITOR — less predictable but strike rate unchanged';
               verdictColor='#475569';bgColor='#f0f9ff';
             }
+            const isCritical2=bgColor==='#991b1b';
+            const textColor2=isCritical2?'#fef3c7':'#0c4a6e';
+            const subTextColor2=isCritical2?'#fde68a':'#475569';
+            const hasOutcomeData2=recentCtOut[ct]&&Object.keys(recentCtOut[ct]).length>0;
+            const strikePct=getStrikeRate(recentCtOut[ct]);
+            const damagePct=getDamageRate(recentCtOut[ct]);
+            function miniBar2(pct,color){
+              return '<div style="display:inline-flex;align-items:center;gap:4px;vertical-align:middle;">'
+                +'<div style="width:60px;height:8px;background:rgba(0,0,0,0.15);border-radius:4px;display:inline-block;">'
+                +'<div style="width:'+pct+'%;height:100%;background:'+color+';border-radius:4px;"></div></div>'
+                +'<span style="font-size:9px;font-weight:700;">'+pct+'%</span></div>';
+            }
             const row=document.createElement('div');
-            row.style.cssText='margin-bottom:6px;padding:6px;border-radius:4px;background:'+bgColor+';';
-            row.innerHTML='<div style="font-size:9px;font-weight:700;color:'
-              +(bgColor==='#991b1b'?'#fff':'#0c4a6e')+';margin-bottom:3px;">'
+            row.style.cssText='margin-bottom:6px;padding:8px;border-radius:6px;background:'+bgColor+';'
+              +(isCritical2?'border:2px solid #7f1d1d;':'');
+            let outcomeHtml2='';
+            if(hasOutcomeData2){
+              outcomeHtml2='<div style="margin:6px 0;display:flex;flex-direction:column;gap:4px;">'
+                +'<div style="display:flex;align-items:center;gap:8px;">'
+                +'<span style="font-size:8px;color:'+subTextColor2+';width:72px;flex-shrink:0;">STRIKE RATE</span>'
+                +miniBar2(strikePct,strikePct>=60?'#166534':strikePct>=40?'#ca8a04':'#991b1b')
+                +'</div>'
+                +'<div style="display:flex;align-items:center;gap:8px;">'
+                +'<span style="font-size:8px;color:'+subTextColor2+';width:72px;flex-shrink:0;">DAMAGE RATE</span>'
+                +miniBar2(damagePct,damagePct<=10?'#166534':damagePct<=25?'#ca8a04':'#991b1b')
+                +'</div></div>';
+            } else {
+              outcomeHtml2='<div style="font-size:8px;color:'+subTextColor2+';margin:4px 0;font-style:italic;">'
+                +'Outcome data building — play more games for full analysis</div>';
+            }
+            row.innerHTML='<div style="font-size:9px;font-weight:700;color:'+textColor2+';margin-bottom:3px;">'
               +ct+' COUNT ('+countGoals[countType]+')</div>'
-              +'<div style="display:flex;gap:8px;flex-wrap:wrap;font-size:8px;font-weight:700;margin-bottom:3px;">'
-              +'<span style="color:#475569;">Top pitch: '+(baseTop.pk||'?')+' '+baseTop.pct+'% → '
-              +recentTop.pct+'% '+(predImproving?'✓':'⚠')+'</span>'
-              +'<span style="color:#475569;">Strike rate: '+baseStrike+'% → '+recentStrike+'%</span>'
-              +'<span style="color:#475569;">Damage rate: '+baseDamage+'% → '+recentDamage+'%</span>'
-              +'</div>'
-              +'<div style="font-size:9px;font-weight:700;color:'+verdictColor+';">'+verdict+'</div>';
+              +'<div style="font-size:8px;font-weight:700;color:'+subTextColor2+';margin-bottom:2px;">'
+              +'Top pitch: '+(baseTop.pk||'?')+' '
+              +'<span style="color:'+(predImproving?(isCritical2?'#86efac':'#166534'):(isCritical2?'#fca5a5':'#991b1b'))+'">'
+              +baseTop.pct+'% → '+recentTop.pct+'% '+(predImproving?'↓ less predictable':'↑ more predictable')
+              +'</span></div>'
+              +outcomeHtml2
+              +'<div style="font-size:9px;font-weight:700;color:'+(isCritical2?'#fef3c7':verdictColor)+';">'+verdict+'</div>';
             bundlesTab.appendChild(row);
           }
         });
