@@ -3661,7 +3661,7 @@ function throwPitch(){
   // Courage pitch and danger zone log — runs after every pitch
   if(simMode){
     const clm=window.__lastCountLocMod;
-    console.log('COURAGE DEBUG end of throwPitch: clm=',clm,'outcome=',outcome,'count=',ctBefore);
+    // debug removed
     if(clm){
       if(clm.isCourage){
         if(['SWING & MISS','STRIKEOUT','CALLED STRIKE','FOUL',

@@ -2474,7 +2474,7 @@ function toggleSimMode(){
   if(simMode){
     if(typeof applyFatigueToVelocity==='function')applyFatigueToVelocity();
     // Away game: show opener before first pitch
-    console.log('DEBUG away check: isHomeTeam=',isHomeTeam,'tutorialActive=',window.tutorialActive);
+    // debug removed
     if(!isHomeTeam&&!window.tutorialActive){
       // Generate away team's first at-bat runs
       setTimeout(function(){
@@ -2911,7 +2911,7 @@ function getSpeedDiffModifier(currentSpeed){
 
   const finalBonus=baseBonus*lvlScale*dirMult;
 
-  console.log('SPEED DIFF DEBUG: last=',lastPitchSpeed,'current=',currentSpeed,'diff=',diff,'baseBonus=',baseBonus,'lvlScale=',lvlScale,'dirMult=',dirMult,'finalBonus=',finalBonus,'level=',batterLevel);
+  // debug removed
 
   return finalBonus;
 }
@@ -3388,7 +3388,7 @@ function getTunnelReward(pitchKey,speed){
     strongMult=Math.max(0.20,strongMult-0.10*scale);
   }
 
-  console.log('TUNNEL DEBUG: length=',td.length,'prevPk=',td.prevPk,'currentPk=',pitchKey,'speedDiff=',speedDiff,'swingMissMult=',swingMissMult,'strongMult=',strongMult,'overridesRepetition=',overridesRepetition,'level=',batterLevel);
+  // debug removed
 
   return {swingMissMult,strongMult,weakMult,overridesRepetition};
 }

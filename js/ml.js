@@ -344,13 +344,13 @@ function computeMLWeights(games){
 async function runMLUpdate(){
   try{
     const profile=typeof getProfile==='function'?getProfile():null;
-    console.log('ML runMLUpdate: profile=',profile?profile.ageGroup:'none');
+    // debug removed
     if(!profile) return;
     // Normalize legacy age group keys
     const ageGroupMap={'youth':'rec12','hs':'hsvar','hsrec':'hsvar'};
     const rawAgeGroup=profile.ageGroup||'rec12';
     const currentAgeGroup=ageGroupMap[rawAgeGroup]||rawAgeGroup;
-    console.log('ML runMLUpdate: ageGroup=',currentAgeGroup);
+    // debug removed
     // Load games from Firestore if signed in, else use localStorage
     let games=[];
     if(typeof fbCurrentUser==='function'&&fbCurrentUser()&&
@@ -393,8 +393,7 @@ async function runMLUpdate(){
     const cached=localStorage.getItem('pitchseq-ml-weights');
     if(cached){
       window._mlWeights=JSON.parse(cached);
-      console.log('ML weights loaded from cache, confidence:',
-        Math.round((window._mlWeights.confidence||0)*100)+'%');
+      // debug removed
     }
   }catch(e){}
 })();

@@ -1114,14 +1114,14 @@ document.addEventListener('fbAuthStateChanged',function(e){
           }
           splash.classList.add('hidden');
         }
-        console.log('Profile loaded from Firestore:',profile.name);
+        // profile loaded
       }
     });
     // Sync game history from Firestore
     fbLoadGameHistory().then(function(r){
       if(r.success&&r.data.length){
         localStorage.setItem('pitchseq-game-history',JSON.stringify(r.data));
-        console.log('Game history loaded from Firestore:',r.data.length,'games');
+        // game history loaded
       }
     });
   }
