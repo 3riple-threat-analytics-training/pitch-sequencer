@@ -1324,28 +1324,158 @@ function showGameReport(game,title,onClose){
           s.textContent=text;
           bundlesTab.appendChild(s);
         };
-        trendSubLabel('COUNT PREDICTABILITY TREND');
+        trendSubLabel('COUNT PREDICTABILITY & OUTCOME TREND');
+        // Count type definitions
+        const countTypes={
+          '0-0':'early','1-0':'hitter','2-0':'hitter','3-0':'hitter',
+          '0-1':'early','1-1':'even','2-1':'even',
+          '0-2':'finish','1-2':'finish','2-2':'finish','3-2':'finish',
+          '3-1':'hitter'
+        };
+        const countGoals={
+          'early':'GET AHEAD — goal: any strike',
+          'hitter':'SURVIVE — goal: throw strike without damage',
+          'even':'STAY COMPETITIVE — goal: gain count advantage',
+          'finish':'FINISH BATTER — goal: strikeout or weak contact'
+        };
+        // Helper: get outcome rates from countOutcomes across games
+        function aggCountOutcomes(games){
+          const agg={};
+          games.forEach(function(g){
+            Object.entries(g.countOutcomes||{}).forEach(function(e){
+              const ct=e[0];
+              if(!agg[ct]) agg[ct]={};
+              Object.entries(e[1]).forEach(function(oe){
+                agg[ct][oe[0]]=(agg[ct][oe[0]]||0)+oe[1];
+              });
+            });
+          });
+          return agg;
+        }
+        function getStrikeRate(ctOutcomes){
+          if(!ctOutcomes) return 0;
+          const strikes=['STRIKE','CALLED STRIKE','SWING & MISS','FOUL',
+            'FOUL (STRAIGHT BACK)','FOUL (PULLED)','FOUL (LATE)',
+            'CHECK SWING (STRIKE)','STRIKEOUT'];
+          const total=Object.values(ctOutcomes).reduce(function(a,b){return a+b;},0)||1;
+          const strTotal=strikes.reduce(function(s,k){return s+(ctOutcomes[k]||0);},0);
+          return Math.round(strTotal/total*100);
+        }
+        function getFinishRate(ctOutcomes){
+          if(!ctOutcomes) return 0;
+          const finish=['STRIKEOUT','SWING & MISS'];
+          const total=Object.values(ctOutcomes).reduce(function(a,b){return a+b;},0)||1;
+          const finTotal=finish.reduce(function(s,k){return s+(ctOutcomes[k]||0);},0);
+          return Math.round(finTotal/total*100);
+        }
+        function getFoulRate(ctOutcomes){
+          if(!ctOutcomes) return 0;
+          const fouls=['FOUL','FOUL (STRAIGHT BACK)','FOUL (PULLED)','FOUL (LATE)'];
+          const total=Object.values(ctOutcomes).reduce(function(a,b){return a+b;},0)||1;
+          const foulTotal=fouls.reduce(function(s,k){return s+(ctOutcomes[k]||0);},0);
+          return Math.round(foulTotal/total*100);
+        }
+        function getDamageRate(ctOutcomes){
+          if(!ctOutcomes) return 0;
+          const damage=['SINGLE','DOUBLE','TRIPLE','HOME RUN','WALK','CALLED BALL'];
+          const total=Object.values(ctOutcomes).reduce(function(a,b){return a+b;},0)||1;
+          const dmgTotal=damage.reduce(function(s,k){return s+(ctOutcomes[k]||0);},0);
+          return Math.round(dmgTotal/total*100);
+        }
         const baseCtAgg=aggCountTend(baselineGames);
         const recentCtAgg=aggCountTend(recentGames);
+        const baseCtOut=aggCountOutcomes(baselineGames);
+        const recentCtOut=aggCountOutcomes(recentGames);
         const keyCounts=['0-0','0-1','0-2','1-0','1-2','2-2','3-2'];
         keyCounts.forEach(function(ct){
           const baseTop=topPitchPct(baseCtAgg[ct]);
           const recentTop=topPitchPct(recentCtAgg[ct]);
-          if(!baseTop.pk||!recentTop.pk) return;
-          const improving=recentTop.pct<baseTop.pct;
-          const row=document.createElement('div');
-          row.style.cssText='margin-bottom:5px;padding:5px 6px;border-radius:4px;'
-            +'background:'+(improving?'#f0fff4':'#fff1f0')+';';
-          row.innerHTML='<div style="font-size:9px;font-weight:700;color:#0c4a6e;margin-bottom:2px;">'
-            +ct+' COUNT — '+baseTop.pk+'</div>'
-            +'<div style="display:flex;gap:12px;font-size:9px;font-weight:700;">'
-            +'<span style="color:#475569;">Baseline: '+baseTop.pct+'%</span>'
-            +'<span style="color:'+(improving?'#166534':'#991b1b')+';">'
-            +(improving?'↓ ':'↑ ')+'Recent: '+recentTop.pct+'%</span>'
-            +'<span style="color:'+(improving?'#166534':'#991b1b')+';font-size:10px;">'
-            +(improving?'✓ IMPROVING':'⚠ REGRESSING')+'</span>'
-            +'</div>';
-          bundlesTab.appendChild(row);
+          if(!baseTop.pk&&!recentTop.pk) return;
+          const countType=countTypes[ct]||'early';
+          const isFinish=countType==='finish';
+          const isHitter=countType==='hitter';
+          // Predictability change
+          const predImproving=recentTop.pct<baseTop.pct;
+          const predChange=recentTop.pct-baseTop.pct;
+          // Outcome evaluation
+          let verdict='';
+          let verdictColor='#475569';
+          let bgColor='#f0f9ff';
+          if(isFinish){
+            const baseFinish=getFinishRate(baseCtOut[ct]);
+            const recentFinish=getFinishRate(recentCtOut[ct]);
+            const baseFoul=getFoulRate(baseCtOut[ct]);
+            const recentFoul=getFoulRate(recentCtOut[ct]);
+            const finishImproving=recentFinish>baseFinish;
+            const foulRegressing=recentFoul>baseFoul+10;
+            if(!predImproving&&!finishImproving&&foulRegressing){
+              verdict='🚨 CRITICAL — predictable AND not finishing, foul rate rising';
+              verdictColor='#fff';bgColor='#991b1b';
+            } else if(!predImproving&&!finishImproving){
+              verdict='⚠ REGRESSING — more predictable, fewer strikeouts';
+              verdictColor='#991b1b';bgColor='#fff1f0';
+            } else if(foulRegressing&&!finishImproving){
+              verdict='⚠ MONITOR — foul rate rising, prolonging at-bats';
+              verdictColor='#92400e';bgColor='#fffbeb';
+            } else if(finishImproving){
+              verdict='✓ IMPROVING — finishing batters more effectively';
+              verdictColor='#166534';bgColor='#f0fff4';
+            } else if(predImproving){
+              verdict='→ MONITOR — less predictable but finish rate unchanged';
+              verdictColor='#475569';bgColor='#f0f9ff';
+            }
+            const row=document.createElement('div');
+            row.style.cssText='margin-bottom:6px;padding:6px;border-radius:4px;background:'+bgColor+';';
+            row.innerHTML='<div style="font-size:9px;font-weight:700;color:'
+              +(bgColor==='#991b1b'?'#fff':'#0c4a6e')+';margin-bottom:3px;">'
+              +ct+' COUNT ('+countGoals[countType]+')</div>'
+              +'<div style="display:flex;gap:8px;flex-wrap:wrap;font-size:8px;font-weight:700;margin-bottom:3px;">'
+              +'<span style="color:#475569;">Top pitch: '+(baseTop.pk||'?')+' '+baseTop.pct+'% → '
+              +recentTop.pct+'% '+(predImproving?'✓':'⚠')+'</span>'
+              +'<span style="color:#475569;">Finish rate: '+getFinishRate(baseCtOut[ct])+'% → '
+              +getFinishRate(recentCtOut[ct])+'%</span>'
+              +'<span style="color:#475569;">Foul rate: '+getFoulRate(baseCtOut[ct])+'% → '
+              +getFoulRate(recentCtOut[ct])+'%</span>'
+              +'</div>'
+              +'<div style="font-size:9px;font-weight:700;color:'+verdictColor+';">'+verdict+'</div>';
+            bundlesTab.appendChild(row);
+          } else {
+            const baseStrike=getStrikeRate(baseCtOut[ct]);
+            const recentStrike=getStrikeRate(recentCtOut[ct]);
+            const baseDamage=getDamageRate(baseCtOut[ct]);
+            const recentDamage=getDamageRate(recentCtOut[ct]);
+            const strikeImproving=recentStrike>=baseStrike;
+            const damageWorse=recentDamage>baseDamage+10;
+            if(!predImproving&&damageWorse){
+              verdict='🚨 CRITICAL — predictable AND giving up more damage';
+              verdictColor='#fff';bgColor='#991b1b';
+            } else if(!predImproving&&!strikeImproving){
+              verdict='⚠ REGRESSING — more predictable, fewer strikes';
+              verdictColor='#991b1b';bgColor='#fff1f0';
+            } else if(!predImproving&&strikeImproving){
+              verdict='→ MONITOR — predictable but still generating strikes';
+              verdictColor='#92400e';bgColor='#fffbeb';
+            } else if(predImproving&&strikeImproving){
+              verdict='✓ IMPROVING — less predictable AND more strikes';
+              verdictColor='#166534';bgColor='#f0fff4';
+            } else if(predImproving){
+              verdict='→ MONITOR — less predictable but strike rate unchanged';
+              verdictColor='#475569';bgColor='#f0f9ff';
+            }
+            const row=document.createElement('div');
+            row.style.cssText='margin-bottom:6px;padding:6px;border-radius:4px;background:'+bgColor+';';
+            row.innerHTML='<div style="font-size:9px;font-weight:700;color:'
+              +(bgColor==='#991b1b'?'#fff':'#0c4a6e')+';margin-bottom:3px;">'
+              +ct+' COUNT ('+countGoals[countType]+')</div>'
+              +'<div style="display:flex;gap:8px;flex-wrap:wrap;font-size:8px;font-weight:700;margin-bottom:3px;">'
+              +'<span style="color:#475569;">Top pitch: '+(baseTop.pk||'?')+' '+baseTop.pct+'% → '
+              +recentTop.pct+'% '+(predImproving?'✓':'⚠')+'</span>'
+              +'<span style="color:#475569;">Strike rate: '+baseStrike+'% → '+recentStrike+'%</span>'
+              +'<span style="color:#475569;">Damage rate: '+baseDamage+'% → '+recentDamage+'%</span>'
+              +'</div>'
+              +'<div style="font-size:9px;font-weight:700;color:'+verdictColor+';">'+verdict+'</div>';
+            bundlesTab.appendChild(row);
+          }
         });
         // ── Zone Coverage Trend ──
         trendSubLabel('ZONE COVERAGE TREND');
