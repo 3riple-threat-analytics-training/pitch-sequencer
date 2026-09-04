@@ -479,7 +479,39 @@ function showGameSummary(){
     const history=raw?JSON.parse(raw):[];
     if(!history.length){alert('No game data available.');return;}
     const game=history[history.length-1];
-    showGameReport(game,'GAME REPORT',function(){});
+    const totalGames=history.length;
+    // Auto-trigger bundle report after every 10 games once 20+ games exist
+    const shouldShowBundle=totalGames>=20&&totalGames%10===0;
+    const bundleNumber=Math.floor(totalGames/10);
+    showGameReport(game,'GAME REPORT',function(){
+      if(shouldShowBundle){
+        const congOverlay=document.createElement('div');
+        congOverlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;'
+          +'z-index:10001;background:rgba(5,8,18,0.97);display:flex;'
+          +'align-items:center;justify-content:center;flex-direction:column;gap:16px;';
+        const congCard=document.createElement('div');
+        congCard.style.cssText='text-align:center;padding:40px 32px;';
+        congCard.innerHTML='<div style="font-family:\'Bebas Neue\',sans-serif;font-size:48px;'
+          +'color:#06b6d4;letter-spacing:4px;margin-bottom:8px;">BUNDLE '
+          +bundleNumber+' COMPLETE</div>'
+          +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:24px;'
+          +'color:#e8f4fd;letter-spacing:3px;margin-bottom:16px;">'
+          +totalGames+' GAMES PLAYED</div>'
+          +'<div style="font-family:\'DM Mono\',monospace;font-size:11px;'
+          +'color:#5a8aaa;max-width:320px;line-height:1.6;">'
+          +'Loading your bundle comparison report...</div>';
+        congOverlay.appendChild(congCard);
+        document.body.appendChild(congOverlay);
+        setTimeout(function(){
+          congOverlay.remove();
+          showGameReport(game,'GAME REPORT',function(){});
+          setTimeout(function(){
+            const bundleTab=document.getElementById('report-tab-BUNDLES');
+            if(bundleTab) bundleTab.click();
+          },100);
+        },2500);
+      }
+    });
   }catch(e){alert('Could not load game report.');}
 }
 function showGameReport(game,title,onClose){
