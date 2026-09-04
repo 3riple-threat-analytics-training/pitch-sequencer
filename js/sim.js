@@ -307,6 +307,7 @@ function saveGameHistory(){
     const sequences={};
     const outcomes={};
     const countTendencies={};
+    const countOutcomes={};
     const vsBatterType={};
     const vsLHB={pitchMix:{},zoneMap:{},outcomes:{}};
     const vsRHB={pitchMix:{},zoneMap:{},outcomes:{}};
@@ -340,6 +341,9 @@ function saveGameHistory(){
       vsBatterType[bt].pitchMix[pk]=(vsBatterType[bt].pitchMix[pk]||0)+1;
       if(!vsBatterType[bt].outcomes[outcome]) vsBatterType[bt].outcomes[outcome]=0;
       vsBatterType[bt].outcomes[outcome]++;
+      // Count outcomes — track outcomes per count for trend analysis
+      if(!countOutcomes[count]) countOutcomes[count]={};
+      countOutcomes[count][outcome]=(countOutcomes[count][outcome]||0)+1;
       // By batter handedness
       const side=bh==='RHB'?vsRHB:vsLHB;
       side.pitchMix[pk]=(side.pitchMix[pk]||0)+1;
@@ -379,7 +383,7 @@ function saveGameHistory(){
         return vbt;
       })(),
       pitchMix,zoneMap,firstPitches,sequences,
-      outcomes,countTendencies,vsBatterType,vsLHB,vsRHB
+      outcomes,countTendencies,countOutcomes,vsBatterType,vsLHB,vsRHB
     };
     // Load existing history
     const raw=localStorage.getItem('pitchseq-game-history');
