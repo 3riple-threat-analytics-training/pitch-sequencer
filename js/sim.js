@@ -1390,9 +1390,6 @@ function showGameReport(game,title,onClose){
           +(veloImproving?'✓ MORE DECEPTIVE':'⚠ MORE PREDICTABLE')+'</span>';
         bundlesTab.appendChild(veloTrendEl);
       }
-      buildBundleHandHeatMap(bundleHandWrap,bundleVsLHB.zoneMap,'VS LHB');
-      buildBundleHandHeatMap(bundleHandWrap,bundleVsRHB.zoneMap,'VS RHB');
-      bundlesTab.appendChild(bundleHandWrap);
     }
   }catch(e){
     const err=document.createElement('div');
