@@ -60,11 +60,17 @@ html,body{ margin:0; padding:0; font-family:'DM Mono',monospace; background:#fff
 .pitch-bar-wrap{ flex:1; background:#bae6fd; border-radius:2px; height:12px; }
 .pitch-bar-fill{ height:100%; border-radius:2px; }
 .pitch-pct{ font-size:9px; color:#0c4a6e; width:52px; text-align:right; flex-shrink:0; font-weight:700; }
-.zone-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:3px; max-width:200px; margin:0 auto 8px auto; }
+.zone-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:4px; width:2.5in; margin:0 auto 8px auto; }
 .zone-cell{
-  height:36px; border-radius:3px; display:flex; align-items:center;
-  justify-content:center; font-size:10px; font-weight:700;
-  border:0.5px solid #bae6fd;
+  height:0.6in; border-radius:3px; display:flex; align-items:center;
+  justify-content:center; font-size:11px; font-weight:700;
+  border:1px solid #bae6fd;
+}
+@media print{
+  .zone-cell{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .pitch-bar-fill{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .stat-box{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
+  .pattern-item{ -webkit-print-color-adjust:exact; print-color-adjust:exact; }
 }
 .two-col{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
 .heat-title{ font-size:10px; color:#0c4a6e; font-weight:700; text-align:center; margin-bottom:4px; }
@@ -273,12 +279,22 @@ function buildBundlesReport(data){
   soCanvas.style.cssText='width:100%;max-height:180px;';
   const pmCanvas=document.createElement('canvas');
   pmCanvas.style.cssText='width:100%;max-height:180px;';
-  p1.innerHTML=pageHeader('BUNDLES REPORT',profile,data.generatedAt)
-    +'<div class="section-label">STRIKEOUT RATE PER GAME</div>';
+  const p1hdr=document.createElement('div');
+  p1hdr.innerHTML=pageHeader('BUNDLES REPORT',profile,data.generatedAt);
+  p1.appendChild(p1hdr);
+  const soLabel=document.createElement('div');
+  soLabel.className='section-label';
+  soLabel.textContent='STRIKEOUT RATE PER GAME';
+  p1.appendChild(soLabel);
   p1.appendChild(soCanvas);
-  p1.innerHTML+=('<div class="section-label">PITCH MIX BY BUNDLE</div>');
+  const pmLabel=document.createElement('div');
+  pmLabel.className='section-label';
+  pmLabel.textContent='PITCH MIX BY BUNDLE';
+  p1.appendChild(pmLabel);
   p1.appendChild(pmCanvas);
-  p1.innerHTML+=(pageFooter(1,3));
+  const p1ftr=document.createElement('div');
+  p1ftr.innerHTML=pageFooter(1,4);
+  p1.appendChild(p1ftr);
   pages.appendChild(p1);
   // Render charts after DOM is ready
   setTimeout(function(){
@@ -318,7 +334,7 @@ function buildBundlesReport(data){
         plugins:{legend:{position:'bottom',labels:{color:'#0c4a6e',boxWidth:10}}},
         scales:{x:{ticks:{color:'#0c4a6e'}},y:{beginAtZero:true,max:100,ticks:{color:'#0c4a6e',callback:function(v){return v+'%';}}}}}
     });
-  },100);
+  },500);
   // Page 2: Zone heat maps per bundle + First pitch tendencies
   const p2=document.createElement('div');
   p2.className='page';
@@ -421,20 +437,81 @@ function buildCareerReport(data){
       +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:14px;color:#92400e;letter-spacing:2px;">BATTER ADAPTATION: '+confPct+'% ('+ml.gamesAnalyzed+' games)</div>'
       +'<div style="width:100%;background:#fde8d0;border-radius:4px;height:6px;margin:4px 0;">'
       +'<div style="width:'+confPct+'%;height:100%;background:#92400e;border-radius:4px;"></div></div>'
-      +'</div>';
-    // Top patterns
-    if(ml.firstPitchWeights){
-      const topFP=Object.entries(ml.firstPitchWeights).sort(function(a,b){return b[1]-a[1];})[0];
-      if(topFP&&topFP[1]>0.5)
-        mlHTML+='<div class="pattern-item" style="border-left-color:#991b1b;">⚠ First pitch '+topFP[0]+' '+Math.round(topFP[1]*100)+'% — batter sitting on opener</div>';
+      +'<div style="font-size:8px;color:#92400e;margin-top:4px;">'
+      +(confPct<40?'The batter is just starting to learn your patterns.':
+        confPct<70?'The batter has learned several of your tendencies. Mix your sequences to stay unpredictable.':
+        'The batter is highly adapted to your patterns. Significant variety is needed to fool it.')
+      +'</div></div>';
+    // Count predictability
+    if(ml.countWeights){
+      const highCounts=[];
+      ['0-0','0-1','0-2','1-0','1-2','2-2','3-2'].forEach(function(ct){
+        const ctData=ml.countWeights[ct];
+        if(!ctData) return;
+        const top=Object.entries(ctData).sort(function(a,b){return b[1]-a[1];})[0];
+        if(top&&top[1]>=0.55) highCounts.push(ct+': '+top[0]+' '+Math.round(top[1]*100)+'%'+(top[1]>=0.65?' ⚠':' →'));
+      });
+      if(highCounts.length){
+        mlHTML+='<div style="font-size:8px;font-weight:700;color:#0c4a6e;margin:6px 0 3px 0;">COUNT PREDICTABILITY</div>';
+        highCounts.forEach(function(c){
+          mlHTML+='<div class="pattern-item">'+c+'</div>';
+        });
+      }
     }
-    if(ml.hotZones&&ml.hotZones.length)
-      mlHTML+='<div class="pattern-item">⚠ Batter looks here: '+ml.hotZones.join(', ')+'</div>';
+    // Zone tendencies
+    if(ml.hotZones&&ml.hotZones.length){
+      mlHTML+='<div style="font-size:8px;font-weight:700;color:#0c4a6e;margin:6px 0 3px 0;">ZONE TENDENCIES</div>'
+        +'<div class="pattern-item" style="border-left-color:#991b1b;">⚠ Batter looks here: '+ml.hotZones.join(', ')+'</div>'
+        +(ml.coldZones&&ml.coldZones.length?'<div class="pattern-item" style="border-left-color:#166534;">✓ Batter ignores: '+ml.coldZones.join(', ')+'</div>':'');
+    }
+    // Sequence patterns
     if(ml.sequenceWeights){
+      const predSeqs=[];
       Object.entries(ml.sequenceWeights).forEach(function(e){
         const top=Object.entries(e[1]).sort(function(a,b){return b[1]-a[1];})[0];
-        if(top&&top[1]>=0.6)
-          mlHTML+='<div class="pattern-item" style="border-left-color:#991b1b;">⚠ After '+e[0]+' → '+top[0]+' '+Math.round(top[1]*100)+'% — predictable sequence</div>';
+        if(top&&top[1]>=0.55) predSeqs.push('After '+e[0]+' → '+top[0]+' '+Math.round(top[1]*100)+'%');
+      });
+      if(predSeqs.length){
+        mlHTML+='<div style="font-size:8px;font-weight:700;color:#0c4a6e;margin:6px 0 3px 0;">SEQUENCE PATTERNS</div>';
+        predSeqs.forEach(function(s){
+          mlHTML+='<div class="pattern-item" style="border-left-color:#991b1b;">⚠ '+s+' — predictable</div>';
+        });
+      }
+    }
+    // Velocity patterns
+    if(ml.velocityProfile){
+      const vp=ml.velocityProfile;
+      const varScore=Math.round((vp.velocityVariation?vp.velocityVariation.variationScore:0)*100);
+      const dropPct=Math.round((vp.fatigueCurve?vp.fatigueCurve.totalDropPct:0)*100);
+      mlHTML+='<div style="font-size:8px;font-weight:700;color:#0c4a6e;margin:6px 0 3px 0;">VELOCITY PATTERNS</div>'
+        +'<div class="pattern-item">Speed variation: '+varScore+'% — '
+        +(varScore<40?'⚠ LOW — batter has timed your velocity':varScore<65?'→ MODERATE':'✓ HIGH — velocity deception working')+'</div>'
+        +(dropPct>5?'<div class="pattern-item" style="border-left-color:#991b1b;">⚠ Velocity drops -'+dropPct+'% after pitch 40 — batter adjusts timing late in games</div>':'');
+    }
+    // First pitch tendency
+    if(ml.firstPitchWeights){
+      const topFP=Object.entries(ml.firstPitchWeights).sort(function(a,b){return b[1]-a[1];})[0];
+      mlHTML+='<div style="font-size:8px;font-weight:700;color:#0c4a6e;margin:6px 0 3px 0;">FIRST PITCH TENDENCY</div>';
+      if(topFP&&topFP[1]>0.5)
+        mlHTML+='<div class="pattern-item" style="border-left-color:#991b1b;">⚠ '+Math.round(topFP[1]*100)+'% first pitch '+topFP[0]+' — batter sitting on your opener</div>';
+      else
+        mlHTML+='<div class="pattern-item" style="border-left-color:#166534;">✓ Good first pitch variety — batter cannot predict your opener</div>';
+    }
+    // Coaching recommendations
+    const recs=[];
+    if(ml.firstPitchWeights){
+      const topFP=Object.entries(ml.firstPitchWeights).sort(function(a,b){return b[1]-a[1];})[0];
+      if(topFP&&topFP[1]>0.6) recs.push('Vary your first pitch — throw '+topFP[0]+' less than 50% of the time to open at-bats.');
+    }
+    if(ml.hotZones&&ml.hotZones.length) recs.push('Expand zone coverage — use '+((ml.coldZones||[]).slice(0,2).join(' and '))+' more often.');
+    if(ml.velocityProfile&&ml.velocityProfile.velocityVariation&&ml.velocityProfile.velocityVariation.variationScore<0.4)
+      recs.push('Increase speed variation — try throwing 5+ mph below your average occasionally.');
+    if(ml.velocityProfile&&ml.velocityProfile.fatigueCurve&&ml.velocityProfile.fatigueCurve.totalDropPct>0.07)
+      recs.push('Velocity drops late — use more breaking balls and changeups after pitch 40.');
+    if(recs.length){
+      mlHTML+='<div style="font-size:8px;font-weight:700;color:#0c4a6e;margin:6px 0 3px 0;">COACHING RECOMMENDATIONS</div>';
+      recs.forEach(function(r){
+        mlHTML+='<div class="pattern-item">→ '+r+'</div>';
       });
     }
   }
@@ -456,12 +533,19 @@ function buildCareerReport(data){
   p2.className='page';
   const trendCanvas=document.createElement('canvas');
   trendCanvas.style.cssText='width:100%;max-height:200px;';
-  p2.innerHTML=pageHeader('CAREER REPORT',profile,data.generatedAt)
-    +'<div class="section-label">PERFORMANCE TRENDS</div>';
+  const p2hdr=document.createElement('div');
+  p2hdr.innerHTML=pageHeader('CAREER REPORT',profile,data.generatedAt);
+  p2.appendChild(p2hdr);
+  const trendLabel=document.createElement('div');
+  trendLabel.className='section-label';
+  trendLabel.textContent='PERFORMANCE TRENDS';
+  p2.appendChild(trendLabel);
   p2.appendChild(trendCanvas);
-  p2.innerHTML+=('<div class="section-label">CAREER PITCH MIX</div>'
+  const p2rest=document.createElement('div');
+  p2rest.innerHTML='<div class="section-label">CAREER PITCH MIX</div>'
     +pitchMixHTML(careerPM)
-    +pageFooter(2,4));
+    +pageFooter(2,4);
+  p2.appendChild(p2rest);
   pages.appendChild(p2);
   setTimeout(function(){
     new Chart(trendCanvas,{
@@ -478,7 +562,7 @@ function buildCareerReport(data){
         plugins:{legend:{position:'bottom',labels:{color:'#0c4a6e',boxWidth:10}}},
         scales:{y:{beginAtZero:true,ticks:{color:'#0c4a6e'}},x:{ticks:{color:'#0c4a6e'}}}}
     });
-  },100);
+  },500);
   // Page 3: Career zone map + Strikeout pitch selection + VS LHB/RHB
   const careerSO={};
   allGames.forEach(function(g){Object.entries(g.outcomes||{}).forEach(function(e){if(e[1]['STRIKEOUT'])careerSO[e[0]]=(careerSO[e[0]]||0)+e[1]['STRIKEOUT'];});});
