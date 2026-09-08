@@ -907,7 +907,20 @@ function showGameReport(game,title,onClose){
     +'border:1px solid #0c4a6e;background:#e0f2fe;color:#0c4a6e;'
     +'font-family:\'Bebas Neue\',sans-serif;font-size:14px;letter-spacing:2px;cursor:pointer;';
   exportBtn.textContent='EXPORT REPORT TO PDF';
-  exportBtn.onclick=function(){alert('PDF export coming soon.');};
+  exportBtn.onclick=function(){
+    try{
+      const raw=localStorage.getItem('pitchseq-game-history');
+      const history=raw?JSON.parse(raw):[];
+      const exportData={
+        tab:'game',
+        game:history[history.length-1]||null,
+        profile:typeof getProfile==='function'?getProfile():null,
+        generatedAt:Date.now()
+      };
+      localStorage.setItem('pitchseq-report-export',JSON.stringify(exportData));
+      window.open('report.html?tab=game','_blank');
+    }catch(e){alert('Could not export report.');}
+  };
   gameTab.appendChild(exportBtn);
   // Build BUNDLES tab
   const bundlesTab=tabContents['BUNDLES'];
@@ -1611,6 +1624,28 @@ function showGameReport(game,title,onClose){
     err.textContent='Error loading bundle data: '+e.message;
     bundlesTab.appendChild(err);
   }
+  // Bundles export button
+  const bundlesExportBtn=document.createElement('button');
+  bundlesExportBtn.style.cssText='width:100%;margin-top:16px;padding:10px;border-radius:6px;'
+    +'border:1px solid #0c4a6e;background:#e0f2fe;color:#0c4a6e;'
+    +'font-family:\'Bebas Neue\',sans-serif;font-size:14px;letter-spacing:2px;cursor:pointer;';
+  bundlesExportBtn.textContent='EXPORT BUNDLES REPORT TO PDF';
+  bundlesExportBtn.onclick=function(){
+    try{
+      const raw=localStorage.getItem('pitchseq-game-history');
+      const history=raw?JSON.parse(raw):[];
+      const exportData={
+        tab:'bundles',
+        games:history,
+        mlWeights:window._mlWeights||null,
+        profile:typeof getProfile==='function'?getProfile():null,
+        generatedAt:Date.now()
+      };
+      localStorage.setItem('pitchseq-report-export',JSON.stringify(exportData));
+      window.open('report.html?tab=bundles','_blank');
+    }catch(e){alert('Could not export report.');}
+  };
+  tabContents['BUNDLES'].appendChild(bundlesExportBtn);
   // Build CAREER tab
   const careerTab=tabContents['CAREER'];
   try{
@@ -2403,6 +2438,28 @@ function showGameReport(game,title,onClose){
     err.textContent='Error loading career data: '+e.message;
     careerTab.appendChild(err);
   }
+  // Career export button
+  const careerExportBtn=document.createElement('button');
+  careerExportBtn.style.cssText='width:100%;margin-top:16px;padding:10px;border-radius:6px;'
+    +'border:1px solid #0c4a6e;background:#e0f2fe;color:#0c4a6e;'
+    +'font-family:\'Bebas Neue\',sans-serif;font-size:14px;letter-spacing:2px;cursor:pointer;';
+  careerExportBtn.textContent='EXPORT CAREER REPORT TO PDF';
+  careerExportBtn.onclick=function(){
+    try{
+      const raw=localStorage.getItem('pitchseq-game-history');
+      const history=raw?JSON.parse(raw):[];
+      const exportData={
+        tab:'career',
+        games:history,
+        mlWeights:window._mlWeights||null,
+        profile:typeof getProfile==='function'?getProfile():null,
+        generatedAt:Date.now()
+      };
+      localStorage.setItem('pitchseq-report-export',JSON.stringify(exportData));
+      window.open('report.html?tab=career','_blank');
+    }catch(e){alert('Could not export report.');}
+  };
+  tabContents['CAREER'].appendChild(careerExportBtn);
   overlay.appendChild(card);
   document.body.appendChild(overlay);
 }
