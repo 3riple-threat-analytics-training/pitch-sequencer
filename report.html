@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3riplethreat — Pitcher Analytics Report</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+@page { size: letter portrait; margin: 0.4in; }
+*{ box-sizing:border-box; }
+html,body{ margin:0; padding:0; font-family:'DM Mono',monospace; background:#fff; color:#0c4a6e; }
+#controlbar{
+  display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+  padding:12px 16px; background:#0c4a6e; border-bottom:2px solid #06b6d4;
+  position:fixed; top:0; left:0; width:100%; z-index:1000;
+}
+#controlbar button{
+  padding:8px 20px; font-family:'Bebas Neue',sans-serif; font-size:14px;
+  letter-spacing:2px; cursor:pointer; border-radius:6px; border:none;
+  background:#06b6d4; color:#fff;
+}
+#controlbar .info{ font-family:'DM Mono',monospace; font-size:10px; color:#bae6fd; }
+#pages{ padding-top:56px; }
+.page{
+  width:8.5in; min-height:11in; page-break-after:always;
+  page-break-inside:avoid; padding:0.4in; box-sizing:border-box;
+  background:#fff; margin:0 auto; display:flex; flex-direction:column;
+}
+.page:last-child{ page-break-after:auto; }
+.page-header{
+  display:flex; justify-content:space-between; align-items:center;
+  border-bottom:2px solid #0c4a6e; padding-bottom:10px; margin-bottom:16px;
+}
+.page-header-left{ display:flex; align-items:center; gap:12px; }
+.page-header img{ height:48px; }
+.page-header-titles{ display:flex; flex-direction:column; }
+.report-title{
+  font-family:'Bebas Neue',sans-serif; font-size:22px;
+  letter-spacing:3px; color:#0c4a6e;
+}
+.report-subtitle{ font-size:9px; color:#5a8aaa; letter-spacing:1px; }
+.page-header-right{ text-align:right; font-size:9px; color:#5a8aaa; }
+.section-label{
+  font-family:'Bebas Neue',sans-serif; font-size:13px; letter-spacing:2px;
+  color:#0c4a6e; border-bottom:1px solid #bae6fd; padding-bottom:4px;
+  margin:14px 0 8px 0;
+}
+.stat-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:12px; }
+.stat-box{
+  background:#f0f9ff; border:1px solid #7dd3fc; border-radius:6px;
+  padding:8px; text-align:center;
+}
+.stat-value{
+  font-family:'Bebas Neue',sans-serif; font-size:28px; color:#0c4a6e;
+}
+.stat-label{ font-size:7px; color:#0c4a6e; letter-spacing:1px; font-weight:600; }
+.pitch-row{ display:flex; align-items:center; gap:6px; margin-bottom:4px; }
+.pitch-label{ font-size:9px; color:#0c4a6e; width:40px; flex-shrink:0; font-weight:700; }
+.pitch-bar-wrap{ flex:1; background:#bae6fd; border-radius:2px; height:12px; }
+.pitch-bar-fill{ height:100%; border-radius:2px; }
+.pitch-pct{ font-size:9px; color:#0c4a6e; width:52px; text-align:right; flex-shrink:0; font-weight:700; }
+.zone-grid{ display:grid; grid-template-columns:repeat(3,1fr); gap:3px; max-width:200px; margin:0 auto 8px auto; }
+.zone-cell{
+  height:36px; border-radius:3px; display:flex; align-items:center;
+  justify-content:center; font-size:10px; font-weight:700;
+  border:0.5px solid #bae6fd;
+}
+.two-col{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.heat-title{ font-size:10px; color:#0c4a6e; font-weight:700; text-align:center; margin-bottom:4px; }
+.count-row{
+  display:flex; justify-content:space-between; font-size:9px;
+  color:#0c4a6e; font-weight:600; padding:3px 0;
+  border-bottom:0.5px solid #e0f2fe;
+}
+.pattern-item{
+  font-size:9px; color:#0c4a6e; font-weight:600;
+  padding:3px 6px; border-left:3px solid #0c4a6e;
+  background:#f0f9ff; margin-bottom:3px; line-height:1.4;
+}
+.footer{
+  margin-top:auto; padding-top:10px; border-top:0.5px solid #bae6fd;
+  font-size:8px; color:#5a8aaa; display:flex; justify-content:space-between;
+}
+@media print{
+  #controlbar{ display:none; }
+  #pages{ padding-top:0; }
+  .page{ margin:0; }
+}
+</style>
+</head>
+<body>
+<div id="controlbar">
+  <button onclick="window.print()">🖨 PRINT / SAVE AS PDF</button>
+  <div class="info" id="report-info">Loading report...</div>
+</div>
+<div id="pages"></div>
+<script>
+const PITCH_COLORS={
+  '4FB':'#dc2626','2FB':'#ea580c','CB':'#2563eb','SL':'#9333ea',
+  'CH':'#16a34a','CT':'#ca8a04','SP':'#0891b2','SK':'#e11d48',
+  'FK':'#7c3aed','SCR':'#db2777','EPH':'#334155','SLV':'#6d28d9',
+  'SWP':'#059669','KN':'#334155','KC':'#4f46e5'
+};
+function getParam(name){
+  return new URLSearchParams(window.location.search).get(name);
+}
+function formatDate(ts){
+  if(!ts) return '';
+  const d=new Date(ts);
+  return d.toLocaleDateString('en-US',{year:'numeric',month:'long',day:'numeric'});
+}
+function pageHeader(reportType,profile,date){
+  return '<div class="page-header">'
+    +'<div class="page-header-left">'
+    +'<img src="assets/3riplethreat-logo.png" alt="3riplethreat">'
+    +'<div class="page-header-titles">'
+    +'<div class="report-title">PITCHER ANALYTICS REPORT</div>'
+    +'<div class="report-subtitle">'+(reportType||'')+'</div>'
+    +'</div></div>'
+    +'<div class="page-header-right">'
+    +(profile?'<div style="font-weight:700;color:#0c4a6e;font-size:11px;">'+profile.name+'</div>':'')
+    +(profile?'<div>'+profile.ageGroup+' · Max '+profile.maxVelocity+' mph</div>':'')
+    +'<div>'+formatDate(date)+'</div>'
+    +'</div></div>';
+}
+function pageFooter(page,total){
+  return '<div class="footer">'
+    +'<span>3riplethreat Analytics Training — Confidential</span>'
+    +'<span>Page '+page+' of '+total+'</span>'
+    +'</div>';
+}
+function statBox(label,value,color){
+  return '<div class="stat-box">'
+    +'<div class="stat-value" style="color:'+(color||'#0c4a6e')+';">'+value+'</div>'
+    +'<div class="stat-label">'+label+'</div>'
+    +'</div>';
+}
+function pitchMixHTML(pitchMix){
+  const total=Object.values(pitchMix||{}).reduce(function(a,b){return a+b;},0)||1;
+  return Object.entries(pitchMix||{}).sort(function(a,b){return b[1]-a[1];}).map(function(e){
+    const pk=e[0],cnt=e[1];
+    const pct=Math.round(cnt/total*100);
+    return '<div class="pitch-row">'
+      +'<div class="pitch-label">'+pk+'</div>'
+      +'<div class="pitch-bar-wrap"><div class="pitch-bar-fill" style="width:'+pct+'%;background:'+(PITCH_COLORS[pk]||'#334155')+'"></div></div>'
+      +'<div class="pitch-pct">'+cnt+' ('+pct+'%)</div>'
+      +'</div>';
+  }).join('');
+}
+function zoneHeatMapHTML(zoneMap,maxVal){
+  const zoneOrder=[['TR','TM','TL'],['MR','MM','ML'],['BR','BM','BL']];
+  const max=maxVal||Math.max.apply(null,['TL','TM','TR','ML','MM','MR','BL','BM','BR'].map(function(z){return zoneMap[z]||0;}))||1;
+  return '<div class="zone-grid">'
+    +zoneOrder.map(function(row){
+      return row.map(function(zk){
+        const cnt=zoneMap[zk]||0;
+        const intensity=cnt/max;
+        return '<div class="zone-cell" style="background:rgba(220,38,38,'+Math.max(0.05,intensity)+');color:'+(intensity>0.4?'#fff':'#334155')+'">'+(cnt>0?cnt:'')+'</div>';
+      }).join('');
+    }).join('')
+    +'</div>';
+}
+function handHeatMapsHTML(vsLHB,vsRHB){
+  return '<div class="two-col">'
+    +'<div><div class="heat-title">VS LHB</div>'+zoneHeatMapHTML((vsLHB&&vsLHB.zoneMap)||{})+'</div>'
+    +'<div><div class="heat-title">VS RHB</div>'+zoneHeatMapHTML((vsRHB&&vsRHB.zoneMap)||{})+'</div>'
+    +'</div>';
+}
+function buildGameReport(data){
+  const game=data.game;
+  const profile=data.profile;
+  if(!game) return '<div style="padding:40px;text-align:center;color:#991b1b;">No game data available.</div>';
+  const pages=document.getElementById('pages');
+  // Page 1: Summary + Pitch Mix + Zone Heat Map
+  const p1=document.createElement('div');
+  p1.className='page';
+  p1.innerHTML=pageHeader('GAME REPORT',profile,data.generatedAt)
+    +'<div class="section-label">GAME SUMMARY</div>'
+    +'<div class="stat-grid">'
+    +statBox('PITCHES',game.pitchCount,'#0c4a6e')
+    +statBox('STRIKEOUTS',game.strikeouts,'#166534')
+    +statBox('WALKS',game.walks,'#991b1b')
+    +statBox('HITS',game.hits,'#92400e')
+    +statBox('RUNS',game.runsAllowed,'#991b1b')
+    +statBox('INNINGS',game.innings,'#0891b2')
+    +'</div>'
+    +'<div class="section-label">PITCH MIX</div>'
+    +pitchMixHTML(game.pitchMix)
+    +'<div class="section-label">ZONE HEAT MAP</div>'
+    +'<div style="display:flex;gap:8px;margin-bottom:4px;">'
+    +'<span style="font-size:8px;display:flex;align-items:center;gap:3px;"><span style="display:inline-block;width:10px;height:10px;background:#dc2626;border-radius:2px;"></span>IN ZONE</span>'
+    +'<span style="font-size:8px;display:flex;align-items:center;gap:3px;"><span style="display:inline-block;width:10px;height:10px;background:#d97706;border-radius:2px;"></span>EDGE</span>'
+    +'<span style="font-size:8px;display:flex;align-items:center;gap:3px;"><span style="display:inline-block;width:10px;height:10px;background:#2563eb;border-radius:2px;"></span>CHASE</span>'
+    +'</div>'
+    +zoneHeatMapHTML(game.zoneMap||{})
+    +pageFooter(1,3);
+  pages.appendChild(p1);
+  // Page 2: Count Tendencies + Pattern Alerts + Strikeout Pitch Selection
+  const p2=document.createElement('div');
+  p2.className='page';
+  const counts=['0-0','0-1','0-2','1-0','1-1','1-2','2-0','2-1','2-2','3-0','3-1','3-2'];
+  const countHTML=counts.map(function(ct){
+    const ctData=game.countTendencies&&game.countTendencies[ct];
+    if(!ctData) return '';
+    const top=Object.entries(ctData).sort(function(a,b){return b[1]-a[1];})[0];
+    if(!top) return '';
+    return '<div class="count-row"><span>COUNT '+ct+'</span><span style="color:'+(PITCH_COLORS[top[0]]||'#0c4a6e')+'">'+top[0]+' ('+top[1]+'x)</span></div>';
+  }).join('');
+  // Pattern alerts
+  const totalP=Object.values(game.pitchMix||{}).reduce(function(a,b){return a+b;},0)||1;
+  const alerts=[];
+  const fp=game.firstPitches||{};
+  const fpTotal=Object.values(fp).reduce(function(a,b){return a+b;},0)||1;
+  const fpFB=(fp['4FB']||0)+(fp['2FB']||0)+(fp['SK']||0)+(fp['CT']||0);
+  if(fpFB/fpTotal>0.70) alerts.push('⚠ '+Math.round(fpFB/fpTotal*100)+'% fastball first pitch — predictable opener');
+  const topPitch=Object.entries(game.pitchMix||{}).sort(function(a,b){return b[1]-a[1];})[0];
+  if(topPitch&&topPitch[1]/totalP>0.55) alerts.push('⚠ '+topPitch[0]+' used '+Math.round(topPitch[1]/totalP*100)+'% of time — over-reliance');
+  if(!alerts.length) alerts.push('✓ No major patterns detected — good variety!');
+  // Strikeout pitch selection
+  const soByPitch={};
+  Object.entries(game.outcomes||{}).forEach(function(e){
+    if(e[1]['STRIKEOUT']) soByPitch[e[0]]=(soByPitch[e[0]]||0)+e[1]['STRIKEOUT'];
+  });
+  const soTotal=Object.values(soByPitch).reduce(function(a,b){return a+b;},0)||1;
+  const soHTML=Object.entries(soByPitch).sort(function(a,b){return b[1]-a[1];}).map(function(e){
+    const pk=e[0],cnt=e[1],pct=Math.round(cnt/soTotal*100);
+    return '<div class="pitch-row">'
+      +'<div class="pitch-label">'+pk+'</div>'
+      +'<div class="pitch-bar-wrap"><div class="pitch-bar-fill" style="width:'+pct+'%;background:'+(PITCH_COLORS[pk]||'#334155')+'"></div></div>'
+      +'<div class="pitch-pct">'+cnt+' K ('+pct+'%)</div>'
+      +'</div>';
+  }).join('');
+  p2.innerHTML=pageHeader('GAME REPORT',profile,data.generatedAt)
+    +'<div class="section-label">COUNT TENDENCIES</div>'
+    +countHTML
+    +'<div class="section-label">PATTERN ALERTS</div>'
+    +alerts.map(function(a){return '<div class="pattern-item">'+a+'</div>';}).join('')
+    +'<div class="section-label">STRIKEOUT PITCH SELECTION</div>'
+    +(soHTML||'<div style="font-size:9px;color:#475569;">No strikeouts recorded.</div>')
+    +pageFooter(2,3);
+  pages.appendChild(p2);
+  // Page 3: VS LHB/RHB heat maps
+  const p3=document.createElement('div');
+  p3.className='page';
+  p3.innerHTML=pageHeader('GAME REPORT',profile,data.generatedAt)
+    +'<div class="section-label">VS LEFT-HANDED VS RIGHT-HANDED BATTERS</div>'
+    +handHeatMapsHTML(game.vsLHB,game.vsRHB)
+    +pageFooter(3,3);
+  pages.appendChild(p3);
+  document.getElementById('report-info').textContent=
+    'GAME REPORT — '+(profile?profile.name:'')
+    +' — '+formatDate(data.generatedAt);
+}
+function buildBundlesReport(data){
+  const allGames=data.games||[];
+  const profile=data.profile;
+  const pages=document.getElementById('pages');
+  if(allGames.length<2){
+    const p=document.createElement('div');
+    p.className='page';
+    p.innerHTML=pageHeader('BUNDLES REPORT',profile,data.generatedAt)
+      +'<div style="padding:40px;text-align:center;color:#991b1b;">Play at least 2 games to generate bundle report.</div>';
+    pages.appendChild(p);
+    return;
+  }
+  const bundles=[];
+  for(let i=0;i<allGames.length;i+=10) bundles.push(allGames.slice(i,i+10));
+  // Page 1: Strikeout rate chart + Pitch mix chart
+  const p1=document.createElement('div');
+  p1.className='page';
+  const soCanvas=document.createElement('canvas');
+  soCanvas.style.cssText='width:100%;max-height:180px;';
+  const pmCanvas=document.createElement('canvas');
+  pmCanvas.style.cssText='width:100%;max-height:180px;';
+  p1.innerHTML=pageHeader('BUNDLES REPORT',profile,data.generatedAt)
+    +'<div class="section-label">STRIKEOUT RATE PER GAME</div>';
+  p1.appendChild(soCanvas);
+  p1.innerHTML+=('<div class="section-label">PITCH MIX BY BUNDLE</div>');
+  p1.appendChild(pmCanvas);
+  p1.innerHTML+=(pageFooter(1,3));
+  pages.appendChild(p1);
+  // Render charts after DOM is ready
+  setTimeout(function(){
+    new Chart(soCanvas,{
+      type:'line',
+      data:{
+        labels:allGames.map(function(g,i){return 'G'+(i+1);}),
+        datasets:[{
+          label:'Strikeouts',
+          data:allGames.map(function(g){return g.strikeouts||0;}),
+          borderColor:'#166534',backgroundColor:'rgba(22,101,52,0.1)',
+          borderWidth:2,pointBackgroundColor:'#166534',tension:0.3,fill:true
+        }]
+      },
+      options:{responsive:true,plugins:{legend:{display:false}},
+        scales:{y:{beginAtZero:true,ticks:{color:'#0c4a6e'}},x:{ticks:{color:'#0c4a6e'}}}}
+    });
+    const allPitchTypes={};
+    allGames.forEach(function(g){Object.keys(g.pitchMix||{}).forEach(function(pk){allPitchTypes[pk]=true;});});
+    const ptList=Object.keys(allPitchTypes);
+    new Chart(pmCanvas,{
+      type:'bar',
+      data:{
+        labels:bundles.map(function(b,i){return 'Bundle '+(i+1)+' ('+b.length+'g)';}),
+        datasets:ptList.map(function(pk){
+          return{
+            label:pk,
+            data:bundles.map(function(bundle){
+              const total=bundle.reduce(function(s,g){return s+Object.values(g.pitchMix||{}).reduce(function(a,b){return a+b;},0);},0)||1;
+              return Math.round(bundle.reduce(function(s,g){return s+(g.pitchMix||{})[pk]||0;},0)/total*100);
+            }),
+            backgroundColor:PITCH_COLORS[pk]||'#475569'
+          };
+        })
+      },
+      options:{responsive:true,
+        plugins:{legend:{position:'bottom',labels:{color:'#0c4a6e',boxWidth:10}}},
+        scales:{x:{ticks:{color:'#0c4a6e'}},y:{beginAtZero:true,max:100,ticks:{color:'#0c4a6e',callback:function(v){return v+'%';}}}}}
+    });
+  },100);
+  // Page 2: Zone heat maps per bundle + First pitch tendencies
+  const p2=document.createElement('div');
+  p2.className='page';
+  const hmHTML=bundles.map(function(bundle,bi){
+    const zoneAgg={};
+    bundle.forEach(function(g){Object.entries(g.zoneMap||{}).forEach(function(e){zoneAgg[e[0]]=(zoneAgg[e[0]]||0)+e[1];});});
+    return '<div>'
+      +'<div class="heat-title">BUNDLE '+(bi+1)+' ('+bundle.length+' games)</div>'
+      +zoneHeatMapHTML(zoneAgg)
+      +'</div>';
+  }).join('');
+  // First pitch table
+  const fpTypes={};
+  allGames.forEach(function(g){Object.keys(g.firstPitches||{}).forEach(function(pk){fpTypes[pk]=true;});});
+  const fpTableHTML='<div style="display:grid;grid-template-columns:1fr repeat('+bundles.length+',1fr);gap:4px;">'
+    +'<div style="font-size:8px;font-weight:700;color:#0c4a6e;">PITCH</div>'
+    +bundles.map(function(b,i){return '<div style="font-size:8px;font-weight:700;color:#0c4a6e;text-align:center;">B'+(i+1)+'</div>';}).join('')
+    +Object.keys(fpTypes).map(function(pk){
+      return '<div style="font-size:8px;font-weight:700;color:#0c4a6e;">'+pk+'</div>'
+        +bundles.map(function(bundle){
+          const total=bundle.reduce(function(s,g){return s+Object.values(g.firstPitches||{}).reduce(function(a,b){return a+b;},0);},0)||1;
+          const cnt=bundle.reduce(function(s,g){return s+(g.firstPitches||{})[pk]||0;},0);
+          return '<div style="font-size:8px;text-align:center;color:#0c4a6e;">'+Math.round(cnt/total*100)+'%</div>';
+        }).join('');
+    }).join('')
+    +'</div>';
+  p2.innerHTML=pageHeader('BUNDLES REPORT',profile,data.generatedAt)
+    +'<div class="section-label">ZONE DISTRIBUTION BY BUNDLE</div>'
+    +'<div style="display:flex;gap:16px;flex-wrap:wrap;justify-content:center;margin-bottom:12px;">'+hmHTML+'</div>'
+    +'<div class="section-label">FIRST PITCH TENDENCIES BY BUNDLE</div>'
+    +fpTableHTML
+    +pageFooter(2,3);
+  pages.appendChild(p2);
+  // Page 3: VS LHB/RHB + Strikeout pitch selection
+  const vsLHB={zoneMap:{}},vsRHB={zoneMap:{}};
+  allGames.forEach(function(g){
+    Object.entries((g.vsLHB||{}).zoneMap||{}).forEach(function(e){vsLHB.zoneMap[e[0]]=(vsLHB.zoneMap[e[0]]||0)+e[1];});
+    Object.entries((g.vsRHB||{}).zoneMap||{}).forEach(function(e){vsRHB.zoneMap[e[0]]=(vsRHB.zoneMap[e[0]]||0)+e[1];});
+  });
+  const soAll={};
+  allGames.forEach(function(g){Object.entries(g.outcomes||{}).forEach(function(e){if(e[1]['STRIKEOUT'])soAll[e[0]]=(soAll[e[0]]||0)+e[1]['STRIKEOUT'];});});
+  const soAllTotal=Object.values(soAll).reduce(function(a,b){return a+b;},0)||1;
+  const p3=document.createElement('div');
+  p3.className='page';
+  p3.innerHTML=pageHeader('BUNDLES REPORT',profile,data.generatedAt)
+    +'<div class="section-label">VS LEFT-HANDED VS RIGHT-HANDED BATTERS</div>'
+    +handHeatMapsHTML(vsLHB,vsRHB)
+    +'<div class="section-label">STRIKEOUT PITCH SELECTION</div>'
+    +Object.entries(soAll).sort(function(a,b){return b[1]-a[1];}).map(function(e){
+      const pk=e[0],cnt=e[1],pct=Math.round(cnt/soAllTotal*100);
+      return '<div class="pitch-row">'
+        +'<div class="pitch-label">'+pk+'</div>'
+        +'<div class="pitch-bar-wrap"><div class="pitch-bar-fill" style="width:'+pct+'%;background:'+(PITCH_COLORS[pk]||'#334155')+'"></div></div>'
+        +'<div class="pitch-pct">'+cnt+' K ('+pct+'%)</div>'
+        +'</div>';
+    }).join('')
+    +pageFooter(3,3);
+  pages.appendChild(p3);
+  document.getElementById('report-info').textContent=
+    'BUNDLES REPORT — '+(profile?profile.name:'')
+    +' — '+allGames.length+' games — '+formatDate(data.generatedAt);
+}
+function buildCareerReport(data){
+  const allGames=data.games||[];
+  const profile=data.profile;
+  const ml=data.mlWeights;
+  const pages=document.getElementById('pages');
+  if(!allGames.length){
+    const p=document.createElement('div');
+    p.className='page';
+    p.innerHTML=pageHeader('CAREER REPORT',profile,data.generatedAt)
+      +'<div style="padding:40px;text-align:center;color:#991b1b;">No game data available.</div>';
+    pages.appendChild(p);
+    return;
+  }
+  function gameAvg(games,key){
+    if(!games.length) return 0;
+    return games.reduce(function(s,g){return s+(g[key]||0);},0)/games.length;
+  }
+  const totalGames=allGames.length;
+  const totalPitches=allGames.reduce(function(s,g){return s+(g.pitchCount||0);},0);
+  const careerK=gameAvg(allGames,'strikeouts');
+  const careerBB=gameAvg(allGames,'walks');
+  const careerH=gameAvg(allGames,'hits');
+  const careerR=gameAvg(allGames,'runsAllowed');
+  // Career pitch mix
+  const careerPM={};
+  allGames.forEach(function(g){Object.entries(g.pitchMix||{}).forEach(function(e){careerPM[e[0]]=(careerPM[e[0]]||0)+e[1];});});
+  // Career zone map
+  const careerZM={};
+  allGames.forEach(function(g){Object.entries(g.zoneMap||{}).forEach(function(e){careerZM[e[0]]=(careerZM[e[0]]||0)+e[1];});});
+  // Page 1: Career overview + ML transparency
+  const p1=document.createElement('div');
+  p1.className='page';
+  let mlHTML='';
+  if(ml&&ml.confidence>=0.10){
+    const confPct=Math.round(ml.confidence*100);
+    mlHTML='<div class="section-label">WHAT THE BATTER HAS LEARNED</div>'
+      +'<div style="background:#fff8f0;border:2px solid #92400e;border-radius:6px;padding:10px;margin-bottom:8px;">'
+      +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:14px;color:#92400e;letter-spacing:2px;">BATTER ADAPTATION: '+confPct+'% ('+ml.gamesAnalyzed+' games)</div>'
+      +'<div style="width:100%;background:#fde8d0;border-radius:4px;height:6px;margin:4px 0;">'
+      +'<div style="width:'+confPct+'%;height:100%;background:#92400e;border-radius:4px;"></div></div>'
+      +'</div>';
+    // Top patterns
+    if(ml.firstPitchWeights){
+      const topFP=Object.entries(ml.firstPitchWeights).sort(function(a,b){return b[1]-a[1];})[0];
+      if(topFP&&topFP[1]>0.5)
+        mlHTML+='<div class="pattern-item" style="border-left-color:#991b1b;">⚠ First pitch '+topFP[0]+' '+Math.round(topFP[1]*100)+'% — batter sitting on opener</div>';
+    }
+    if(ml.hotZones&&ml.hotZones.length)
+      mlHTML+='<div class="pattern-item">⚠ Batter looks here: '+ml.hotZones.join(', ')+'</div>';
+    if(ml.sequenceWeights){
+      Object.entries(ml.sequenceWeights).forEach(function(e){
+        const top=Object.entries(e[1]).sort(function(a,b){return b[1]-a[1];})[0];
+        if(top&&top[1]>=0.6)
+          mlHTML+='<div class="pattern-item" style="border-left-color:#991b1b;">⚠ After '+e[0]+' → '+top[0]+' '+Math.round(top[1]*100)+'% — predictable sequence</div>';
+      });
+    }
+  }
+  p1.innerHTML=pageHeader('CAREER REPORT',profile,data.generatedAt)
+    +'<div class="section-label">CAREER OVERVIEW</div>'
+    +'<div class="stat-grid">'
+    +statBox('TOTAL GAMES',totalGames,'#0c4a6e')
+    +statBox('TOTAL PITCHES',totalPitches,'#0c4a6e')
+    +statBox('K / GAME',careerK.toFixed(1),'#166534')
+    +statBox('BB / GAME',careerBB.toFixed(1),'#991b1b')
+    +statBox('H / GAME',careerH.toFixed(1),'#92400e')
+    +statBox('R / GAME',careerR.toFixed(1),'#991b1b')
+    +'</div>'
+    +mlHTML
+    +pageFooter(1,4);
+  pages.appendChild(p1);
+  // Page 2: Performance trends chart + Career pitch mix
+  const p2=document.createElement('div');
+  p2.className='page';
+  const trendCanvas=document.createElement('canvas');
+  trendCanvas.style.cssText='width:100%;max-height:200px;';
+  p2.innerHTML=pageHeader('CAREER REPORT',profile,data.generatedAt)
+    +'<div class="section-label">PERFORMANCE TRENDS</div>';
+  p2.appendChild(trendCanvas);
+  p2.innerHTML+=('<div class="section-label">CAREER PITCH MIX</div>'
+    +pitchMixHTML(careerPM)
+    +pageFooter(2,4));
+  pages.appendChild(p2);
+  setTimeout(function(){
+    new Chart(trendCanvas,{
+      type:'line',
+      data:{
+        labels:allGames.map(function(g,i){return 'G'+(i+1);}),
+        datasets:[
+          {label:'K/game',data:allGames.map(function(g){return g.strikeouts||0;}),borderColor:'#166534',borderWidth:2,pointRadius:2,tension:0.3,fill:false},
+          {label:'BB/game',data:allGames.map(function(g){return g.walks||0;}),borderColor:'#991b1b',borderWidth:2,pointRadius:2,tension:0.3,fill:false},
+          {label:'H/game',data:allGames.map(function(g){return g.hits||0;}),borderColor:'#92400e',borderWidth:2,pointRadius:2,tension:0.3,fill:false}
+        ]
+      },
+      options:{responsive:true,
+        plugins:{legend:{position:'bottom',labels:{color:'#0c4a6e',boxWidth:10}}},
+        scales:{y:{beginAtZero:true,ticks:{color:'#0c4a6e'}},x:{ticks:{color:'#0c4a6e'}}}}
+    });
+  },100);
+  // Page 3: Career zone map + Strikeout pitch selection + VS LHB/RHB
+  const careerSO={};
+  allGames.forEach(function(g){Object.entries(g.outcomes||{}).forEach(function(e){if(e[1]['STRIKEOUT'])careerSO[e[0]]=(careerSO[e[0]]||0)+e[1]['STRIKEOUT'];});});
+  const careerSOTotal=Object.values(careerSO).reduce(function(a,b){return a+b;},0)||1;
+  const careerVsLHB={zoneMap:{}},careerVsRHB={zoneMap:{}};
+  allGames.forEach(function(g){
+    Object.entries((g.vsLHB||{}).zoneMap||{}).forEach(function(e){careerVsLHB.zoneMap[e[0]]=(careerVsLHB.zoneMap[e[0]]||0)+e[1];});
+    Object.entries((g.vsRHB||{}).zoneMap||{}).forEach(function(e){careerVsRHB.zoneMap[e[0]]=(careerVsRHB.zoneMap[e[0]]||0)+e[1];});
+  });
+  const p3=document.createElement('div');
+  p3.className='page';
+  p3.innerHTML=pageHeader('CAREER REPORT',profile,data.generatedAt)
+    +'<div class="section-label">CAREER ZONE DISTRIBUTION</div>'
+    +zoneHeatMapHTML(careerZM)
+    +'<div class="section-label">STRIKEOUT PITCH SELECTION</div>'
+    +Object.entries(careerSO).sort(function(a,b){return b[1]-a[1];}).map(function(e){
+      const pk=e[0],cnt=e[1],pct=Math.round(cnt/careerSOTotal*100);
+      return '<div class="pitch-row"><div class="pitch-label">'+pk+'</div>'
+        +'<div class="pitch-bar-wrap"><div class="pitch-bar-fill" style="width:'+pct+'%;background:'+(PITCH_COLORS[pk]||'#334155')+'"></div></div>'
+        +'<div class="pitch-pct">'+cnt+' K ('+pct+'%)</div></div>';
+    }).join('')
+    +'<div class="section-label">VS LEFT-HANDED VS RIGHT-HANDED BATTERS</div>'
+    +handHeatMapsHTML(careerVsLHB,careerVsRHB)
+    +pageFooter(3,4);
+  pages.appendChild(p3);
+  // Page 4: Home/Away splits + Career count tendencies
+  const homeGames=allGames.filter(function(g){return g.homeAway==='HOME';});
+  const awayGames=allGames.filter(function(g){return g.homeAway==='AWAY';});
+  const careerCT={};
+  allGames.forEach(function(g){
+    Object.entries(g.countTendencies||{}).forEach(function(e){
+      const ct=e[0];
+      if(!careerCT[ct]) careerCT[ct]={};
+      Object.entries(e[1]).forEach(function(pe){careerCT[ct][pe[0]]=(careerCT[ct][pe[0]]||0)+pe[1];});
+    });
+  });
+  const p4=document.createElement('div');
+  p4.className='page';
+  p4.innerHTML=pageHeader('CAREER REPORT',profile,data.generatedAt)
+    +'<div class="section-label">HOME VS AWAY SPLITS</div>'
+    +'<div class="two-col" style="margin-bottom:12px;">'
+    +'<div style="background:#f0fff4;border:2px solid #166534;border-radius:6px;padding:10px;">'
+    +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:14px;color:#166534;margin-bottom:6px;">HOME ('+homeGames.length+' games)</div>'
+    +['K/game','BB/game','H/game','R/game'].map(function(s,i){
+      const keys=['strikeouts','walks','hits','runsAllowed'];
+      const val=homeGames.length?gameAvg(homeGames,keys[i]).toFixed(1):'—';
+      return '<div class="count-row"><span>'+s+'</span><span>'+val+'</span></div>';
+    }).join('')
+    +'</div>'
+    +'<div style="background:#fff1f0;border:2px solid #991b1b;border-radius:6px;padding:10px;">'
+    +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:14px;color:#991b1b;margin-bottom:6px;">AWAY ('+awayGames.length+' games)</div>'
+    +['K/game','BB/game','H/game','R/game'].map(function(s,i){
+      const keys=['strikeouts','walks','hits','runsAllowed'];
+      const val=awayGames.length?gameAvg(awayGames,keys[i]).toFixed(1):'—';
+      return '<div class="count-row"><span>'+s+'</span><span>'+val+'</span></div>';
+    }).join('')
+    +'</div></div>'
+    +'<div class="section-label">CAREER COUNT TENDENCIES</div>'
+    +['0-0','0-1','0-2','1-0','1-1','1-2','2-0','2-1','2-2','3-0','3-1','3-2'].map(function(ct){
+      const ctData=careerCT[ct];
+      if(!ctData) return '';
+      const top=Object.entries(ctData).sort(function(a,b){return b[1]-a[1];})[0];
+      if(!top) return '';
+      const total=Object.values(ctData).reduce(function(a,b){return a+b;},0)||1;
+      const pct=Math.round(top[1]/total*100);
+      return '<div class="count-row"><span>COUNT '+ct+'</span>'
+        +'<span style="color:'+(PITCH_COLORS[top[0]]||'#0c4a6e')+'">'+top[0]+' '+pct+'% ('+top[1]+'x)</span></div>';
+    }).join('')
+    +pageFooter(4,4);
+  pages.appendChild(p4);
+  document.getElementById('report-info').textContent=
+    'CAREER REPORT — '+(profile?profile.name:'')
+    +' — '+totalGames+' games — '+formatDate(data.generatedAt);
+}
+// Main
+window.onload=function(){
+  try{
+    const raw=localStorage.getItem('pitchseq-report-export');
+    if(!raw){
+      document.getElementById('pages').innerHTML='<div style="padding:40px;text-align:center;color:#991b1b;">No report data found. Please export from the app.</div>';
+      return;
+    }
+    const data=JSON.parse(raw);
+    const tab=getParam('tab')||data.tab||'game';
+    if(tab==='game') buildGameReport(data);
+    else if(tab==='bundles') buildBundlesReport(data);
+    else if(tab==='career') buildCareerReport(data);
+  }catch(e){
+    document.getElementById('pages').innerHTML='<div style="padding:40px;text-align:center;color:#991b1b;">Error loading report: '+e.message+'</div>';
+  }
+};
+</script>
+</body>
+</html>
