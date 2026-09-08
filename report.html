@@ -391,8 +391,135 @@ function buildBundlesReport(data){
         +'<div class="pitch-pct">'+cnt+' K ('+pct+'%)</div>'
         +'</div>';
     }).join('')
-    +pageFooter(3,3);
+    +pageFooter(3,4);
   pages.appendChild(p3);
+  // Page 4: Trends & Evolution
+  const p4b=document.createElement('div');
+  p4b.className='page';
+  const mlConf=data.mlWeights?data.mlWeights.confidence:0;
+  let windowSize;
+  let windowLabel;
+  if(mlConf>=0.60){windowSize=3;windowLabel='Last 3 games vs career average (HIGH adaptation)';}
+  else if(mlConf>=0.30){windowSize=5;windowLabel='Last 5 games vs career average (MEDIUM adaptation)';}
+  else{windowSize=Math.max(1,Math.floor(allGames.length/2));windowLabel='First half vs second half (LOW adaptation)';}
+  const recentGames=allGames.slice(-windowSize);
+  const baselineGames=allGames.slice(0,-windowSize);
+  let trendsHTML=pageHeader('BUNDLES REPORT',profile,data.generatedAt)
+    +'<div class="section-label">TRENDS & EVOLUTION</div>';
+  if(baselineGames.length===0){
+    trendsHTML+='<div style="font-size:9px;color:#475569;padding:8px;">Play more games to see trend analysis.</div>';
+  } else {
+    // Pattern Intelligence Score
+    function aggCT(games){
+      const agg={};
+      games.forEach(function(g){
+        Object.entries(g.countTendencies||{}).forEach(function(e){
+          if(!agg[e[0]]) agg[e[0]]={};
+          Object.entries(e[1]).forEach(function(pe){agg[e[0]][pe[0]]=(agg[e[0]][pe[0]]||0)+pe[1];});
+        });
+      });
+      return agg;
+    }
+    function topPPct(ctData){
+      if(!ctData) return {pk:'',pct:0};
+      const total=Object.values(ctData).reduce(function(a,b){return a+b;},0)||1;
+      const top=Object.entries(ctData).sort(function(a,b){return b[1]-a[1];})[0];
+      return top?{pk:top[0],pct:Math.round(top[1]/total*100)}:{pk:'',pct:0};
+    }
+    function zoneScore(games){
+      const zm={};
+      games.forEach(function(g){Object.entries(g.zoneMap||{}).forEach(function(e){zm[e[0]]=(zm[e[0]]||0)+e[1];});});
+      const total=Object.values(zm).reduce(function(a,b){return a+b;},0)||1;
+      return ['TL','TM','TR','ML','MM','MR','BL','BM','BR'].filter(function(z){return (zm[z]||0)/total>0.05;}).length;
+    }
+    function seqScore(games){
+      const seqs={};
+      games.forEach(function(g){Object.entries(g.sequences||{}).forEach(function(e){seqs[e[0]]=(seqs[e[0]]||0)+e[1];});});
+      const total=Object.values(seqs).reduce(function(a,b){return a+b;},0)||1;
+      const top=Object.values(seqs).sort(function(a,b){return b-a;})[0]||0;
+      return Math.round((1-top/total)*100);
+    }
+    function veloScore(games){
+      const velos=[];
+      games.forEach(function(g){(g.velocities||[]).forEach(function(v){if(v>0)velos.push(v);});});
+      if(velos.length<2) return 0;
+      const mean=velos.reduce(function(a,b){return a+b;},0)/velos.length;
+      const std=Math.sqrt(velos.reduce(function(s,v){return s+(v-mean)*(v-mean);},0)/velos.length);
+      return Math.min(100,Math.round(std/mean*500));
+    }
+    function calcScore(games){
+      if(!games.length) return 0;
+      const ctA=aggCT(games);
+      let cs=25;
+      ['0-0','0-2','1-0','3-2'].forEach(function(ct){
+        const t=topPPct(ctA[ct]);
+        if(t.pct>=70) cs-=6; else if(t.pct>=55) cs-=3;
+      });
+      return Math.max(0,cs)+Math.min(25,Math.round(zoneScore(games)/9*25))
+        +Math.min(25,Math.round(seqScore(games)/100*25))
+        +Math.min(25,Math.round(veloScore(games)/100*25));
+    }
+    const recentScore=calcScore(recentGames);
+    const baselineScore=calcScore(baselineGames);
+    const scoreDiff=recentScore-baselineScore;
+    const scoreColor=scoreDiff>=0?'#166534':'#991b1b';
+    const scoreBg=scoreDiff>=0?'#f0fff4':'#fff1f0';
+    trendsHTML+='<div style="background:'+scoreBg+';border:2px solid '+scoreColor
+      +';border-radius:8px;padding:12px;margin-bottom:10px;">'
+      +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:16px;color:#0c4a6e;letter-spacing:2px;">PATTERN INTELLIGENCE SCORE</div>'
+      +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:36px;color:'+scoreColor+';">'
+      +recentScore+'<span style="font-size:14px;font-weight:700;"> '+(scoreDiff>=0?'↑ +':'↓ ')+scoreDiff+' from baseline</span></div>'
+      +'<div style="font-size:8px;color:#475569;">'+windowLabel+'</div>'
+      +'<div style="font-size:8px;font-weight:700;color:#0c4a6e;">ML ADAPTATION: '
+      +(mlConf>=0.60?'HIGH':mlConf>=0.30?'MEDIUM':'LOW')+' ('+Math.round(mlConf*100)+'% confidence)</div>'
+      +'</div>';
+    // Regression alert
+    if(scoreDiff<=-10){
+      trendsHTML+='<div style="background:#991b1b;border-radius:6px;padding:10px;margin-bottom:8px;">'
+        +'<div style="font-family:\'Bebas Neue\',sans-serif;font-size:14px;color:#fff;letter-spacing:2px;">🚨 REGRESSION DETECTED</div>'
+        +'<div style="font-size:8px;color:#fecaca;">Your pitching patterns have become MORE predictable in recent games. Adjust immediately.</div>'
+        +'</div>';
+    }
+    // Count trend
+    trendsHTML+='<div style="font-size:8px;font-weight:700;color:#0c4a6e;margin:8px 0 4px 0;text-transform:uppercase;letter-spacing:1px;">COUNT PREDICTABILITY TREND</div>';
+    const baseCT=aggCT(baselineGames);
+    const recentCT=aggCT(recentGames);
+    ['0-0','0-1','0-2','1-0','1-2','2-2','3-2'].forEach(function(ct){
+      const bTop=topPPct(baseCT[ct]);
+      const rTop=topPPct(recentCT[ct]);
+      if(!bTop.pk&&!rTop.pk) return;
+      const improving=rTop.pct<bTop.pct;
+      trendsHTML+='<div style="padding:4px 6px;border-radius:4px;margin-bottom:3px;background:'
+        +(improving?'#f0fff4':'#fff1f0')+';">'
+        +'<span style="font-size:8px;font-weight:700;color:#0c4a6e;">'+ct+' — '+(bTop.pk||'?')+'</span> '
+        +'<span style="font-size:8px;color:#475569;">Baseline: '+bTop.pct+'%</span> '
+        +'<span style="font-size:8px;font-weight:700;color:'+(improving?'#166534':'#991b1b')+'">'
+        +(improving?'↓ ':'↑ ')+'Recent: '+rTop.pct+'% '+(improving?'✓ IMPROVING':'⚠ REGRESSING')+'</span>'
+        +'</div>';
+    });
+    // Zone, sequence, velocity trends
+    const bz=zoneScore(baselineGames),rz=zoneScore(recentGames);
+    const bs=seqScore(baselineGames),rs=seqScore(recentGames);
+    const bv=veloScore(baselineGames),rv=veloScore(recentGames);
+    trendsHTML+='<div style="font-size:8px;font-weight:700;color:#0c4a6e;margin:8px 0 4px 0;text-transform:uppercase;letter-spacing:1px;">OTHER TRENDS</div>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;">'
+      +['Zone Coverage','Sequence Variety','Velocity Variation'].map(function(label,i){
+        const base=[bz,bs,bv][i];
+        const recent=[rz,rs,rv][i];
+        const unit=i===0?'/9':'%';
+        const improving=recent>=base;
+        return '<div style="background:'+(improving?'#f0fff4':'#fff1f0')+';border-radius:4px;padding:6px;">'
+          +'<div style="font-size:7px;font-weight:700;color:#0c4a6e;">'+label.toUpperCase()+'</div>'
+          +'<div style="font-size:8px;color:#475569;">Baseline: '+base+unit+'</div>'
+          +'<div style="font-size:8px;font-weight:700;color:'+(improving?'#166534':'#991b1b')+'">'
+          +(improving?'↑ ':'↓ ')+'Recent: '+recent+unit+'</div>'
+          +'</div>';
+      }).join('')
+      +'</div>';
+  }
+  trendsHTML+=pageFooter(4,4);
+  p4b.innerHTML=trendsHTML;
+  pages.appendChild(p4b);
   document.getElementById('report-info').textContent=
     'BUNDLES REPORT — '+(profile?profile.name:'')
     +' — '+allGames.length+' games — '+formatDate(data.generatedAt);
