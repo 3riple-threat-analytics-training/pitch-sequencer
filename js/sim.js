@@ -400,9 +400,9 @@ function endGame(){
   // Save game history BEFORE resetting data
   saveGameHistory();
   // Randomize first batter handedness for next game
-  if(typeof setHand==='function'){
+  if(typeof setBatter==='function'){
     const firstHand=Math.random()<0.5?'RHB':'LHB';
-    if(typeof batter!=='undefined') batter=firstHand;
+    setBatter(firstHand);
   }
   // Reset everything to inning 1
   totalPitchCount=0;
@@ -2679,8 +2679,14 @@ function handleNewBatter(){
   const repeatProb=0.35; // 35% chance same hand, 65% chance switch
   const randomHand=Math.random()<repeatProb?currentHand:
     (currentHand==='RHB'?'LHB':'RHB');
-  if(randomHand!==currentHand){
-    showBatterHandednessNotification(randomHand);
+  // Auto-flip Mr. OG to correct handedness
+  if(typeof setBatter==='function'){
+    setBatter(randomHand);
+  } else {
+    // Fallback: show notification if setBatter not available
+    if(randomHand!==currentHand){
+      showBatterHandednessNotification(randomHand);
+    }
   }
   hideSimAdvanceButton();
   if(typeof onNewBatter==='function') onNewBatter();
