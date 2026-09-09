@@ -399,6 +399,11 @@ function saveGameHistory(){
 function endGame(){
   // Save game history BEFORE resetting data
   saveGameHistory();
+  // Randomize first batter handedness for next game
+  if(typeof setHand==='function'){
+    const firstHand=Math.random()<0.5?'RHB':'LHB';
+    if(typeof batter!=='undefined') batter=firstHand;
+  }
   // Reset everything to inning 1
   totalPitchCount=0;
   totalStrikeouts=0;
@@ -2587,6 +2592,15 @@ function showSimAdvanceButton(){
   if(!simMode) return;
   setTimeout(()=>{
     openDiamondModal();
+    // Auto-advance to next batter if not an inning break
+    if(!simInningBreak){
+      setTimeout(function(){
+        // Only auto-advance if modal is still showing and no inning break
+        if(atBatOver&&!simInningBreak){
+          handleNewBatter();
+        }
+      },3000);
+    }
   },2200);
 }
 
