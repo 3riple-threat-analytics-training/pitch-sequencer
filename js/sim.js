@@ -3925,6 +3925,8 @@ function applySimCountOutcome(outcome,strikesAtStart){
   renderCount();
   if(ballCount>=4){
     display='WALK';
+    totalWalks++;
+    updateDiamondStats();
     if(simMode){
       const delay=getAnimationDelay();
       setTimeout(()=>{
@@ -3938,9 +3940,18 @@ function applySimCountOutcome(outcome,strikesAtStart){
     saveSimState();
     return display;
   }
-  if(strikeCount>=3&&(outcome==='STRIKE'||outcome==='SWING & MISS'||outcome==='CALLED STRIKE'||display==='CHECK SWING (STRIKE)')){display='STRIKEOUT';addSimOutCore();if(simMode){lockThrowButton();lastSimDiamondBadgeText='STRIKEOUT';}showSimAdvanceButton();saveSimState();return display;}
+  if(strikeCount>=3&&(outcome==='STRIKE'||outcome==='SWING & MISS'||outcome==='CALLED STRIKE'||display==='CHECK SWING (STRIKE)')){
+    display='STRIKEOUT';
+    totalStrikeouts++;
+    updateDiamondStats();
+    addSimOutCore();
+    if(simMode){lockThrowButton();lastSimDiamondBadgeText='STRIKEOUT';}
+    showSimAdvanceButton();saveSimState();return display;
+  }
   if(outcome==='GROUND OUT'||outcome==='POP FLY'){ballCount=0;strikeCount=0;renderCount();addSimOutCore();if(simMode){lockThrowButton();lastSimDiamondBadgeText=outcome;}showSimAdvanceButton();saveSimState();return outcome;}
   if(outcome==='SINGLE'||outcome==='DOUBLE'||outcome==='TRIPLE'||outcome==='HOME RUN'){
+    totalHits++;
+    updateDiamondStats();
     ballCount=0;strikeCount=0;renderCount();
     if(simMode){
       const delay=getAnimationDelay();
@@ -4091,6 +4102,20 @@ if(typeof window!=='undefined'){
   else window.addEventListener('load',installSimThrowGuard);
 }
 
+function updateDiamondStats(){
+  const kEl=document.getElementById('modal-stat-k');
+  const bbEl=document.getElementById('modal-stat-bb');
+  const hEl=document.getElementById('modal-stat-h');
+  const kEl2=document.getElementById('pc-strikeouts');
+  const bbEl2=document.getElementById('pc-walks');
+  const hEl2=document.getElementById('pc-hits');
+  if(kEl) kEl.textContent=totalStrikeouts;
+  if(bbEl) bbEl.textContent=totalWalks;
+  if(hEl) hEl.textContent=totalHits;
+  if(kEl2) kEl2.textContent=totalStrikeouts;
+  if(bbEl2) bbEl2.textContent=totalWalks;
+  if(hEl2) hEl2.textContent=totalHits;
+}
 function handleSimOutcome(pitchName,outcome,speed,pitchKey){
   incrementPitchCount();
   // Track cumulative game stats
