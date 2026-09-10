@@ -1009,7 +1009,7 @@ function showGameReport(game,title,onClose){
           label:pk,
           data:bundles.map(function(bundle){
             const total=bundle.reduce(function(s,g){return s+Object.values(g.pitchMix||{}).reduce(function(a,b){return a+b;},0);},0)||1;
-            const count=bundle.reduce(function(s,g){return s+(g.pitchMix||{})[pk]||0;},0);
+            const count=bundle.reduce(function(s,g){return s+((g.pitchMix||{})[pk]||0);},0);
             return Math.round(count/total*100);
           }),
           backgroundColor:pitchChartColors[pk]||'#475569'
