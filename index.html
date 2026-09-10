@@ -1117,6 +1117,7 @@ document.addEventListener('fbAuthStateChanged',function(e){
           // Set app mode and dismiss splash
           if(typeof setAppMode==='function') setAppMode('individual');
           splash.classList.add('hidden');
+          splash.style.display='none';
           // Apply profile to canvas
           if(typeof applyProfile==='function') applyProfile(profile);
         } else {
@@ -1127,7 +1128,7 @@ document.addEventListener('fbAuthStateChanged',function(e){
           if(authOverlay) authOverlay.style.display='none';
           // Make sure splash is hidden
           const splashEl=document.getElementById('splashoverlay');
-          if(splashEl) splashEl.classList.add('hidden');
+          if(splashEl){splashEl.classList.add('hidden');splashEl.style.display='none';}
         }
         // Reset sign in button z-index
         const signinBtn=document.getElementById('splash-signin-btn');
