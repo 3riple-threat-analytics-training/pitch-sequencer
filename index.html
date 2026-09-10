@@ -1102,18 +1102,36 @@ document.addEventListener('fbAuthStateChanged',function(e){
         if(typeof applyProfile==='function'){
           applyProfile(profile);
         }
-        // Dismiss splash screen if showing
+        // Dismiss splash and go to canvas — works in both Safari and PWA standalone mode
         const splash=document.getElementById('splashoverlay');
-        const splashVisible=splash&&!splash.classList.contains('hidden');
-        if(splashVisible){
-          // Only hide profile overlay during initial splash flow
-          const overlay=document.getElementById('profileoverlay');
-          if(overlay){
-            overlay.style.display='';
-            overlay.classList.remove('visible');
+        if(splash&&!splash.classList.contains('hidden')){
+          // Hide profile overlay if showing
+          const profileOverlay=document.getElementById('profileoverlay');
+          if(profileOverlay){
+            profileOverlay.style.display='';
+            profileOverlay.classList.remove('visible');
           }
+          // Hide auth overlay
+          const authOverlay=document.getElementById('authoverlay');
+          if(authOverlay) authOverlay.style.display='none';
+          // Set app mode and dismiss splash
+          if(typeof setAppMode==='function') setAppMode('individual');
           splash.classList.add('hidden');
+          // Apply profile to canvas
+          if(typeof applyProfile==='function') applyProfile(profile);
+        } else {
+          // PWA mode or splash already hidden — just apply profile
+          if(typeof applyProfile==='function') applyProfile(profile);
+          // Hide auth overlay
+          const authOverlay=document.getElementById('authoverlay');
+          if(authOverlay) authOverlay.style.display='none';
+          // Make sure splash is hidden
+          const splashEl=document.getElementById('splashoverlay');
+          if(splashEl) splashEl.classList.add('hidden');
         }
+        // Reset sign in button z-index
+        const signinBtn=document.getElementById('splash-signin-btn');
+        if(signinBtn) signinBtn.style.display='none';
         // profile loaded
       }
     });
