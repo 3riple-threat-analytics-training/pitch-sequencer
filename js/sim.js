@@ -1102,7 +1102,7 @@ function showGameReport(game,title,onClose){
         let prevPct=null;
         bundles.forEach(function(bundle){
           const totalFP=bundle.reduce(function(s,g){return s+Object.values(g.firstPitches||{}).reduce(function(a,b){return a+b;},0);},0)||1;
-          const count=bundle.reduce(function(s,g){return s+(g.firstPitches||{})[pk]||0;},0);
+          const count=bundle.reduce(function(s,g){return s+((g.firstPitches||{})[pk]||0);},0);
           const pct=Math.round(count/totalFP*100);
           const cell=document.createElement('div');
           cell.style.cssText='font-size:9px;font-weight:700;text-align:center;';
