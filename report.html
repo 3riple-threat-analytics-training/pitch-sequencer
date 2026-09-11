@@ -324,7 +324,7 @@ function buildBundlesReport(data){
             label:pk,
             data:bundles.map(function(bundle){
               const total=bundle.reduce(function(s,g){return s+Object.values(g.pitchMix||{}).reduce(function(a,b){return a+b;},0);},0)||1;
-              return Math.round(bundle.reduce(function(s,g){return s+(g.pitchMix||{})[pk]||0;},0)/total*100);
+              return Math.round(bundle.reduce(function(s,g){return s+((g.pitchMix||{})[pk]||0);},0)/total*100);
             }),
             backgroundColor:PITCH_COLORS[pk]||'#475569'
           };
@@ -356,7 +356,7 @@ function buildBundlesReport(data){
       return '<div style="font-size:8px;font-weight:700;color:#0c4a6e;">'+pk+'</div>'
         +bundles.map(function(bundle){
           const total=bundle.reduce(function(s,g){return s+Object.values(g.firstPitches||{}).reduce(function(a,b){return a+b;},0);},0)||1;
-          const cnt=bundle.reduce(function(s,g){return s+(g.firstPitches||{})[pk]||0;},0);
+          const cnt=bundle.reduce(function(s,g){return s+((g.firstPitches||{})[pk]||0);},0);
           return '<div style="font-size:8px;text-align:center;color:#0c4a6e;">'+Math.round(cnt/total*100)+'%</div>';
         }).join('');
     }).join('')
