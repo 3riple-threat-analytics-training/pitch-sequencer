@@ -117,16 +117,23 @@ function _tutorialHighlight(elId,on){
     const panel=document.getElementById('panel');
     const inPanel=panel&&els.some(function(el){return panel.contains(el);});
     if(inPanel&&panel){
-      // Scroll panel so last highlighted element is visible
       const lastEl=els[els.length-1];
-      // Calculate offset within panel and scroll to it
       const panelRect=panel.getBoundingClientRect();
       const lastRect=lastEl.getBoundingClientRect();
-      // Position of last element relative to panel top
-      const relativeTop=(lastRect.top-panelRect.top)+panel.scrollTop;
-      // Add extra padding so element appears well above tutorial card
-      const targetScrollTop=relativeTop-280;
-      panel.scrollTo({top:Math.max(0,targetScrollTop),behavior:'smooth'});
+      // Check if panel is scrollable (desktop) or page scrolls (mobile)
+      const panelScrollable=panel.scrollHeight>panel.clientHeight&&
+        getComputedStyle(panel).overflowY!=='visible';
+      if(panelScrollable){
+        // Desktop: scroll the panel container
+        const relativeTop=(lastRect.top-panelRect.top)+panel.scrollTop;
+        const targetScrollTop=relativeTop-280;
+        panel.scrollTo({top:Math.max(0,targetScrollTop),behavior:'smooth'});
+      } else {
+        // Mobile: scroll the window to show the element
+        const elementTop=lastRect.top+window.scrollY;
+        const targetScrollTop=elementTop-window.innerHeight*0.35;
+        window.scrollTo({top:Math.max(0,targetScrollTop),behavior:'smooth'});
+      }
     } else {
       // Fall back to window scroll for elements outside panel
       const tops=els.map(function(el){
