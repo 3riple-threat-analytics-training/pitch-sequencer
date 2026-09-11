@@ -566,7 +566,7 @@ function showGameReport(game,title,onClose){
   // Tab bar
   const tabBar=document.createElement('div');
   tabBar.style.cssText='display:flex;gap:4px;margin-bottom:16px;border-bottom:2px solid #bae6fd;';
-  const tabs=['GAME','BUNDLES','CAREER'];
+  const tabs=['GAME','BUNDLES','CAREER','SEQUENCES'];
   const tabContents={};
   tabs.forEach(function(t){
     const btn=document.createElement('button');
@@ -2480,6 +2480,341 @@ function showGameReport(game,title,onClose){
     }catch(e){alert('Could not export report.');}
   };
   tabContents['CAREER'].appendChild(careerExportBtn);
+
+  // ── SEQUENCES TAB ──
+  const seqTab=tabContents['SEQUENCES'];
+  try{
+    const seqRaw=localStorage.getItem('pitchseq-game-history');
+    const seqGames=seqRaw?JSON.parse(seqRaw):[];
+    if(seqGames.length<2){
+      const seqMsg=document.createElement('div');
+      seqMsg.style.cssText='padding:20px;text-align:center;font-size:11px;color:#334155;';
+      seqMsg.textContent='Play at least 2 games to see sequence decision trees.';
+      seqTab.appendChild(seqMsg);
+    } else {
+      // Color blind safe pitch colors
+      const CBCOLORS={
+        '4FB':'#0077BB','2FB':'#EE7733','SL':'#AA3377','CH':'#009988',
+        'SP':'#CCBB44','CB':'#CC3311','CT':'#33BBEE','SK':'#EE3377',
+        'SWP':'#88AA00','KN':'#BBBBBB','KC':'#6644AA','FK':'#994400',
+        'SCR':'#004488','EPH':'#999933','SLV':'#DDAA33'
+      };
+      // Outcome colors
+      const OUTCOLORS={
+        'STRIKEOUT':'#166534','FOUL':'#ca8a04','FOUL (PULLED)':'#ca8a04',
+        'FOUL (LATE)':'#ca8a04','FOUL (STRAIGHT BACK)':'#ca8a04',
+        'BALL':'#64748b','CALLED BALL':'#64748b','CHECK SWING (BALL)':'#64748b',
+        'SINGLE':'#991b1b','DOUBLE':'#991b1b','TRIPLE':'#991b1b','HOME RUN':'#991b1b',
+        'CALLED STRIKE':'#166534','SWING & MISS':'#166534','CHECK SWING (STRIKE)':'#166534',
+        'GROUND OUT':'#1d4ed8','POP FLY':'#1d4ed8'
+      };
+      // Aggregate countTendencies, countOutcomes, countSequences across all games
+      const aggCT={},aggCO={},aggCS={};
+      seqGames.forEach(function(g){
+        // Count tendencies
+        Object.entries(g.countTendencies||{}).forEach(function(e){
+          const ct=e[0];
+          if(!aggCT[ct]) aggCT[ct]={};
+          Object.entries(e[1]).forEach(function(pe){
+            aggCT[ct][pe[0]]=(aggCT[ct][pe[0]]||0)+pe[1];
+          });
+        });
+        // Count outcomes
+        Object.entries(g.countOutcomes||{}).forEach(function(e){
+          const ct=e[0];
+          if(!aggCO[ct]) aggCO[ct]={};
+          Object.entries(e[1]).forEach(function(oe){
+            aggCO[ct][oe[0]]=(aggCO[ct][oe[0]]||0)+oe[1];
+          });
+        });
+        // Count sequences
+        Object.entries(g.countSequences||{}).forEach(function(e){
+          const ct=e[0];
+          if(!aggCS[ct]) aggCS[ct]={};
+          Object.entries(e[1]).forEach(function(pe){
+            const pk=pe[0];
+            if(!aggCS[ct][pk]) aggCS[ct][pk]={};
+            Object.entries(pe[1]).forEach(function(oe){
+              const outcome=oe[0];
+              if(!aggCS[ct][pk][outcome]) aggCS[ct][pk][outcome]={};
+              Object.entries(oe[1]).forEach(function(ne){
+                aggCS[ct][pk][outcome][ne[0]]=(aggCS[ct][pk][outcome][ne[0]]||0)+ne[1];
+              });
+            });
+          });
+        });
+      });
+      // Section header
+      const seqHdr=document.createElement('div');
+      seqHdr.style.cssText='font-family:\'Bebas Neue\',sans-serif;font-size:16px;'
+        +'color:#0c4a6e;letter-spacing:2px;margin-bottom:4px;';
+      seqHdr.textContent='PITCH SEQUENCE DECISION TREES';
+      seqTab.appendChild(seqHdr);
+      const seqSubHdr=document.createElement('div');
+      seqSubHdr.style.cssText='font-size:9px;color:#475569;margin-bottom:12px;line-height:1.5;';
+      seqSubHdr.textContent='Select a count to see your pitch selection patterns, outcomes and continuations. Career data across '+seqGames.length+' games.';
+      seqTab.appendChild(seqSubHdr);
+      // Count selector
+      const allCounts=['0-0','0-1','0-2','1-0','1-1','1-2','2-0','2-1','2-2','3-0','3-1','3-2'];
+      const countGoalMap={
+        '0-0':'GET AHEAD','1-0':'HITTER COUNT','2-0':'HITTER COUNT','3-0':'HITTER COUNT',
+        '0-1':'STAY AHEAD','1-1':'EVEN','2-1':'EVEN',
+        '0-2':'FINISH','1-2':'FINISH','2-2':'FINISH','3-2':'FINISH',
+        '3-1':'HITTER COUNT'
+      };
+      const countGoalColors={
+        'GET AHEAD':'#0891b2','HITTER COUNT':'#991b1b',
+        'EVEN':'#ca8a04','STAY AHEAD':'#166534','FINISH':'#7c3aed'
+      };
+      const selectorWrap=document.createElement('div');
+      selectorWrap.style.cssText='display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;';
+      // Tree container
+      const treeContainer=document.createElement('div');
+      treeContainer.style.cssText='width:100%;min-height:300px;';
+      // Build SVG tree for a given count
+      function buildDecisionTree(ct){
+        treeContainer.innerHTML='';
+        const ctData=aggCT[ct]||{};
+        const ctOutcomes=aggCO[ct]||{};
+        const ctSeq=aggCS[ct]||{};
+        const totalFromCount=Object.values(ctData).reduce(function(a,b){return a+b;},0);
+        if(totalFromCount===0){
+          treeContainer.innerHTML='<div style="padding:20px;text-align:center;font-size:9px;color:#475569;">No pitches thrown from '+ct+' count yet.</div>';
+          return;
+        }
+        // Get top 4 pitch types
+        const topPitches=Object.entries(ctData)
+          .sort(function(a,b){return b[1]-a[1];})
+          .slice(0,4);
+        // Count goal
+        const goal=countGoalMap[ct]||'';
+        const goalColor=countGoalColors[goal]||'#0c4a6e';
+        // SVG dimensions
+        const svgW=Math.max(600,topPitches.length*160);
+        const svgH=400;
+        const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+        svg.setAttribute('viewBox','0 0 '+svgW+' '+svgH);
+        svg.setAttribute('width','100%');
+        svg.style.cssText='max-width:100%;font-family:DM Mono,monospace;';
+        // Root node
+        const rootX=svgW/2,rootY=60,rootR=40;
+        // Root circle
+        const rootCircle=document.createElementNS('http://www.w3.org/2000/svg','circle');
+        rootCircle.setAttribute('cx',rootX);
+        rootCircle.setAttribute('cy',rootY);
+        rootCircle.setAttribute('r',rootR);
+        rootCircle.setAttribute('fill','#0c4a6e');
+        rootCircle.setAttribute('stroke','#bae6fd');
+        rootCircle.setAttribute('stroke-width','2');
+        svg.appendChild(rootCircle);
+        // Root text
+        function svgText(x,y,text,size,color,weight){
+          const t=document.createElementNS('http://www.w3.org/2000/svg','text');
+          t.setAttribute('x',x);t.setAttribute('y',y);
+          t.setAttribute('text-anchor','middle');
+          t.setAttribute('font-size',size||10);
+          t.setAttribute('fill',color||'#fff');
+          t.setAttribute('font-weight',weight||'700');
+          t.setAttribute('font-family','DM Mono,monospace');
+          t.textContent=text;
+          return t;
+        }
+        svg.appendChild(svgText(rootX,rootY-8,ct,14,'#fff','700'));
+        svg.appendChild(svgText(rootX,rootY+6,'COUNT',8,'#bae6fd','400'));
+        svg.appendChild(svgText(rootX,rootY+18,totalFromCount+' pitches',7,'#93c5fd','400'));
+        // Goal badge
+        const goalRect=document.createElementNS('http://www.w3.org/2000/svg','rect');
+        goalRect.setAttribute('x',rootX-45);goalRect.setAttribute('y',rootY+rootR+4);
+        goalRect.setAttribute('width',90);goalRect.setAttribute('height',16);
+        goalRect.setAttribute('rx',4);goalRect.setAttribute('fill',goalColor);
+        svg.appendChild(goalRect);
+        svg.appendChild(svgText(rootX,rootY+rootR+15,goal,7,'#fff','700'));
+        // Pitch nodes (level 2)
+        const pitchY=200;
+        const spacing=svgW/(topPitches.length+1);
+        topPitches.forEach(function(pe,pi){
+          const pk=pe[0],cnt=pe[1];
+          const pct=Math.round(cnt/totalFromCount*100);
+          const px=spacing*(pi+1);
+          const pr=Math.max(22,Math.min(38,pct/2+18));
+          const pColor=CBCOLORS[pk]||'#334155';
+          // Line from root to pitch
+          const line=document.createElementNS('http://www.w3.org/2000/svg','line');
+          line.setAttribute('x1',rootX);line.setAttribute('y1',rootY+rootR);
+          line.setAttribute('x2',px);line.setAttribute('y2',pitchY-pr);
+          line.setAttribute('stroke','#bae6fd');line.setAttribute('stroke-width','1.5');
+          line.setAttribute('stroke-dasharray','4,2');
+          svg.appendChild(line);
+          // Pitch circle
+          const pCircle=document.createElementNS('http://www.w3.org/2000/svg','circle');
+          pCircle.setAttribute('cx',px);pCircle.setAttribute('cy',pitchY);
+          pCircle.setAttribute('r',pr);
+          pCircle.setAttribute('fill',pColor);
+          pCircle.setAttribute('stroke','#fff');
+          pCircle.setAttribute('stroke-width','1.5');
+          svg.appendChild(pCircle);
+          svg.appendChild(svgText(px,pitchY-6,pk,11,'#fff','700'));
+          svg.appendChild(svgText(px,pitchY+8,pct+'%',9,'rgba(255,255,255,0.85)','400'));
+          // Outcome nodes (level 3)
+          const pitchOutcomes=ctSeq[pk]||{};
+          // Aggregate outcomes for this pitch from countOutcomes
+          const pitchOutcomeData={};
+          Object.entries(pitchOutcomes).forEach(function(oe){
+            const outcome=oe[0];
+            const total=Object.values(oe[1]).reduce(function(a,b){return a+b;},0);
+            pitchOutcomeData[outcome]=(pitchOutcomeData[outcome]||0)+total;
+          });
+          // Also add outcomes from countOutcomes that have no continuation
+          // Group outcomes into K, FOUL, BALL, HIT, IN_PLAY
+          const grouped={K:0,FOUL:0,BALL:0,HIT:0,PLAY:0};
+          Object.entries(pitchOutcomeData).forEach(function(e){
+            const o=e[0],v=e[1];
+            if(o==='STRIKEOUT'||o==='CALLED STRIKE'||o==='SWING & MISS'||o==='CHECK SWING (STRIKE)') grouped.K+=v;
+            else if(o.startsWith('FOUL')||o==='CHECK SWING (BALL)') grouped.FOUL+=v;
+            else if(o==='BALL'||o==='CALLED BALL') grouped.BALL+=v;
+            else if(o==='SINGLE'||o==='DOUBLE'||o==='TRIPLE'||o==='HOME RUN') grouped.HIT+=v;
+            else if(o==='GROUND OUT'||o==='POP FLY') grouped.PLAY+=v;
+          });
+          const groupTotal=Object.values(grouped).reduce(function(a,b){return a+b;},0)||1;
+          const outcomeY=330;
+          const outcomeLabels={K:'★ K',FOUL:'◆ F',BALL:'○ B',HIT:'▲ H',PLAY:'□ P'};
+          const outcomeColors={K:'#166534',FOUL:'#ca8a04',BALL:'#64748b',HIT:'#991b1b',PLAY:'#1d4ed8'};
+          const activeOutcomes=Object.entries(grouped).filter(function(e){return e[1]>0;});
+          const oSpacing=Math.min(55,80/Math.max(1,activeOutcomes.length));
+          const oStartX=px-(activeOutcomes.length-1)*oSpacing/2;
+          activeOutcomes.forEach(function(oe,oi){
+            const oType=oe[0],oCount=oe[1];
+            const oPct=Math.round(oCount/groupTotal*100);
+            const ox=oStartX+oi*oSpacing;
+            const oColor=outcomeColors[oType]||'#334155';
+            // Line from pitch to outcome
+            const oLine=document.createElementNS('http://www.w3.org/2000/svg','line');
+            oLine.setAttribute('x1',px);oLine.setAttribute('y1',pitchY+pr);
+            oLine.setAttribute('x2',ox);oLine.setAttribute('y2',outcomeY-14);
+            oLine.setAttribute('stroke',oColor);oLine.setAttribute('stroke-width','1');
+            oLine.setAttribute('opacity','0.6');
+            svg.appendChild(oLine);
+            // Outcome circle
+            const oCircle=document.createElementNS('http://www.w3.org/2000/svg','circle');
+            oCircle.setAttribute('cx',ox);oCircle.setAttribute('cy',outcomeY);
+            oCircle.setAttribute('r',14);
+            oCircle.setAttribute('fill',oColor);
+            oCircle.setAttribute('stroke','#fff');
+            oCircle.setAttribute('stroke-width','1');
+            svg.appendChild(oCircle);
+            svg.appendChild(svgText(ox,outcomeY+1,outcomeLabels[oType],7,'#fff','700'));
+            svg.appendChild(svgText(ox,outcomeY+20,oPct+'%',7,'#0c4a6e','700'));
+            // Level 3 — continuation after foul if predictable
+            if(oType==='FOUL'&&oCount>3){
+              const foulSeqs=pitchOutcomes['FOUL (STRAIGHT BACK)']||
+                pitchOutcomes['FOUL (PULLED)']||pitchOutcomes['FOUL (LATE)']||{};
+              const foulTotal=Object.values(foulSeqs).reduce(function(a,b){return a+b;},0)||1;
+              const topNext=Object.entries(foulSeqs).sort(function(a,b){return b[1]-a[1];})[0];
+              if(topNext&&topNext[1]/foulTotal>=0.60){
+                // Show level 3 — predictable continuation
+                const l3x=ox,l3y=outcomeY+50;
+                const l3Line=document.createElementNS('http://www.w3.org/2000/svg','line');
+                l3Line.setAttribute('x1',ox);l3Line.setAttribute('y1',outcomeY+14);
+                l3Line.setAttribute('x2',l3x);l3Line.setAttribute('y2',l3y-8);
+                l3Line.setAttribute('stroke','#f59e0b');l3Line.setAttribute('stroke-width','1.5');
+                l3Line.setAttribute('stroke-dasharray','3,2');
+                svg.appendChild(l3Line);
+                const l3Rect=document.createElementNS('http://www.w3.org/2000/svg','rect');
+                l3Rect.setAttribute('x',l3x-28);l3Rect.setAttribute('y',l3y-8);
+                l3Rect.setAttribute('width',56);l3Rect.setAttribute('height',20);
+                l3Rect.setAttribute('rx',4);l3Rect.setAttribute('fill','#fef3c7');
+                l3Rect.setAttribute('stroke','#f59e0b');l3Rect.setAttribute('stroke-width','1');
+                svg.appendChild(l3Rect);
+                svg.appendChild(svgText(l3x,l3y+6,
+                  topNext[0]+' '+Math.round(topNext[1]/foulTotal*100)+'%',
+                  6,'#92400e','700'));
+              }
+            }
+          });
+        });
+        // Legend
+        const legendY=svgH-20;
+        const legendItems=[
+          {symbol:'★',label:'Strikeout',color:'#166534'},
+          {symbol:'◆',label:'Foul',color:'#ca8a04'},
+          {symbol:'○',label:'Ball',color:'#64748b'},
+          {symbol:'▲',label:'Hit',color:'#991b1b'},
+          {symbol:'□',label:'In Play',color:'#1d4ed8'}
+        ];
+        legendItems.forEach(function(item,i){
+          const lx=40+i*110;
+          const lCircle=document.createElementNS('http://www.w3.org/2000/svg','circle');
+          lCircle.setAttribute('cx',lx);lCircle.setAttribute('cy',legendY);
+          lCircle.setAttribute('r',7);lCircle.setAttribute('fill',item.color);
+          svg.appendChild(lCircle);
+          svg.appendChild(svgText(lx,legendY+1,item.symbol,6,'#fff','700'));
+          svg.appendChild(svgText(lx+12,legendY+4,item.label,7,item.color,'600'));
+        });
+        treeContainer.appendChild(svg);
+      }
+      // Build count selector buttons
+      allCounts.forEach(function(ct,ci){
+        const totalFromCount=Object.values(aggCT[ct]||{}).reduce(function(a,b){return a+b;},0);
+        const btn=document.createElement('button');
+        const goal=countGoalMap[ct]||'';
+        const goalColor=countGoalColors[goal]||'#0c4a6e';
+        btn.style.cssText='padding:6px 10px;border-radius:6px;cursor:pointer;'
+          +'font-family:\'DM Mono\',monospace;font-size:9px;font-weight:700;'
+          +'border:1.5px solid '+goalColor+';background:transparent;color:'+goalColor+';'
+          +'display:flex;flex-direction:column;align-items:center;gap:1px;min-width:52px;';
+        btn.innerHTML='<span style="font-family:\'Bebas Neue\',sans-serif;font-size:14px;letter-spacing:1px;">'+ct+'</span>'
+          +'<span style="font-size:7px;opacity:0.8;">'+totalFromCount+' pitches</span>';
+        btn.onclick=function(){
+          // Update active state
+          selectorWrap.querySelectorAll('button').forEach(function(b){
+            b.style.background='transparent';
+            b.style.color=b._goalColor;
+          });
+          btn.style.background=goalColor;
+          btn.style.color='#fff';
+          buildDecisionTree(ct);
+        };
+        btn._goalColor=goalColor;
+        selectorWrap.appendChild(btn);
+        // Show first count by default
+        if(ci===0){
+          btn.style.background=goalColor;
+          btn.style.color='#fff';
+        }
+      });
+      seqTab.appendChild(selectorWrap);
+      seqTab.appendChild(treeContainer);
+      // Build default tree for 0-0
+      buildDecisionTree('0-0');
+      // Export button
+      const seqExportBtn=document.createElement('button');
+      seqExportBtn.style.cssText='width:100%;margin-top:16px;padding:10px;border-radius:6px;'
+        +'border:1px solid #0c4a6e;background:#e0f2fe;color:#0c4a6e;'
+        +'font-family:\'Bebas Neue\',sans-serif;font-size:14px;letter-spacing:2px;cursor:pointer;';
+      seqExportBtn.textContent='EXPORT SEQUENCES REPORT TO PDF';
+      seqExportBtn.onclick=function(){
+        try{
+          const raw=localStorage.getItem('pitchseq-game-history');
+          const history=raw?JSON.parse(raw):[];
+          const exportData={
+            tab:'sequences',
+            games:history,
+            profile:typeof getProfile==='function'?getProfile():null,
+            generatedAt:Date.now()
+          };
+          localStorage.setItem('pitchseq-report-export',JSON.stringify(exportData));
+          window.open('report.html?tab=sequences','_blank');
+        }catch(e){alert('Could not export report.');}
+      };
+      seqTab.appendChild(seqExportBtn);
+    }
+  }catch(e){
+    const seqErr=document.createElement('div');
+    seqErr.style.cssText='padding:20px;color:#991b1b;font-size:11px;';
+    seqErr.textContent='Error loading sequence data: '+e.message;
+    seqTab.appendChild(seqErr);
+  }
+
   overlay.appendChild(card);
   document.body.appendChild(overlay);
 }
