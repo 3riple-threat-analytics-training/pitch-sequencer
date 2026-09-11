@@ -2701,20 +2701,66 @@ function showGameReport(game,title,onClose){
             // Line from pitch to outcome
             const oLine=document.createElementNS('http://www.w3.org/2000/svg','line');
             oLine.setAttribute('x1',px);oLine.setAttribute('y1',pitchY+pr);
-            oLine.setAttribute('x2',ox);oLine.setAttribute('y2',outcomeY-14);
+            oLine.setAttribute('x2',ox);oLine.setAttribute('y2',outcomeY-16);
             oLine.setAttribute('stroke',oColor);oLine.setAttribute('stroke-width','1');
-            oLine.setAttribute('opacity','0.6');
+            oLine.setAttribute('opacity','0.5');
             svg.appendChild(oLine);
-            // Outcome circle
-            const oCircle=document.createElementNS('http://www.w3.org/2000/svg','circle');
-            oCircle.setAttribute('cx',ox);oCircle.setAttribute('cy',outcomeY);
-            oCircle.setAttribute('r',14);
-            oCircle.setAttribute('fill',oColor);
-            oCircle.setAttribute('stroke','#fff');
-            oCircle.setAttribute('stroke-width','1');
-            svg.appendChild(oCircle);
-            svg.appendChild(svgText(ox,outcomeY+1,outcomeLabels[oType],7,'#fff','700'));
-            svg.appendChild(svgText(ox,outcomeY+20,oPct+'%',7,'#0c4a6e','700'));
+            // Draw outcome shape based on type
+            const shapeSize=12;
+            if(oType==='K'){
+              // 5-pointed star
+              const starPoints=[];
+              for(let si=0;si<10;si++){
+                const angle=(si*Math.PI/5)-Math.PI/2;
+                const r=si%2===0?shapeSize:shapeSize*0.45;
+                starPoints.push((ox+r*Math.cos(angle)).toFixed(1)+','+(outcomeY+r*Math.sin(angle)).toFixed(1));
+              }
+              const star=document.createElementNS('http://www.w3.org/2000/svg','polygon');
+              star.setAttribute('points',starPoints.join(' '));
+              star.setAttribute('fill',oColor);star.setAttribute('stroke','#fff');
+              star.setAttribute('stroke-width','1');
+              svg.appendChild(star);
+            } else if(oType==='FOUL'){
+              // Diamond (rotated square)
+              const diamond=document.createElementNS('http://www.w3.org/2000/svg','polygon');
+              diamond.setAttribute('points',
+                ox+','+(outcomeY-shapeSize)+' '+
+                (ox+shapeSize)+','+outcomeY+' '+
+                ox+','+(outcomeY+shapeSize)+' '+
+                (ox-shapeSize)+','+outcomeY);
+              diamond.setAttribute('fill',oColor);diamond.setAttribute('stroke','#fff');
+              diamond.setAttribute('stroke-width','1');
+              svg.appendChild(diamond);
+            } else if(oType==='BALL'){
+              // Circle
+              const ballC=document.createElementNS('http://www.w3.org/2000/svg','circle');
+              ballC.setAttribute('cx',ox);ballC.setAttribute('cy',outcomeY);
+              ballC.setAttribute('r',shapeSize);
+              ballC.setAttribute('fill',oColor);ballC.setAttribute('stroke','#fff');
+              ballC.setAttribute('stroke-width','1');
+              svg.appendChild(ballC);
+            } else if(oType==='HIT'){
+              // Triangle
+              const tri=document.createElementNS('http://www.w3.org/2000/svg','polygon');
+              tri.setAttribute('points',
+                ox+','+(outcomeY-shapeSize)+' '+
+                (ox+shapeSize)+','+(outcomeY+shapeSize)+' '+
+                (ox-shapeSize)+','+(outcomeY+shapeSize));
+              tri.setAttribute('fill',oColor);tri.setAttribute('stroke','#fff');
+              tri.setAttribute('stroke-width','1');
+              svg.appendChild(tri);
+            } else if(oType==='PLAY'){
+              // Rounded square
+              const sq=document.createElementNS('http://www.w3.org/2000/svg','rect');
+              sq.setAttribute('x',ox-shapeSize);sq.setAttribute('y',outcomeY-shapeSize);
+              sq.setAttribute('width',shapeSize*2);sq.setAttribute('height',shapeSize*2);
+              sq.setAttribute('rx',4);
+              sq.setAttribute('fill',oColor);sq.setAttribute('stroke','#fff');
+              sq.setAttribute('stroke-width','1');
+              svg.appendChild(sq);
+            }
+            // Percentage label below shape
+            svg.appendChild(svgText(ox,outcomeY+shapeSize+12,oPct+'%',8,'#0c4a6e','700'));
             // Level 3 — continuation after foul if predictable
             if(oType==='FOUL'&&oCount>3){
               const foulSeqs=pitchOutcomes['FOUL (STRAIGHT BACK)']||
@@ -2762,12 +2808,37 @@ function showGameReport(game,title,onClose){
         const lSpacing=(svgW-60)/legendItems.length;
         legendItems.forEach(function(item,i){
           const lx=50+i*lSpacing;
-          const lCircle=document.createElementNS('http://www.w3.org/2000/svg','circle');
-          lCircle.setAttribute('cx',lx);lCircle.setAttribute('cy',legendY);
-          lCircle.setAttribute('r',9);lCircle.setAttribute('fill',item.color);
-          svg.appendChild(lCircle);
-          svg.appendChild(svgText(lx,legendY+3,item.symbol,8,'#fff','700'));
-          svg.appendChild(svgText(lx+14,legendY+4,item.label,9,item.color,'700'));
+          const ls=8; // legend shape size
+          // Draw legend shape
+          if(item.label==='Strikeout'){
+            const sp=[];
+            for(let si=0;si<10;si++){
+              const a=(si*Math.PI/5)-Math.PI/2;
+              const r=si%2===0?ls:ls*0.45;
+              sp.push((lx+r*Math.cos(a)).toFixed(1)+','+(legendY+r*Math.sin(a)).toFixed(1));
+            }
+            const s=document.createElementNS('http://www.w3.org/2000/svg','polygon');
+            s.setAttribute('points',sp.join(' '));s.setAttribute('fill',item.color);
+            svg.appendChild(s);
+          } else if(item.label==='Foul'){
+            const d=document.createElementNS('http://www.w3.org/2000/svg','polygon');
+            d.setAttribute('points',lx+','+(legendY-ls)+' '+(lx+ls)+','+legendY+' '+lx+','+(legendY+ls)+' '+(lx-ls)+','+legendY);
+            d.setAttribute('fill',item.color);svg.appendChild(d);
+          } else if(item.label==='Ball'){
+            const c=document.createElementNS('http://www.w3.org/2000/svg','circle');
+            c.setAttribute('cx',lx);c.setAttribute('cy',legendY);c.setAttribute('r',ls);
+            c.setAttribute('fill',item.color);svg.appendChild(c);
+          } else if(item.label==='Hit'){
+            const t=document.createElementNS('http://www.w3.org/2000/svg','polygon');
+            t.setAttribute('points',lx+','+(legendY-ls)+' '+(lx+ls)+','+(legendY+ls)+' '+(lx-ls)+','+(legendY+ls));
+            t.setAttribute('fill',item.color);svg.appendChild(t);
+          } else {
+            const sq=document.createElementNS('http://www.w3.org/2000/svg','rect');
+            sq.setAttribute('x',lx-ls);sq.setAttribute('y',legendY-ls);
+            sq.setAttribute('width',ls*2);sq.setAttribute('height',ls*2);
+            sq.setAttribute('rx',3);sq.setAttribute('fill',item.color);svg.appendChild(sq);
+          }
+          svg.appendChild(svgText(lx+ls+6,legendY+4,item.label,9,item.color,'700'));
         });
         treeContainer.appendChild(svg);
       }
