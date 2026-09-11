@@ -2590,7 +2590,7 @@ function showGameReport(game,title,onClose){
         const goal=countGoalMap[ct]||'';
         const goalColor=countGoalColors[goal]||'#0c4a6e';
         // SVG dimensions
-        const svgW=Math.max(600,topPitches.length*160);
+        const svgW=Math.max(800,topPitches.length*220);
         const svgH=520;
         const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
         svg.setAttribute('viewBox','0 0 '+svgW+' '+svgH);
@@ -2691,7 +2691,7 @@ function showGameReport(game,title,onClose){
           const outcomeLabels={K:'★ K',FOUL:'◆ F',BALL:'○ B',HIT:'▲ H',PLAY:'□ P'};
           const outcomeColors={K:'#166534',FOUL:'#ca8a04',BALL:'#64748b',HIT:'#991b1b',PLAY:'#1d4ed8'};
           const activeOutcomes=Object.entries(grouped).filter(function(e){return e[1]>0;});
-          const oSpacing=44;
+          const oSpacing=38;
           const oStartX=px-(activeOutcomes.length-1)*oSpacing/2;
           activeOutcomes.forEach(function(oe,oi){
             const oType=oe[0],oCount=oe[1];
@@ -2759,8 +2759,8 @@ function showGameReport(game,title,onClose){
               sq.setAttribute('stroke-width','1');
               svg.appendChild(sq);
             }
-            // Percentage label below shape
-            svg.appendChild(svgText(ox,outcomeY+shapeSize+12,oPct+'%',8,'#0c4a6e','700'));
+            // Percentage label above shape
+            svg.appendChild(svgText(ox,outcomeY-shapeSize-4,oPct+'%',7,'#334155','600'));
             // Level 3 — continuation after foul if predictable
             if(oType==='FOUL'&&oCount>3){
               const foulSeqs=pitchOutcomes['FOUL (STRAIGHT BACK)']||
@@ -2805,10 +2805,10 @@ function showGameReport(game,title,onClose){
         legendBg.setAttribute('rx',4);legendBg.setAttribute('fill','#f0f9ff');
         legendBg.setAttribute('stroke','#bae6fd');legendBg.setAttribute('stroke-width','1');
         svg.appendChild(legendBg);
-        const lSpacing=(svgW-60)/legendItems.length;
+        const lSpacing=(svgW-40)/legendItems.length;
         legendItems.forEach(function(item,i){
-          const lx=50+i*lSpacing;
-          const ls=8; // legend shape size
+          const lx=30+i*lSpacing;
+          const ls=7; // legend shape size — matches text height
           // Draw legend shape
           if(item.label==='Strikeout'){
             const sp=[];
