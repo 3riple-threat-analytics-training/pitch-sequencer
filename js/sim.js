@@ -2591,7 +2591,7 @@ function showGameReport(game,title,onClose){
         const goalColor=countGoalColors[goal]||'#0c4a6e';
         // SVG dimensions
         const svgW=Math.max(600,topPitches.length*160);
-        const svgH=400;
+        const svgH=520;
         const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
         svg.setAttribute('viewBox','0 0 '+svgW+' '+svgH);
         svg.setAttribute('width','100%');
@@ -2676,11 +2676,11 @@ function showGameReport(game,title,onClose){
             else if(o==='GROUND OUT'||o==='POP FLY') grouped.PLAY+=v;
           });
           const groupTotal=Object.values(grouped).reduce(function(a,b){return a+b;},0)||1;
-          const outcomeY=330;
+          const outcomeY=360;
           const outcomeLabels={K:'★ K',FOUL:'◆ F',BALL:'○ B',HIT:'▲ H',PLAY:'□ P'};
           const outcomeColors={K:'#166534',FOUL:'#ca8a04',BALL:'#64748b',HIT:'#991b1b',PLAY:'#1d4ed8'};
           const activeOutcomes=Object.entries(grouped).filter(function(e){return e[1]>0;});
-          const oSpacing=Math.min(55,80/Math.max(1,activeOutcomes.length));
+          const oSpacing=44;
           const oStartX=px-(activeOutcomes.length-1)*oSpacing/2;
           activeOutcomes.forEach(function(oe,oi){
             const oType=oe[0],oCount=oe[1];
@@ -2733,7 +2733,7 @@ function showGameReport(game,title,onClose){
           });
         });
         // Legend
-        const legendY=svgH-20;
+        const legendY=svgH-40;
         const legendItems=[
           {symbol:'★',label:'Strikeout',color:'#166534'},
           {symbol:'◆',label:'Foul',color:'#ca8a04'},
@@ -2741,14 +2741,22 @@ function showGameReport(game,title,onClose){
           {symbol:'▲',label:'Hit',color:'#991b1b'},
           {symbol:'□',label:'In Play',color:'#1d4ed8'}
         ];
+        // Legend background
+        const legendBg=document.createElementNS('http://www.w3.org/2000/svg','rect');
+        legendBg.setAttribute('x',10);legendBg.setAttribute('y',legendY-16);
+        legendBg.setAttribute('width',svgW-20);legendBg.setAttribute('height',28);
+        legendBg.setAttribute('rx',4);legendBg.setAttribute('fill','#f0f9ff');
+        legendBg.setAttribute('stroke','#bae6fd');legendBg.setAttribute('stroke-width','1');
+        svg.appendChild(legendBg);
+        const lSpacing=(svgW-40)/legendItems.length;
         legendItems.forEach(function(item,i){
-          const lx=40+i*110;
+          const lx=30+i*lSpacing;
           const lCircle=document.createElementNS('http://www.w3.org/2000/svg','circle');
           lCircle.setAttribute('cx',lx);lCircle.setAttribute('cy',legendY);
-          lCircle.setAttribute('r',7);lCircle.setAttribute('fill',item.color);
+          lCircle.setAttribute('r',8);lCircle.setAttribute('fill',item.color);
           svg.appendChild(lCircle);
-          svg.appendChild(svgText(lx,legendY+1,item.symbol,6,'#fff','700'));
-          svg.appendChild(svgText(lx+12,legendY+4,item.label,7,item.color,'600'));
+          svg.appendChild(svgText(lx,legendY+3,item.symbol,7,'#fff','700'));
+          svg.appendChild(svgText(lx+14,legendY+4,item.label,8,item.color,'700'));
         });
         treeContainer.appendChild(svg);
       }
