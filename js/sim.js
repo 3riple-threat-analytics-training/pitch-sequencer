@@ -2657,15 +2657,26 @@ function showGameReport(game,title,onClose){
           svg.appendChild(svgText(px,pitchY+8,pct+'%',9,'rgba(255,255,255,0.85)','400'));
           // Outcome nodes (level 3)
           const pitchOutcomes=ctSeq[pk]||{};
-          // Aggregate outcomes for this pitch from countOutcomes
+          // Build outcome data from countOutcomes (works even without countSequences)
+          const ctOutcomeData=aggCO[ct]||{};
+          const pitchTotal=ctData[pk]||0;
+          const ctTotal=Object.values(ctData).reduce(function(a,b){return a+b;},0)||1;
+          const pitchFraction=pitchTotal/ctTotal;
+          // Estimate per-pitch outcomes proportionally from count outcomes
           const pitchOutcomeData={};
-          Object.entries(pitchOutcomes).forEach(function(oe){
-            const outcome=oe[0];
-            const total=Object.values(oe[1]).reduce(function(a,b){return a+b;},0);
-            pitchOutcomeData[outcome]=(pitchOutcomeData[outcome]||0)+total;
+          Object.entries(ctOutcomeData).forEach(function(e){
+            pitchOutcomeData[e[0]]=Math.round(e[1]*pitchFraction);
           });
-          // Also add outcomes from countOutcomes that have no continuation
-          // Group outcomes into K, FOUL, BALL, HIT, IN_PLAY
+          // Override with countSequences data if available
+          const pitchSeqOutcomes=ctSeq[pk]||{};
+          if(Object.keys(pitchSeqOutcomes).length>0){
+            Object.entries(pitchSeqOutcomes).forEach(function(oe){
+              const outcome=oe[0];
+              const total=Object.values(oe[1]).reduce(function(a,b){return a+b;},0);
+              pitchOutcomeData[outcome]=(pitchOutcomeData[outcome]||0)+total;
+            });
+          }
+          // Group outcomes into K, FOUL, BALL, HIT, PLAY
           const grouped={K:0,FOUL:0,BALL:0,HIT:0,PLAY:0};
           Object.entries(pitchOutcomeData).forEach(function(e){
             const o=e[0],v=e[1];
@@ -2748,15 +2759,15 @@ function showGameReport(game,title,onClose){
         legendBg.setAttribute('rx',4);legendBg.setAttribute('fill','#f0f9ff');
         legendBg.setAttribute('stroke','#bae6fd');legendBg.setAttribute('stroke-width','1');
         svg.appendChild(legendBg);
-        const lSpacing=(svgW-40)/legendItems.length;
+        const lSpacing=(svgW-60)/legendItems.length;
         legendItems.forEach(function(item,i){
-          const lx=30+i*lSpacing;
+          const lx=50+i*lSpacing;
           const lCircle=document.createElementNS('http://www.w3.org/2000/svg','circle');
           lCircle.setAttribute('cx',lx);lCircle.setAttribute('cy',legendY);
-          lCircle.setAttribute('r',8);lCircle.setAttribute('fill',item.color);
+          lCircle.setAttribute('r',9);lCircle.setAttribute('fill',item.color);
           svg.appendChild(lCircle);
-          svg.appendChild(svgText(lx,legendY+3,item.symbol,7,'#fff','700'));
-          svg.appendChild(svgText(lx+14,legendY+4,item.label,8,item.color,'700'));
+          svg.appendChild(svgText(lx,legendY+3,item.symbol,8,'#fff','700'));
+          svg.appendChild(svgText(lx+14,legendY+4,item.label,9,item.color,'700'));
         });
         treeContainer.appendChild(svg);
       }
