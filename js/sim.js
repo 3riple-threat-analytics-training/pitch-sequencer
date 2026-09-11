@@ -308,6 +308,7 @@ function saveGameHistory(){
     const outcomes={};
     const countTendencies={};
     const countOutcomes={};
+    const countSequences={}; // count→pitch→outcome→nextPitch
     const vsBatterType={};
     const vsLHB={pitchMix:{},zoneMap:{},outcomes:{}};
     const vsRHB={pitchMix:{},zoneMap:{},outcomes:{}};
@@ -344,6 +345,20 @@ function saveGameHistory(){
       // Count outcomes — track outcomes per count for trend analysis
       if(!countOutcomes[count]) countOutcomes[count]={};
       countOutcomes[count][outcome]=(countOutcomes[count][outcome]||0)+1;
+      // Count sequences — for decision tree: what pitch follows each outcome
+      if(i>0){
+        const prev=pitches[i-1];
+        const prevCount=prev.count||'0-0';
+        const prevPk=prev.pk||'';
+        const prevOutcome=prev.outcome||'';
+        if(prevPk&&prevOutcome){
+          if(!countSequences[prevCount]) countSequences[prevCount]={};
+          if(!countSequences[prevCount][prevPk]) countSequences[prevCount][prevPk]={};
+          if(!countSequences[prevCount][prevPk][prevOutcome]) countSequences[prevCount][prevPk][prevOutcome]={};
+          countSequences[prevCount][prevPk][prevOutcome][pk]=
+            (countSequences[prevCount][prevPk][prevOutcome][pk]||0)+1;
+        }
+      }
       // By batter handedness
       const side=bh==='RHB'?vsRHB:vsLHB;
       side.pitchMix[pk]=(side.pitchMix[pk]||0)+1;
@@ -383,7 +398,7 @@ function saveGameHistory(){
         return vbt;
       })(),
       pitchMix,zoneMap,firstPitches,sequences,
-      outcomes,countTendencies,countOutcomes,vsBatterType,vsLHB,vsRHB
+      outcomes,countTendencies,countOutcomes,countSequences,vsBatterType,vsLHB,vsRHB
     };
     // Load existing history
     const raw=localStorage.getItem('pitchseq-game-history');
