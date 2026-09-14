@@ -2805,47 +2805,23 @@ function showGameReport(game,title,onClose){
           {label:'Hit',color:'#991b1b',type:'HIT'},
           {label:'In Play',color:'#1d4ed8',type:'PLAY'}
         ];
-        // Legend background
+        // Simple legend — colored dot + label, no shape overlap
         const legendBg=document.createElementNS('http://www.w3.org/2000/svg','rect');
-        legendBg.setAttribute('x',10);legendBg.setAttribute('y',legendY-16);
-        legendBg.setAttribute('width',svgW-20);legendBg.setAttribute('height',28);
+        legendBg.setAttribute('x',10);legendBg.setAttribute('y',legendY-14);
+        legendBg.setAttribute('width',svgW-20);legendBg.setAttribute('height',24);
         legendBg.setAttribute('rx',4);legendBg.setAttribute('fill','#f0f9ff');
         legendBg.setAttribute('stroke','#bae6fd');legendBg.setAttribute('stroke-width','1');
         svg.appendChild(legendBg);
         const lSpacing=(svgW-40)/legendItems.length;
         legendItems.forEach(function(item,i){
-          const lx=30+i*lSpacing;
-          const ls=7; // legend shape size — matches text height
-          // Draw legend shape
-          if(item.type==='K'){
-            const sp=[];
-            for(let si=0;si<10;si++){
-              const a=(si*Math.PI/5)-Math.PI/2;
-              const r=si%2===0?ls:ls*0.45;
-              sp.push((lx+r*Math.cos(a)).toFixed(1)+','+(legendY+r*Math.sin(a)).toFixed(1));
-            }
-            const s=document.createElementNS('http://www.w3.org/2000/svg','polygon');
-            s.setAttribute('points',sp.join(' '));s.setAttribute('fill',item.color);
-            svg.appendChild(s);
-          } else if(item.type==='FOUL'){
-            const d=document.createElementNS('http://www.w3.org/2000/svg','polygon');
-            d.setAttribute('points',lx+','+(legendY-ls)+' '+(lx+ls)+','+legendY+' '+lx+','+(legendY+ls)+' '+(lx-ls)+','+legendY);
-            d.setAttribute('fill',item.color);svg.appendChild(d);
-          } else if(item.type==='BALL'){
-            const c=document.createElementNS('http://www.w3.org/2000/svg','circle');
-            c.setAttribute('cx',lx);c.setAttribute('cy',legendY);c.setAttribute('r',ls);
-            c.setAttribute('fill',item.color);svg.appendChild(c);
-          } else if(item.type==='HIT'){
-            const t=document.createElementNS('http://www.w3.org/2000/svg','polygon');
-            t.setAttribute('points',lx+','+(legendY-ls)+' '+(lx+ls)+','+(legendY+ls)+' '+(lx-ls)+','+(legendY+ls));
-            t.setAttribute('fill',item.color);svg.appendChild(t);
-          } else {
-            const sq=document.createElementNS('http://www.w3.org/2000/svg','rect');
-            sq.setAttribute('x',lx-ls);sq.setAttribute('y',legendY-ls);
-            sq.setAttribute('width',ls*2);sq.setAttribute('height',ls*2);
-            sq.setAttribute('rx',3);sq.setAttribute('fill',item.color);svg.appendChild(sq);
-          }
-          svg.appendChild(svgText(lx+ls+10,legendY+4,item.label,9,item.color,'700'));
+          const lx=28+i*lSpacing;
+          // Small colored dot
+          const dot=document.createElementNS('http://www.w3.org/2000/svg','circle');
+          dot.setAttribute('cx',lx);dot.setAttribute('cy',legendY);
+          dot.setAttribute('r',5);dot.setAttribute('fill',item.color);
+          svg.appendChild(dot);
+          // Label text starting after dot with clear gap
+          svg.appendChild(svgText(lx+10,legendY+4,item.label,9,item.color,'700'));
         });
         treeContainer.appendChild(svg);
       }
