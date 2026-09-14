@@ -2795,7 +2795,7 @@ function showGameReport(game,title,onClose){
           });
         });
         // Legend
-        const legendY=svgH-40;
+        // Legend — top right vertical stack
         const twoStrikeCountsLegend=['0-2','1-2','2-2','3-2'];
         const isFinishLegend=twoStrikeCountsLegend.includes(ct);
         const legendItems=[
@@ -2805,23 +2805,31 @@ function showGameReport(game,title,onClose){
           {label:'Hit',color:'#991b1b',type:'HIT'},
           {label:'In Play',color:'#1d4ed8',type:'PLAY'}
         ];
-        // Simple legend — colored dot + label, no shape overlap
+        const legendX=svgW-120;
+        const legendStartY=20;
+        const legendRowH=22;
+        // Legend background box
         const legendBg=document.createElementNS('http://www.w3.org/2000/svg','rect');
-        legendBg.setAttribute('x',10);legendBg.setAttribute('y',legendY-14);
-        legendBg.setAttribute('width',svgW-20);legendBg.setAttribute('height',24);
-        legendBg.setAttribute('rx',4);legendBg.setAttribute('fill','#f0f9ff');
-        legendBg.setAttribute('stroke','#bae6fd');legendBg.setAttribute('stroke-width','1');
+        legendBg.setAttribute('x',legendX-8);
+        legendBg.setAttribute('y',legendStartY-12);
+        legendBg.setAttribute('width',118);
+        legendBg.setAttribute('height',legendItems.length*legendRowH+10);
+        legendBg.setAttribute('rx',6);
+        legendBg.setAttribute('fill','#f0f9ff');
+        legendBg.setAttribute('stroke','#bae6fd');
+        legendBg.setAttribute('stroke-width','1');
         svg.appendChild(legendBg);
-        const lSpacing=(svgW-40)/legendItems.length;
+        // LEGEND title
+        svg.appendChild(svgText(legendX+51,legendStartY-2,'LEGEND',7,'#5a8aaa','700'));
         legendItems.forEach(function(item,i){
-          const lx=28+i*lSpacing;
-          // Small colored dot
+          const ly=legendStartY+10+i*legendRowH;
+          // Colored dot
           const dot=document.createElementNS('http://www.w3.org/2000/svg','circle');
-          dot.setAttribute('cx',lx);dot.setAttribute('cy',legendY);
-          dot.setAttribute('r',5);dot.setAttribute('fill',item.color);
+          dot.setAttribute('cx',legendX+8);dot.setAttribute('cy',ly);
+          dot.setAttribute('r',6);dot.setAttribute('fill',item.color);
           svg.appendChild(dot);
-          // Label text starting after dot with clear gap
-          svg.appendChild(svgText(lx+10,legendY+4,item.label,9,item.color,'700'));
+          // Label — starts well after dot
+          svg.appendChild(svgText(legendX+22,ly+4,item.label,10,item.color,'700'));
         });
         treeContainer.appendChild(svg);
       }
