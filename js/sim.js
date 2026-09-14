@@ -2688,7 +2688,12 @@ function showGameReport(game,title,onClose){
           });
           const groupTotal=Object.values(grouped).reduce(function(a,b){return a+b;},0)||1;
           const outcomeY=360;
-          const outcomeLabels={K:'★ K',FOUL:'◆ F',BALL:'○ B',HIT:'▲ H',PLAY:'□ P'};
+          // Two-strike counts can produce strikeouts; others produce strikes only
+          const twoStrikeCounts=['0-2','1-2','2-2','3-2'];
+          const isFinishCount=twoStrikeCounts.includes(ct);
+          const kLabel=isFinishCount?'K':'S';
+          const kFullLabel=isFinishCount?'Strikeout':'Strike';
+          const outcomeLabels={K:kLabel,FOUL:'F',BALL:'B',HIT:'H',PLAY:'P'};
           const outcomeColors={K:'#166534',FOUL:'#ca8a04',BALL:'#64748b',HIT:'#991b1b',PLAY:'#1d4ed8'};
           const activeOutcomes=Object.entries(grouped).filter(function(e){return e[1]>0;});
           const oSpacing=38;
@@ -2791,12 +2796,14 @@ function showGameReport(game,title,onClose){
         });
         // Legend
         const legendY=svgH-40;
+        const twoStrikeCountsLegend=['0-2','1-2','2-2','3-2'];
+        const isFinishLegend=twoStrikeCountsLegend.includes(ct);
         const legendItems=[
-          {symbol:'★',label:'Strikeout',color:'#166534'},
-          {symbol:'◆',label:'Foul',color:'#ca8a04'},
-          {symbol:'○',label:'Ball',color:'#64748b'},
-          {symbol:'▲',label:'Hit',color:'#991b1b'},
-          {symbol:'□',label:'In Play',color:'#1d4ed8'}
+          {label:isFinishLegend?'Strikeout':'Strike',color:'#166534',type:'K'},
+          {label:'Foul',color:'#ca8a04',type:'FOUL'},
+          {label:'Ball',color:'#64748b',type:'BALL'},
+          {label:'Hit',color:'#991b1b',type:'HIT'},
+          {label:'In Play',color:'#1d4ed8',type:'PLAY'}
         ];
         // Legend background
         const legendBg=document.createElementNS('http://www.w3.org/2000/svg','rect');
@@ -2810,7 +2817,7 @@ function showGameReport(game,title,onClose){
           const lx=30+i*lSpacing;
           const ls=7; // legend shape size — matches text height
           // Draw legend shape
-          if(item.label==='Strikeout'){
+          if(item.type==='K'){
             const sp=[];
             for(let si=0;si<10;si++){
               const a=(si*Math.PI/5)-Math.PI/2;
@@ -2820,15 +2827,15 @@ function showGameReport(game,title,onClose){
             const s=document.createElementNS('http://www.w3.org/2000/svg','polygon');
             s.setAttribute('points',sp.join(' '));s.setAttribute('fill',item.color);
             svg.appendChild(s);
-          } else if(item.label==='Foul'){
+          } else if(item.type==='FOUL'){
             const d=document.createElementNS('http://www.w3.org/2000/svg','polygon');
             d.setAttribute('points',lx+','+(legendY-ls)+' '+(lx+ls)+','+legendY+' '+lx+','+(legendY+ls)+' '+(lx-ls)+','+legendY);
             d.setAttribute('fill',item.color);svg.appendChild(d);
-          } else if(item.label==='Ball'){
+          } else if(item.type==='BALL'){
             const c=document.createElementNS('http://www.w3.org/2000/svg','circle');
             c.setAttribute('cx',lx);c.setAttribute('cy',legendY);c.setAttribute('r',ls);
             c.setAttribute('fill',item.color);svg.appendChild(c);
-          } else if(item.label==='Hit'){
+          } else if(item.type==='HIT'){
             const t=document.createElementNS('http://www.w3.org/2000/svg','polygon');
             t.setAttribute('points',lx+','+(legendY-ls)+' '+(lx+ls)+','+(legendY+ls)+' '+(lx-ls)+','+(legendY+ls));
             t.setAttribute('fill',item.color);svg.appendChild(t);
@@ -2838,7 +2845,7 @@ function showGameReport(game,title,onClose){
             sq.setAttribute('width',ls*2);sq.setAttribute('height',ls*2);
             sq.setAttribute('rx',3);sq.setAttribute('fill',item.color);svg.appendChild(sq);
           }
-          svg.appendChild(svgText(lx+ls+6,legendY+4,item.label,9,item.color,'700'));
+          svg.appendChild(svgText(lx+ls+10,legendY+4,item.label,9,item.color,'700'));
         });
         treeContainer.appendChild(svg);
       }
