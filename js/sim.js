@@ -2820,7 +2820,16 @@ function showGameReport(game,title,onClose){
         legendBg.setAttribute('stroke-width','1');
         svg.appendChild(legendBg);
         // LEGEND title
-        svg.appendChild(svgText(legendX+51,legendStartY-2,'LEGEND',7,'#5a8aaa','700'));
+        const lgTitle=document.createElementNS('http://www.w3.org/2000/svg','text');
+        lgTitle.setAttribute('x',legendX-2);
+        lgTitle.setAttribute('y',legendStartY-2);
+        lgTitle.setAttribute('text-anchor','start');
+        lgTitle.setAttribute('font-size',7);
+        lgTitle.setAttribute('fill','#5a8aaa');
+        lgTitle.setAttribute('font-weight','700');
+        lgTitle.setAttribute('font-family','DM Mono,monospace');
+        lgTitle.textContent='LEGEND';
+        svg.appendChild(lgTitle);
         legendItems.forEach(function(item,i){
           const ly=legendStartY+10+i*legendRowH;
           // Colored dot
@@ -2828,8 +2837,17 @@ function showGameReport(game,title,onClose){
           dot.setAttribute('cx',legendX+8);dot.setAttribute('cy',ly);
           dot.setAttribute('r',6);dot.setAttribute('fill',item.color);
           svg.appendChild(dot);
-          // Label — starts well after dot
-          svg.appendChild(svgText(legendX+22,ly+4,item.label,10,item.color,'700'));
+          // Label — left aligned, starts after dot
+          const lText=document.createElementNS('http://www.w3.org/2000/svg','text');
+          lText.setAttribute('x',legendX+20);
+          lText.setAttribute('y',ly+4);
+          lText.setAttribute('text-anchor','start');
+          lText.setAttribute('font-size',10);
+          lText.setAttribute('fill',item.color);
+          lText.setAttribute('font-weight','700');
+          lText.setAttribute('font-family','DM Mono,monospace');
+          lText.textContent=item.label;
+          svg.appendChild(lText);
         });
         treeContainer.appendChild(svg);
       }
