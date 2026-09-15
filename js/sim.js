@@ -2832,11 +2832,37 @@ function showGameReport(game,title,onClose){
         svg.appendChild(lgTitle);
         legendItems.forEach(function(item,i){
           const ly=legendStartY+10+i*legendRowH;
-          // Colored dot
-          const dot=document.createElementNS('http://www.w3.org/2000/svg','circle');
-          dot.setAttribute('cx',legendX+8);dot.setAttribute('cy',ly);
-          dot.setAttribute('r',6);dot.setAttribute('fill',item.color);
-          svg.appendChild(dot);
+          // Draw shape matching outcome type
+          const sx=legendX+8,sy=ly,ss=6;
+          if(item.type==='K'){
+            const sp=[];
+            for(let si=0;si<10;si++){
+              const a=(si*Math.PI/5)-Math.PI/2;
+              const r=si%2===0?ss:ss*0.45;
+              sp.push((sx+r*Math.cos(a)).toFixed(1)+','+(sy+r*Math.sin(a)).toFixed(1));
+            }
+            const star=document.createElementNS('http://www.w3.org/2000/svg','polygon');
+            star.setAttribute('points',sp.join(' '));
+            star.setAttribute('fill',item.color);
+            svg.appendChild(star);
+          } else if(item.type==='FOUL'){
+            const d=document.createElementNS('http://www.w3.org/2000/svg','polygon');
+            d.setAttribute('points',sx+','+(sy-ss)+' '+(sx+ss)+','+sy+' '+sx+','+(sy+ss)+' '+(sx-ss)+','+sy);
+            d.setAttribute('fill',item.color);svg.appendChild(d);
+          } else if(item.type==='BALL'){
+            const c=document.createElementNS('http://www.w3.org/2000/svg','circle');
+            c.setAttribute('cx',sx);c.setAttribute('cy',sy);c.setAttribute('r',ss);
+            c.setAttribute('fill',item.color);svg.appendChild(c);
+          } else if(item.type==='HIT'){
+            const t=document.createElementNS('http://www.w3.org/2000/svg','polygon');
+            t.setAttribute('points',sx+','+(sy-ss)+' '+(sx+ss)+','+(sy+ss)+' '+(sx-ss)+','+(sy+ss));
+            t.setAttribute('fill',item.color);svg.appendChild(t);
+          } else {
+            const sq=document.createElementNS('http://www.w3.org/2000/svg','rect');
+            sq.setAttribute('x',sx-ss);sq.setAttribute('y',sy-ss);
+            sq.setAttribute('width',ss*2);sq.setAttribute('height',ss*2);
+            sq.setAttribute('rx',2);sq.setAttribute('fill',item.color);svg.appendChild(sq);
+          }
           // Label — left aligned, starts after dot
           const lText=document.createElementNS('http://www.w3.org/2000/svg','text');
           lText.setAttribute('x',legendX+20);
