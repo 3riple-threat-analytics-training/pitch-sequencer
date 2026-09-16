@@ -2517,8 +2517,8 @@ function showGameReport(game,title,onClose){
         'CALLED STRIKE':'#166534','SWING & MISS':'#166534','CHECK SWING (STRIKE)':'#166534',
         'GROUND OUT':'#1d4ed8','POP FLY':'#1d4ed8'
       };
-      // Aggregate countTendencies, countOutcomes, countSequences across all games
-      const aggCT={},aggCO={},aggCS={};
+      // Aggregate countTendencies, countOutcomes, countSequences, countPitchZoneOutcomes across all games
+      const aggCT={},aggCO={},aggCS={},aggCPZO={};
       seqGames.forEach(function(g){
         // Count tendencies
         Object.entries(g.countTendencies||{}).forEach(function(e){
@@ -2534,6 +2534,22 @@ function showGameReport(game,title,onClose){
           if(!aggCO[ct]) aggCO[ct]={};
           Object.entries(e[1]).forEach(function(oe){
             aggCO[ct][oe[0]]=(aggCO[ct][oe[0]]||0)+oe[1];
+          });
+        });
+        // Count pitch zone outcomes
+        Object.entries(g.countPitchZoneOutcomes||{}).forEach(function(e){
+          const ct=e[0];
+          if(!aggCPZO[ct]) aggCPZO[ct]={};
+          Object.entries(e[1]).forEach(function(pe){
+            const pk=pe[0];
+            if(!aggCPZO[ct][pk]) aggCPZO[ct][pk]={};
+            Object.entries(pe[1]).forEach(function(oe){
+              const outcome=oe[0];
+              if(!aggCPZO[ct][pk][outcome]) aggCPZO[ct][pk][outcome]={};
+              Object.entries(oe[1]).forEach(function(ze){
+                aggCPZO[ct][pk][outcome][ze[0]]=(aggCPZO[ct][pk][outcome][ze[0]]||0)+ze[1];
+              });
+            });
           });
         });
         // Count sequences
@@ -2774,7 +2790,22 @@ function showGameReport(game,title,onClose){
               svg.appendChild(sq);
             }
             // Percentage label above shape
-            svg.appendChild(svgText(ox,outcomeY-shapeSize-4,oPct+'%',7,'#334155','600'));
+            svg.appendChild(svgText(ox,outcomeY-shapeSize-4,oPct+'%',8,'#334155','600'));
+            // Invisible click target over shape
+            const clickTarget=document.createElementNS('http://www.w3.org/2000/svg','circle');
+            clickTarget.setAttribute('cx',ox);clickTarget.setAttribute('cy',outcomeY);
+            clickTarget.setAttribute('r',shapeSize+6);
+            clickTarget.setAttribute('fill','transparent');
+            clickTarget.setAttribute('cursor','pointer');
+            clickTarget.setAttribute('title',oType);
+            // Capture variables for closure
+            (function(capturedPk,capturedOType,capturedCt,capturedOColor){
+              clickTarget.addEventListener('click',function(){
+                showOutcomeHeatMap(capturedPk,capturedOType,capturedCt,
+                  capturedOColor,aggCPZO,isFinishCount,totalFromCount);
+              });
+            })(pk,oType,ct,oColor);
+            svg.appendChild(clickTarget);
             // Level 3 — continuation after foul if predictable
             if(oType==='FOUL'&&oCount>3){
               const foulSeqs=pitchOutcomes['FOUL (STRAIGHT BACK)']||
@@ -2885,6 +2916,228 @@ function showGameReport(game,title,onClose){
           svg.appendChild(lText);
         });
         treeContainer.appendChild(svg);
+      }
+      // ── Outcome heat map popup ──
+      function showOutcomeHeatMap(pk,oType,ct,oColor,cpzo,isFinish,totalFromCount){
+        const existing=document.getElementById('seq-heatmap-popup');
+        if(existing) existing.remove();
+        const overlay=document.createElement('div');
+        overlay.id='seq-heatmap-popup';
+        overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;'
+          +'z-index:11000;background:rgba(0,0,0,0.7);display:flex;'
+          +'align-items:center;justify-content:center;';
+        const card=document.createElement('div');
+        card.style.cssText='background:#fff;border-radius:12px;padding:20px;'
+          +'max-width:360px;width:90%;border:2px solid '+oColor+';';
+        // Header
+        const hdr=document.createElement('div');
+        hdr.style.cssText='display:flex;justify-content:space-between;align-items:center;'
+          +'margin-bottom:12px;';
+        const typeNames={K:isFinish?'STRIKEOUT':'STRIKE',FOUL:'FOUL',BALL:'BALL',HIT:'HIT',PLAY:'IN PLAY'};
+        const title=document.createElement('div');
+        title.style.cssText='font-family:\'Bebas Neue\',sans-serif;font-size:16px;'
+          +'color:'+oColor+';letter-spacing:2px;';
+        title.textContent=pk+' → '+typeNames[oType]+' in '+ct+' COUNT';
+        const closeBtn=document.createElement('button');
+        closeBtn.style.cssText='background:transparent;border:1px solid #bae6fd;'
+          +'color:#0c4a6e;padding:3px 8px;border-radius:4px;cursor:pointer;'
+          +'font-family:\'DM Mono\',monospace;font-size:9px;';
+        closeBtn.textContent='CLOSE';
+        closeBtn.onclick=function(){overlay.remove();};
+        hdr.appendChild(title);hdr.appendChild(closeBtn);
+        card.appendChild(hdr);
+        // Check data availability
+        const zoneData=cpzo[ct]&&cpzo[ct][pk]?
+          cpzo[ct][pk][Object.keys(cpzo[ct][pk]).find(function(o){
+            if(oType==='K') return o==='STRIKEOUT'||o==='CALLED STRIKE'||o==='SWING & MISS'||o==='CHECK SWING (STRIKE)';
+            if(oType==='FOUL') return o.startsWith('FOUL')||o==='CHECK SWING (BALL)';
+            if(oType==='BALL') return o==='BALL'||o==='CALLED BALL';
+            if(oType==='HIT') return o==='SINGLE'||o==='DOUBLE'||o==='TRIPLE'||o==='HOME RUN';
+            if(oType==='PLAY') return o==='GROUND OUT'||o==='POP FLY';
+            return false;
+          })||'']||null:null;
+        // Aggregate all matching outcomes
+        const aggZones={};
+        let hasData=false;
+        if(cpzo[ct]&&cpzo[ct][pk]){
+          Object.entries(cpzo[ct][pk]).forEach(function(e){
+            const outcome=e[0];
+            let matches=false;
+            if(oType==='K'&&(outcome==='STRIKEOUT'||outcome==='CALLED STRIKE'||outcome==='SWING & MISS'||outcome==='CHECK SWING (STRIKE)')) matches=true;
+            if(oType==='FOUL'&&(outcome.startsWith('FOUL')||outcome==='CHECK SWING (BALL)')) matches=true;
+            if(oType==='BALL'&&(outcome==='BALL'||outcome==='CALLED BALL')) matches=true;
+            if(oType==='HIT'&&(outcome==='SINGLE'||outcome==='DOUBLE'||outcome==='TRIPLE'||outcome==='HOME RUN')) matches=true;
+            if(oType==='PLAY'&&(outcome==='GROUND OUT'||outcome==='POP FLY')) matches=true;
+            if(matches){
+              hasData=true;
+              Object.entries(e[1]).forEach(function(ze){
+                aggZones[ze[0]]=(aggZones[ze[0]]||0)+ze[1];
+              });
+            }
+          });
+        }
+        if(!hasData){
+          const noData=document.createElement('div');
+          noData.style.cssText='font-size:10px;color:#475569;text-align:center;padding:20px;';
+          noData.textContent='No zone data yet for this outcome. Play more games to populate.';
+          card.appendChild(noData);
+          overlay.appendChild(card);
+          document.body.appendChild(overlay);
+          overlay.addEventListener('click',function(e){if(e.target===overlay)overlay.remove();});
+          return;
+        }
+        const total=Object.values(aggZones).reduce(function(a,b){return a+b;},0)||1;
+        // Summary stats
+        const statsEl=document.createElement('div');
+        statsEl.style.cssText='font-size:9px;color:#0c4a6e;font-weight:700;margin-bottom:10px;';
+        statsEl.textContent=total+' pitches — zone distribution (catcher\'s POV)';
+        card.appendChild(statsEl);
+        // Zone heat map label
+        const zmLabel=document.createElement('div');
+        zmLabel.style.cssText='font-size:8px;color:#5a8aaa;margin-bottom:6px;letter-spacing:1px;';
+        zmLabel.textContent='ZONE HEAT MAP';
+        card.appendChild(zmLabel);
+        // Build full heat map (inner + edge + chase)
+        function heatCell(cnt,maxV,bg){
+          const intensity=maxV>0?cnt/maxV:0;
+          const cell=document.createElement('div');
+          cell.style.cssText='height:28px;border-radius:3px;display:flex;align-items:center;'
+            +'justify-content:center;font-size:9px;font-weight:700;border:0.5px solid #e0f2fe;'
+            +'background:'+bg.replace('X',Math.max(0.06,intensity).toFixed(2))+';'
+            +'color:'+(intensity>0.4?'#fff':'#334155')+';';
+          cell.textContent=cnt>0?cnt:'';
+          return cell;
+        }
+        // Chase top
+        const chaseTopWrap=document.createElement('div');
+        chaseTopWrap.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:2px;max-width:200px;margin:0 auto 2px auto;';
+        const czMax=Math.max.apply(null,Object.values(aggZones))||1;
+        ['CUR','CUM','CUL'].forEach(function(zk){
+          chaseTopWrap.appendChild(heatCell(aggZones[zk]||0,czMax,'rgba(59,130,246,X)'));
+        });
+        card.appendChild(chaseTopWrap);
+        // Middle section
+        const midWrap=document.createElement('div');
+        midWrap.style.cssText='display:flex;gap:2px;max-width:240px;margin:0 auto 2px auto;';
+        // Left chase
+        const lChase=document.createElement('div');
+        lChase.style.cssText='width:24px;border-radius:3px;display:flex;align-items:center;'
+          +'justify-content:center;font-size:8px;font-weight:700;border:0.5px solid #e0f2fe;'
+          +'background:rgba(59,130,246,'+Math.max(0.06,(aggZones['COUT']||0)/czMax).toFixed(2)+');'
+          +'color:'+((aggZones['COUT']||0)/czMax>0.4?'#fff':'#334155')+';flex-shrink:0;';
+        lChase.textContent=aggZones['COUT']||'';
+        midWrap.appendChild(lChase);
+        // Strike zone with edges
+        const szWrap=document.createElement('div');
+        szWrap.style.cssText='flex:1;';
+        // Edge top
+        const edgeTop=document.createElement('div');
+        edgeTop.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:2px;margin-bottom:2px;';
+        ['TR-CRN','TOP-EDG','TL-CRN'].forEach(function(zk){
+          const cell=document.createElement('div');
+          const cnt=aggZones[zk]||0;
+          const intensity=cnt/czMax;
+          cell.style.cssText='height:18px;border-radius:2px;display:flex;align-items:center;'
+            +'justify-content:center;font-size:7px;font-weight:700;border:0.5px solid #e0f2fe;'
+            +'background:rgba(217,119,6,'+Math.max(0.06,intensity).toFixed(2)+');'
+            +'color:'+(intensity>0.4?'#fff':'#334155')+';';
+          cell.textContent=cnt>0?cnt:'';
+          edgeTop.appendChild(cell);
+        });
+        szWrap.appendChild(edgeTop);
+        // Inner zones with side edges
+        const innerMax=Math.max.apply(null,['TL','TM','TR','ML','MM','MR','BL','BM','BR'].map(function(z){return aggZones[z]||0;}))||1;
+        [['TR','TM','TL'],['MR','MM','ML'],['BR','BM','BL']].forEach(function(row,ri){
+          const rowWrap=document.createElement('div');
+          rowWrap.style.cssText='display:flex;gap:2px;margin-bottom:2px;';
+          const leftEdge=document.createElement('div');
+          const leCnt=ri===1?(aggZones['RGT-EDG']||0):0;
+          leftEdge.style.cssText='width:16px;border-radius:2px;display:flex;align-items:center;'
+            +'justify-content:center;font-size:7px;font-weight:700;flex-shrink:0;'
+            +'background:rgba(217,119,6,'+(ri===1?Math.max(0.06,leCnt/czMax).toFixed(2):'0.06')+');'
+            +'color:'+(leCnt/czMax>0.4?'#fff':'#334155')+';border:0.5px solid #e0f2fe;';
+          leftEdge.textContent=ri===1&&leCnt>0?leCnt:'';
+          rowWrap.appendChild(leftEdge);
+          const innerWrap=document.createElement('div');
+          innerWrap.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:2px;flex:1;';
+          row.forEach(function(zk){
+            const cnt=aggZones[zk]||0;
+            const intensity=cnt/innerMax;
+            const cell=document.createElement('div');
+            cell.style.cssText='height:28px;border-radius:2px;display:flex;align-items:center;'
+              +'justify-content:center;font-size:9px;font-weight:700;border:0.5px solid #e0f2fe;'
+              +'background:rgba(220,38,38,'+Math.max(0.06,intensity).toFixed(2)+');'
+              +'color:'+(intensity>0.4?'#fff':'#334155')+';';
+            cell.textContent=cnt>0?cnt:'';
+            innerWrap.appendChild(cell);
+          });
+          rowWrap.appendChild(innerWrap);
+          const rightEdge=document.createElement('div');
+          const reCnt=ri===1?(aggZones['LFT-EDG']||0):0;
+          rightEdge.style.cssText='width:16px;border-radius:2px;display:flex;align-items:center;'
+            +'justify-content:center;font-size:7px;font-weight:700;flex-shrink:0;'
+            +'background:rgba(217,119,6,'+(ri===1?Math.max(0.06,reCnt/czMax).toFixed(2):'0.06')+');'
+            +'color:'+(reCnt/czMax>0.4?'#fff':'#334155')+';border:0.5px solid #e0f2fe;';
+          rightEdge.textContent=ri===1&&reCnt>0?reCnt:'';
+          rowWrap.appendChild(rightEdge);
+          szWrap.appendChild(rowWrap);
+        });
+        // Edge bottom
+        const edgeBot=document.createElement('div');
+        edgeBot.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:2px;margin-bottom:2px;';
+        ['BR-CRN','BOT-EDG','BL-CRN'].forEach(function(zk){
+          const cell=document.createElement('div');
+          const cnt=aggZones[zk]||0;
+          const intensity=cnt/czMax;
+          cell.style.cssText='height:18px;border-radius:2px;display:flex;align-items:center;'
+            +'justify-content:center;font-size:7px;font-weight:700;border:0.5px solid #e0f2fe;'
+            +'background:rgba(217,119,6,'+Math.max(0.06,intensity).toFixed(2)+');'
+            +'color:'+(intensity>0.4?'#fff':'#334155')+';';
+          cell.textContent=cnt>0?cnt:'';
+          edgeBot.appendChild(cell);
+        });
+        szWrap.appendChild(edgeBot);
+        midWrap.appendChild(szWrap);
+        // Right chase
+        const rChase=document.createElement('div');
+        rChase.style.cssText='width:24px;border-radius:3px;display:flex;align-items:center;'
+          +'justify-content:center;font-size:8px;font-weight:700;border:0.5px solid #e0f2fe;'
+          +'background:rgba(59,130,246,'+Math.max(0.06,(aggZones['CIN']||0)/czMax).toFixed(2)+');'
+          +'color:'+((aggZones['CIN']||0)/czMax>0.4?'#fff':'#334155')+';flex-shrink:0;';
+        rChase.textContent=aggZones['CIN']||'';
+        midWrap.appendChild(rChase);
+        card.appendChild(midWrap);
+        // Chase bottom
+        const chaseBotWrap=document.createElement('div');
+        chaseBotWrap.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:2px;max-width:200px;margin:0 auto 8px auto;';
+        ['CLO-L','CLO-M','CLO-R'].forEach(function(zk){
+          chaseBotWrap.appendChild(heatCell(aggZones[zk]||0,czMax,'rgba(59,130,246,X)'));
+        });
+        card.appendChild(chaseBotWrap);
+        // Hot/cold zone summary
+        const innerZones=['TL','TM','TR','ML','MM','MR','BL','BM','BR'];
+        const hotZone=innerZones.reduce(function(a,b){return (aggZones[a]||0)>(aggZones[b]||0)?a:b;});
+        const coldZone=innerZones.reduce(function(a,b){return (aggZones[a]||0)<(aggZones[b]||0)?a:b;});
+        const summaryEl=document.createElement('div');
+        summaryEl.style.cssText='font-size:9px;color:#0c4a6e;font-weight:700;margin-top:4px;';
+        summaryEl.innerHTML='<span style="color:#166534;">HOT: '+hotZone+' ('+Math.round((aggZones[hotZone]||0)/total*100)+'%)</span>'
+          +' &nbsp; <span style="color:#991b1b;">COLD: '+coldZone+' ('+Math.round((aggZones[coldZone]||0)/total*100)+'%)</span>';
+        card.appendChild(summaryEl);
+        // Coaching note
+        const noteEl=document.createElement('div');
+        noteEl.style.cssText='font-size:9px;color:#475569;margin-top:8px;padding:6px;'
+          +'background:#f0f9ff;border-radius:4px;line-height:1.5;border-left:3px solid '+oColor+';';
+        const typeNames2={K:isFinish?'strikeouts':'strikes',FOUL:'fouls',BALL:'balls',HIT:'hits',PLAY:'balls in play'};
+        const hotPct=Math.round((aggZones[hotZone]||0)/total*100);
+        if(hotPct>40){
+          noteEl.textContent='→ '+hotPct+'% of your '+typeNames2[oType]+' cluster in '+hotZone+'. Expand to other zones to stay unpredictable.';
+        } else {
+          noteEl.textContent='→ Good zone variety on your '+typeNames2[oType]+' outcomes. Keep distributing across the zone.';
+        }
+        card.appendChild(noteEl);
+        overlay.appendChild(card);
+        document.body.appendChild(overlay);
+        overlay.addEventListener('click',function(e){if(e.target===overlay)overlay.remove();});
       }
       // Build count selector buttons
       allCounts.forEach(function(ct,ci){
