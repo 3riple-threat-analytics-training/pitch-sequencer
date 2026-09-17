@@ -764,6 +764,259 @@ function buildCareerReport(data){
     'CAREER REPORT — '+(profile?profile.name:'')
     +' — '+totalGames+' games — '+formatDate(data.generatedAt);
 }
+function buildSequencesReport(data){
+  const allGames=data.games||[];
+  const profile=data.profile;
+  const pages=document.getElementById('pages');
+  if(allGames.length<2){
+    const p=document.createElement('div');
+    p.className='page';
+    p.innerHTML=pageHeader('SEQUENCES REPORT',profile,data.generatedAt)
+      +'<div style="padding:40px;text-align:center;color:#991b1b;">Play at least 2 games to generate sequence report.</div>';
+    pages.appendChild(p);
+    return;
+  }
+  // Color blind safe pitch colors
+  const CBCOLORS={
+    '4FB':'#0077BB','2FB':'#EE7733','SL':'#AA3377','CH':'#009988',
+    'SP':'#CCBB44','CB':'#CC3311','CT':'#33BBEE','SK':'#EE3377',
+    'SWP':'#88AA00','KN':'#BBBBBB','KC':'#6644AA','FK':'#994400',
+    'SCR':'#004488','EPH':'#999933','SLV':'#DDAA33'
+  };
+  const outcomeColors={K:'#166534',FOUL:'#ca8a04',BALL:'#64748b',HIT:'#991b1b',PLAY:'#1d4ed8'};
+  const countGoalMap={
+    '0-0':'GET AHEAD','1-0':'HITTER COUNT','2-0':'HITTER COUNT','3-0':'HITTER COUNT',
+    '0-1':'STAY AHEAD','1-1':'EVEN','2-1':'EVEN',
+    '0-2':'FINISH','1-2':'FINISH','2-2':'FINISH','3-2':'FINISH','3-1':'HITTER COUNT'
+  };
+  const countGoalColors={
+    'GET AHEAD':'#0891b2','HITTER COUNT':'#991b1b',
+    'EVEN':'#ca8a04','STAY AHEAD':'#166534','FINISH':'#7c3aed'
+  };
+  const twoStrikeCounts=['0-2','1-2','2-2','3-2'];
+  // Aggregate data
+  const aggCT={},aggCO={},aggCPZO={};
+  allGames.forEach(function(g){
+    Object.entries(g.countTendencies||{}).forEach(function(e){
+      if(!aggCT[e[0]]) aggCT[e[0]]={};
+      Object.entries(e[1]).forEach(function(pe){aggCT[e[0]][pe[0]]=(aggCT[e[0]][pe[0]]||0)+pe[1];});
+    });
+    Object.entries(g.countOutcomes||{}).forEach(function(e){
+      if(!aggCO[e[0]]) aggCO[e[0]]={};
+      Object.entries(e[1]).forEach(function(oe){aggCO[e[0]][oe[0]]=(aggCO[e[0]][oe[0]]||0)+oe[1];});
+    });
+    Object.entries(g.countPitchZoneOutcomes||{}).forEach(function(e){
+      const ct=e[0];
+      if(!aggCPZO[ct]) aggCPZO[ct]={};
+      Object.entries(e[1]).forEach(function(pe){
+        const pk=pe[0];
+        if(!aggCPZO[ct][pk]) aggCPZO[ct][pk]={};
+        Object.entries(pe[1]).forEach(function(oe){
+          if(!aggCPZO[ct][pk][oe[0]]) aggCPZO[ct][pk][oe[0]]={};
+          Object.entries(oe[1]).forEach(function(ze){
+            aggCPZO[ct][pk][oe[0]][ze[0]]=(aggCPZO[ct][pk][oe[0]][ze[0]]||0)+ze[1];
+          });
+        });
+      });
+    });
+  });
+  // Sort counts by total pitches — show most-pitched counts first
+  const allCounts=['0-0','0-1','0-2','1-0','1-1','1-2','2-0','2-1','2-2','3-0','3-1','3-2'];
+  const countsSorted=allCounts.slice().sort(function(a,b){
+    const ta=Object.values(aggCT[a]||{}).reduce(function(s,v){return s+v;},0);
+    const tb=Object.values(aggCT[b]||{}).reduce(function(s,v){return s+v;},0);
+    return tb-ta;
+  });
+  // Build SVG tree for a count (static version for PDF)
+  function buildStaticTree(ct){
+    const ctData=aggCT[ct]||{};
+    const ctOutcomes=aggCO[ct]||{};
+    const totalFromCount=Object.values(ctData).reduce(function(a,b){return a+b;},0);
+    const isFinish=twoStrikeCounts.includes(ct);
+    const goal=countGoalMap[ct]||'';
+    const goalColor=countGoalColors[goal]||'#0c4a6e';
+    const topPitches=Object.entries(ctData).sort(function(a,b){return b[1]-a[1];}).slice(0,4);
+    const svgW=600;
+    const svgH=320;
+    const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
+    svg.setAttribute('viewBox','0 0 '+svgW+' '+svgH);
+    svg.setAttribute('width','100%');
+    svg.style.cssText='max-width:100%;font-family:DM Mono,monospace;';
+    function st(x,y,text,size,color,weight,anchor){
+      const t=document.createElementNS('http://www.w3.org/2000/svg','text');
+      t.setAttribute('x',x);t.setAttribute('y',y);
+      t.setAttribute('text-anchor',anchor||'middle');
+      t.setAttribute('font-size',size||10);
+      t.setAttribute('fill',color||'#fff');
+      t.setAttribute('font-weight',weight||'700');
+      t.setAttribute('font-family','DM Mono,monospace');
+      t.textContent=text;
+      return t;
+    }
+    if(totalFromCount===0){
+      svg.appendChild(st(svgW/2,svgH/2,'No data for '+ct+' count',10,'#475569','400'));
+      return svg;
+    }
+    // Root node
+    const rx=svgW/2,ry=45,rr=32;
+    const rc=document.createElementNS('http://www.w3.org/2000/svg','circle');
+    rc.setAttribute('cx',rx);rc.setAttribute('cy',ry);rc.setAttribute('r',rr);
+    rc.setAttribute('fill','#0c4a6e');rc.setAttribute('stroke','#bae6fd');rc.setAttribute('stroke-width','2');
+    svg.appendChild(rc);
+    svg.appendChild(st(rx,ry-6,ct,13,'#fff','700'));
+    svg.appendChild(st(rx,ry+6,'COUNT',7,'#bae6fd','400'));
+    svg.appendChild(st(rx,ry+16,totalFromCount+' pitches',6,'#93c5fd','400'));
+    // Goal badge
+    const gb=document.createElementNS('http://www.w3.org/2000/svg','rect');
+    gb.setAttribute('x',rx-38);gb.setAttribute('y',ry+rr+3);
+    gb.setAttribute('width',76);gb.setAttribute('height',14);
+    gb.setAttribute('rx',3);gb.setAttribute('fill',goalColor);
+    svg.appendChild(gb);
+    svg.appendChild(st(rx,ry+rr+13,goal,6,'#fff','700'));
+    // Pitch nodes
+    const pitchY=160;
+    const spacing=svgW/(topPitches.length+1);
+    topPitches.forEach(function(pe,pi){
+      const pk=pe[0],cnt=pe[1];
+      const pct=Math.round(cnt/totalFromCount*100);
+      const px=spacing*(pi+1);
+      const pr=Math.max(18,Math.min(30,pct/2+14));
+      const pColor=CBCOLORS[pk]||'#334155';
+      // Line root to pitch
+      const l=document.createElementNS('http://www.w3.org/2000/svg','line');
+      l.setAttribute('x1',rx);l.setAttribute('y1',ry+rr);
+      l.setAttribute('x2',px);l.setAttribute('y2',pitchY-pr);
+      l.setAttribute('stroke','#bae6fd');l.setAttribute('stroke-width','1');
+      l.setAttribute('stroke-dasharray','3,2');
+      svg.appendChild(l);
+      // Pitch circle
+      const pc=document.createElementNS('http://www.w3.org/2000/svg','circle');
+      pc.setAttribute('cx',px);pc.setAttribute('cy',pitchY);
+      pc.setAttribute('r',pr);pc.setAttribute('fill',pColor);
+      pc.setAttribute('stroke','#fff');pc.setAttribute('stroke-width','1.5');
+      svg.appendChild(pc);
+      svg.appendChild(st(px,pitchY-4,pk,10,'#fff','700'));
+      svg.appendChild(st(px,pitchY+8,pct+'%',8,'rgba(255,255,255,0.85)','400'));
+      // Outcome nodes
+      const grouped={K:0,FOUL:0,BALL:0,HIT:0,PLAY:0};
+      Object.entries(ctOutcomes).forEach(function(e){
+        const o=e[0],v=e[1];
+        const frac=cnt/totalFromCount;
+        const est=Math.round(v*frac);
+        if(o==='STRIKEOUT'||o==='CALLED STRIKE'||o==='SWING & MISS'||o==='CHECK SWING (STRIKE)') grouped.K+=est;
+        else if(o.startsWith('FOUL')) grouped.FOUL+=est;
+        else if(o==='BALL'||o==='CALLED BALL') grouped.BALL+=est;
+        else if(o==='SINGLE'||o==='DOUBLE'||o==='TRIPLE'||o==='HOME RUN') grouped.HIT+=est;
+        else if(o==='GROUND OUT'||o==='POP FLY') grouped.PLAY+=est;
+      });
+      const gTotal=Object.values(grouped).reduce(function(a,b){return a+b;},0)||1;
+      const active=Object.entries(grouped).filter(function(e){return e[1]>0;});
+      const oSpacing=36;
+      const oStartX=px-(active.length-1)*oSpacing/2;
+      const outcomeY=260;
+      const kLabel=isFinish?'K':'S';
+      active.forEach(function(oe,oi){
+        const oType=oe[0],oCount=oe[1];
+        const oPct=Math.round(oCount/gTotal*100);
+        const ox=oStartX+oi*oSpacing;
+        const oColor=outcomeColors[oType]||'#334155';
+        const ol=document.createElementNS('http://www.w3.org/2000/svg','line');
+        ol.setAttribute('x1',px);ol.setAttribute('y1',pitchY+pr);
+        ol.setAttribute('x2',ox);ol.setAttribute('y2',outcomeY-10);
+        ol.setAttribute('stroke',oColor);ol.setAttribute('stroke-width','1');
+        ol.setAttribute('opacity','0.5');
+        svg.appendChild(ol);
+        const ss=9;
+        if(oType==='K'){
+          const sp=[];
+          for(let si=0;si<10;si++){
+            const a=(si*Math.PI/5)-Math.PI/2;
+            const r=si%2===0?ss:ss*0.45;
+            sp.push((ox+r*Math.cos(a)).toFixed(1)+','+(outcomeY+r*Math.sin(a)).toFixed(1));
+          }
+          const star=document.createElementNS('http://www.w3.org/2000/svg','polygon');
+          star.setAttribute('points',sp.join(' '));star.setAttribute('fill',oColor);
+          svg.appendChild(star);
+        } else if(oType==='FOUL'){
+          const d=document.createElementNS('http://www.w3.org/2000/svg','polygon');
+          d.setAttribute('points',ox+','+(outcomeY-ss)+' '+(ox+ss)+','+outcomeY+' '+ox+','+(outcomeY+ss)+' '+(ox-ss)+','+outcomeY);
+          d.setAttribute('fill',oColor);svg.appendChild(d);
+        } else if(oType==='BALL'){
+          const bc=document.createElementNS('http://www.w3.org/2000/svg','circle');
+          bc.setAttribute('cx',ox);bc.setAttribute('cy',outcomeY);bc.setAttribute('r',ss);
+          bc.setAttribute('fill',oColor);svg.appendChild(bc);
+        } else if(oType==='HIT'){
+          const t=document.createElementNS('http://www.w3.org/2000/svg','polygon');
+          t.setAttribute('points',ox+','+(outcomeY-ss)+' '+(ox+ss)+','+(outcomeY+ss)+' '+(ox-ss)+','+(outcomeY+ss));
+          t.setAttribute('fill',oColor);svg.appendChild(t);
+        } else {
+          const sq=document.createElementNS('http://www.w3.org/2000/svg','rect');
+          sq.setAttribute('x',ox-ss);sq.setAttribute('y',outcomeY-ss);
+          sq.setAttribute('width',ss*2);sq.setAttribute('height',ss*2);
+          sq.setAttribute('rx',2);sq.setAttribute('fill',oColor);svg.appendChild(sq);
+        }
+        svg.appendChild(st(ox,outcomeY-ss-3,oPct+'%',7,'#334155','600'));
+      });
+    });
+    // Legend — top right
+    const legendItems=[
+      {label:isFinish?'Strikeout':'Strike',color:'#166534',type:'K'},
+      {label:'Foul',color:'#ca8a04',type:'FOUL'},
+      {label:'Ball',color:'#64748b',type:'BALL'},
+      {label:'Hit',color:'#991b1b',type:'HIT'},
+      {label:'In Play',color:'#1d4ed8',type:'PLAY'}
+    ];
+    const lx=svgW-110,lsy=16,lrh=18;
+    const lbg=document.createElementNS('http://www.w3.org/2000/svg','rect');
+    lbg.setAttribute('x',lx-6);lbg.setAttribute('y',lsy-10);
+    lbg.setAttribute('width',112);lbg.setAttribute('height',legendItems.length*lrh+8);
+    lbg.setAttribute('rx',4);lbg.setAttribute('fill','#f0f9ff');
+    lbg.setAttribute('stroke','#bae6fd');lbg.setAttribute('stroke-width','1');
+    svg.appendChild(lbg);
+    legendItems.forEach(function(item,i){
+      const ly=lsy+i*lrh;
+      const dot=document.createElementNS('http://www.w3.org/2000/svg','circle');
+      dot.setAttribute('cx',lx+6);dot.setAttribute('cy',ly);dot.setAttribute('r',5);
+      dot.setAttribute('fill',item.color);svg.appendChild(dot);
+      const lt=document.createElementNS('http://www.w3.org/2000/svg','text');
+      lt.setAttribute('x',lx+16);lt.setAttribute('y',ly+4);
+      lt.setAttribute('text-anchor','start');lt.setAttribute('font-size',8);
+      lt.setAttribute('fill',item.color);lt.setAttribute('font-weight','700');
+      lt.setAttribute('font-family','DM Mono,monospace');
+      lt.textContent=item.label;svg.appendChild(lt);
+    });
+    return svg;
+  }
+  // Build pages — 2 trees per page
+  const totalPages=Math.ceil(countsSorted.length/2);
+  for(let pi=0;pi<countsSorted.length;pi+=2){
+    const p=document.createElement('div');
+    p.className='page';
+    const pageNum=Math.floor(pi/2)+1;
+    p.innerHTML=pageHeader('SEQUENCES REPORT',profile,data.generatedAt);
+    const treeWrap=document.createElement('div');
+    treeWrap.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:8px;';
+    for(let ti=pi;ti<Math.min(pi+2,countsSorted.length);ti++){
+      const ct=countsSorted[ti];
+      const total=Object.values(aggCT[ct]||{}).reduce(function(a,b){return a+b;},0);
+      const treeBox=document.createElement('div');
+      treeBox.style.cssText='border:1px solid #bae6fd;border-radius:8px;padding:8px;';
+      const ctLabel=document.createElement('div');
+      ctLabel.style.cssText='font-family:\'Bebas Neue\',sans-serif;font-size:12px;'
+        +'color:'+countGoalColors[countGoalMap[ct]||'']||'#0c4a6e'+';letter-spacing:1px;margin-bottom:4px;';
+      ctLabel.textContent=ct+' COUNT — '+total+' pitches — '+countGoalMap[ct];
+      treeBox.appendChild(ctLabel);
+      treeBox.appendChild(buildStaticTree(ct));
+      treeWrap.appendChild(treeBox);
+    }
+    p.appendChild(treeWrap);
+    p.innerHTML+=pageFooter(pageNum,totalPages);
+    pages.appendChild(p);
+  }
+  document.getElementById('report-info').textContent=
+    'SEQUENCES REPORT — '+(profile?profile.name:'')
+    +' — '+allGames.length+' games — '+formatDate(data.generatedAt);
+}
 // Main
 window.onload=function(){
   try{
@@ -777,6 +1030,7 @@ window.onload=function(){
     if(tab==='game') buildGameReport(data);
     else if(tab==='bundles') buildBundlesReport(data);
     else if(tab==='career') buildCareerReport(data);
+    else if(tab==='sequences') buildSequencesReport(data);
   }catch(e){
     document.getElementById('pages').innerHTML='<div style="padding:40px;text-align:center;color:#991b1b;">Error loading report: '+e.message+'</div>';
   }
