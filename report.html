@@ -837,7 +837,7 @@ function buildSequencesReport(data){
     const goalColor=countGoalColors[goal]||'#0c4a6e';
     const topPitches=Object.entries(ctData).sort(function(a,b){return b[1]-a[1];}).slice(0,4);
     const svgW=600;
-    const svgH=320;
+    const svgH=380;
     const svg=document.createElementNS('http://www.w3.org/2000/svg','svg');
     svg.setAttribute('viewBox','0 0 '+svgW+' '+svgH);
     svg.setAttribute('width','100%');
@@ -987,32 +987,36 @@ function buildSequencesReport(data){
     });
     return svg;
   }
-  // Build pages — 2 trees per page
-  const totalPages=Math.ceil(countsSorted.length/2);
-  for(let pi=0;pi<countsSorted.length;pi+=2){
+  // Build pages — one tree per page
+  const totalPages=countsSorted.length;
+  countsSorted.forEach(function(ct,pi){
+    const total=Object.values(aggCT[ct]||{}).reduce(function(a,b){return a+b;},0);
     const p=document.createElement('div');
     p.className='page';
-    const pageNum=Math.floor(pi/2)+1;
-    p.innerHTML=pageHeader('SEQUENCES REPORT',profile,data.generatedAt);
-    const treeWrap=document.createElement('div');
-    treeWrap.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:8px;';
-    for(let ti=pi;ti<Math.min(pi+2,countsSorted.length);ti++){
-      const ct=countsSorted[ti];
-      const total=Object.values(aggCT[ct]||{}).reduce(function(a,b){return a+b;},0);
-      const treeBox=document.createElement('div');
-      treeBox.style.cssText='border:1px solid #bae6fd;border-radius:8px;padding:8px;';
-      const ctLabel=document.createElement('div');
-      ctLabel.style.cssText='font-family:\'Bebas Neue\',sans-serif;font-size:12px;'
-        +'color:'+countGoalColors[countGoalMap[ct]||'']||'#0c4a6e'+';letter-spacing:1px;margin-bottom:4px;';
-      ctLabel.textContent=ct+' COUNT — '+total+' pitches — '+countGoalMap[ct];
-      treeBox.appendChild(ctLabel);
-      treeBox.appendChild(buildStaticTree(ct));
-      treeWrap.appendChild(treeBox);
-    }
-    p.appendChild(treeWrap);
-    p.innerHTML+=pageFooter(pageNum,totalPages);
+    const goalColor=countGoalColors[countGoalMap[ct]||'']||'#0c4a6e';
+    const hdrDiv=document.createElement('div');
+    hdrDiv.innerHTML=pageHeader('SEQUENCES REPORT',profile,data.generatedAt);
+    p.appendChild(hdrDiv);
+    // Count title
+    const ctTitle=document.createElement('div');
+    ctTitle.style.cssText='font-family:\'Bebas Neue\',sans-serif;font-size:18px;'
+      +'color:'+goalColor+';letter-spacing:2px;margin:8px 0 4px 0;';
+    ctTitle.textContent=ct+' COUNT — '+total+' pitches — '+countGoalMap[ct];
+    p.appendChild(ctTitle);
+    // Tree — full width
+    const treeBox=document.createElement('div');
+    treeBox.style.cssText='border:2px solid '+goalColor+';border-radius:8px;padding:12px;width:100%;';
+    const tree=buildStaticTree(ct);
+    // Make tree full width
+    tree.setAttribute('width','100%');
+    tree.setAttribute('viewBox','0 0 600 380');
+    treeBox.appendChild(tree);
+    p.appendChild(treeBox);
+    const ftrDiv=document.createElement('div');
+    ftrDiv.innerHTML=pageFooter(pi+1,totalPages);
+    p.appendChild(ftrDiv);
     pages.appendChild(p);
-  }
+  });
   document.getElementById('report-info').textContent=
     'SEQUENCES REPORT — '+(profile?profile.name:'')
     +' — '+allGames.length+' games — '+formatDate(data.generatedAt);
