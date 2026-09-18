@@ -4702,7 +4702,27 @@ function applySimCountOutcome(outcome,strikesAtStart){
     totalStrikeouts++;
     updateDiamondStats();
     addSimOutCore();
-    if(simMode){lockThrowButton();lastSimDiamondBadgeText='STRIKEOUT';}
+    if(simMode){
+      lockThrowButton();
+      // Descriptive strikeout badge based on how it happened
+      const edgeZones=['TL-CRN','TR-CRN','BL-CRN','BR-CRN','TOP-EDG','BOT-EDG','LFT-EDG','RGT-EDG'];
+      const chaseZones=['CUL','CUM','CUR','CLO-L','CLO-M','CLO-R','CIN','COUT'];
+      const isEdge=edgeZones.includes(zone);
+      const isChase=chaseZones.includes(zone);
+      if(outcome==='SWING & MISS'){
+        lastSimDiamondBadgeText='STRIKEOUT — SWING & MISS';
+      } else if(outcome==='CALLED STRIKE'&&isChase){
+        lastSimDiamondBadgeText='STRIKEOUT — BATTER FROZEN ON BORDERLINE PITCH';
+      } else if(outcome==='CALLED STRIKE'&&isEdge){
+        lastSimDiamondBadgeText='STRIKEOUT — CALLED STRIKE ON THE CORNER';
+      } else if(outcome==='CALLED STRIKE'){
+        lastSimDiamondBadgeText='STRIKEOUT — BATTER CAUGHT LOOKING';
+      } else if(display==='CHECK SWING (STRIKE)'){
+        lastSimDiamondBadgeText='STRIKEOUT — CHECK SWING';
+      } else {
+        lastSimDiamondBadgeText='STRIKEOUT';
+      }
+    }
     showSimAdvanceButton();saveSimState();return display;
   }
   if(outcome==='GROUND OUT'||outcome==='POP FLY'){ballCount=0;strikeCount=0;renderCount();addSimOutCore();if(simMode){lockThrowButton();lastSimDiamondBadgeText=outcome;}showSimAdvanceButton();saveSimState();return outcome;}
