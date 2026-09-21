@@ -3783,7 +3783,7 @@ function showInningCapModal(situation){
   const endBtn=document.getElementById('inning-cap-end');
   if(endBtn) endBtn.onclick=function(){
     overlay.remove();
-    if(typeof showGameSummary==='function') showGameSummary();
+    if(typeof endGame==='function') endGame();
   };
 }
 function handleNewInning(){
