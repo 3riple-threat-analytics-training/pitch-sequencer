@@ -313,11 +313,28 @@ function saveGameHistory(){
     const vsBatterType={};
     const vsLHB={pitchMix:{},zoneMap:{},outcomes:{}};
     const vsRHB={pitchMix:{},zoneMap:{},outcomes:{}};
+    const tunnelPairs={};   // 'prevPk→pk': count
+    const tunnelOutcomes={}; // 'prevPk→pk': {outcome: count}
+    const tunnelZones={};   // 'prevPk→pk': {zone: count}
+    const tunnelQualities=[]; // length scores for average quality
     pitches.forEach(function(p,i){
       const pk=p.pk||'';
       const zk=p.zk||'';
       const outcome=p.outcome||'';
       const count=p.count||'0-0';
+      // Tunnel analysis
+      const td=p.tunnelData;
+      if(td&&td.detected&&td.prevPk){
+        const tKey=td.prevPk+'→'+pk;
+        tunnelPairs[tKey]=(tunnelPairs[tKey]||0)+1;
+        if(!tunnelOutcomes[tKey]) tunnelOutcomes[tKey]={};
+        tunnelOutcomes[tKey][outcome]=(tunnelOutcomes[tKey][outcome]||0)+1;
+        if(zk){
+          if(!tunnelZones[tKey]) tunnelZones[tKey]={};
+          tunnelZones[tKey][zk]=(tunnelZones[tKey][zk]||0)+1;
+        }
+        tunnelQualities.push(td.length||0);
+      }
       const bh=p.batterHand||'RHB';
       const bt=p.batterType||'GENERIC';
       // Pitch mix
@@ -407,7 +424,12 @@ function saveGameHistory(){
         return vbt;
       })(),
       pitchMix,zoneMap,firstPitches,sequences,
-      outcomes,countTendencies,countOutcomes,countSequences,countPitchZoneOutcomes,vsBatterType,vsLHB,vsRHB
+      outcomes,countTendencies,countOutcomes,countSequences,countPitchZoneOutcomes,
+      tunnelPairs,tunnelOutcomes,tunnelZones,
+      avgTunnelQuality:tunnelQualities.length?
+        Math.round(tunnelQualities.reduce(function(a,b){return a+b;},0)/tunnelQualities.length*100):0,
+      totalTunnels:tunnelQualities.length,
+      vsBatterType,vsLHB,vsRHB
     };
     // Load existing history
     const raw=localStorage.getItem('pitchseq-game-history');
@@ -3766,7 +3788,18 @@ function cancelSimScheduledClear(){if(simClearTimer){clearTimeout(simClearTimer)
 function simClearSequenceOnly(){
   // Accumulate pitches into gameSeq before clearing seq
   if(typeof seq!=='undefined'&&seq.length){
-    gameSeq=gameSeq.concat(seq.map(function(p){return Object.assign({},p,{pts3d:null,tunnelData:null});}));
+    gameSeq=gameSeq.concat(seq.map(function(p){
+      // Preserve lightweight tunnel metadata, strip heavy 3D points
+      const td=p.tunnelData;
+      const tunnelMeta=td&&td.detected?{
+        detected:true,
+        length:td.length,
+        prevPk:td.prevPk,
+        prevSpd:td.prevSpd,
+        prevIndex:td.prevIndex
+      }:{detected:false};
+      return Object.assign({},p,{pts3d:null,tunnelData:tunnelMeta});
+    }));
   }
   seq=[];pathObjs.forEach(o=>removeObj(o));pathObjs=[];landObjs.forEach(o=>scene.remove(o));landObjs=[];clearTunnels();updateSeqUI();refreshGhost();
   if(simMode){ballCount=0;strikeCount=0;renderCount();}
