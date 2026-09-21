@@ -3460,10 +3460,100 @@ function handleNewBatter(){
 }
 function onSimAdvanceClick(){handleNewBatter();}
 
+function getInningCap(){
+  const profile=typeof getProfile==='function'?getProfile():null;
+  const ag=profile?profile.ageGroup:'hsvar';
+  const caps={rec10:6,rec12:6,hsrec:7,hsvar:7,college:9,pro:9};
+  return caps[ag]||9;
+}
+function showInningCapModal(situation){
+  const existing=document.getElementById('inning-cap-modal');
+  if(existing) existing.remove();
+  const overlay=document.createElement('div');
+  overlay.id='inning-cap-modal';
+  overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;'
+    +'z-index:10500;background:rgba(5,8,18,0.97);display:flex;'
+    +'align-items:center;justify-content:center;';
+  const card=document.createElement('div');
+  card.style.cssText='background:#0a1628;border-radius:12px;padding:28px 24px;'
+    +'max-width:340px;width:90%;text-align:center;border:2px solid #06b6d4;';
+  let html='';
+  if(situation==='tie'){
+    html='<div style="font-family:\'Bebas Neue\',sans-serif;font-size:28px;'
+      +'color:#06b6d4;letter-spacing:3px;margin-bottom:8px;">EXTRA INNINGS</div>'
+      +'<div style="font-size:10px;color:#e8f4fd;margin-bottom:16px;line-height:1.6;">'
+      +'The game is tied after regulation. Do you want to continue with this pitcher or end their outing?</div>'
+      +'<div style="display:flex;gap:10px;justify-content:center;">'
+      +'<button id="inning-cap-continue" style="padding:10px 18px;border-radius:6px;'
+      +'border:none;background:#06b6d4;color:#fff;font-family:\'Bebas Neue\',sans-serif;'
+      +'font-size:14px;letter-spacing:2px;cursor:pointer;">CONTINUE PITCHING</button>'
+      +'<button id="inning-cap-end" style="padding:10px 18px;border-radius:6px;'
+      +'border:1px solid #991b1b;background:transparent;color:#f87171;'
+      +'font-family:\'Bebas Neue\',sans-serif;font-size:14px;letter-spacing:2px;'
+      +'cursor:pointer;">END GAME</button>'
+      +'</div>';
+  } else if(situation==='win'){
+    html='<div style="font-family:\'Bebas Neue\',sans-serif;font-size:28px;'
+      +'color:#166534;letter-spacing:3px;margin-bottom:8px;">WALK-OFF WIN!</div>'
+      +'<div style="font-size:10px;color:#e8f4fd;margin-bottom:6px;line-height:1.6;">'
+      +'Your team wins! Game over after '+inningNumber+' innings.</div>'
+      +'<div style="font-size:24px;font-family:\'Bebas Neue\',sans-serif;color:#4ade80;margin-bottom:16px;">'
+      +teamScore+' — '+totalScore+'</div>'
+      +'<button id="inning-cap-end" style="padding:10px 24px;border-radius:6px;'
+      +'border:none;background:#166534;color:#fff;font-family:\'Bebas Neue\',sans-serif;'
+      +'font-size:14px;letter-spacing:2px;cursor:pointer;">END GAME</button>';
+  } else if(situation==='loss'){
+    html='<div style="font-family:\'Bebas Neue\',sans-serif;font-size:28px;'
+      +'color:#991b1b;letter-spacing:3px;margin-bottom:8px;">GAME OVER</div>'
+      +'<div style="font-size:10px;color:#e8f4fd;margin-bottom:6px;line-height:1.6;">'
+      +'Regulation complete after '+inningNumber+' innings.</div>'
+      +'<div style="font-size:24px;font-family:\'Bebas Neue\',sans-serif;color:#f87171;margin-bottom:16px;">'
+      +teamScore+' — '+totalScore+'</div>'
+      +'<button id="inning-cap-end" style="padding:10px 24px;border-radius:6px;'
+      +'border:none;background:#991b1b;color:#fff;font-family:\'Bebas Neue\',sans-serif;'
+      +'font-size:14px;letter-spacing:2px;cursor:pointer;">END GAME</button>';
+  }
+  card.innerHTML=html;
+  overlay.appendChild(card);
+  document.body.appendChild(overlay);
+  const contBtn=document.getElementById('inning-cap-continue');
+  if(contBtn) contBtn.onclick=function(){
+    overlay.remove();
+    handleNewInning();
+  };
+  const endBtn=document.getElementById('inning-cap-end');
+  if(endBtn) endBtn.onclick=function(){
+    overlay.remove();
+    if(typeof showGameSummary==='function') showGameSummary();
+  };
+}
 function handleNewInning(){
   simInningBreak=false;
   resetRunners();
   outCount=0;
+  // Check inning cap before incrementing
+  const cap=getInningCap();
+  // Determine if this is the end of a full inning
+  // simHalfTop is still the CURRENT half before flip
+  // If simHalfTop===false we just finished the bottom half
+  // If simHalfTop===true we just finished the top half
+  const justFinishedBottom=!simHalfTop;
+  const justFinishedTop=simHalfTop;
+  if(justFinishedBottom&&inningNumber>=cap){
+    // End of regulation
+    if(teamScore>totalScore){
+      showInningCapModal('win');
+      return;
+    } else if(teamScore===totalScore){
+      showInningCapModal('tie');
+      return;
+    } else {
+      showInningCapModal('loss');
+      return;
+    }
+  }
+  // Also check top of final inning — if away team is way ahead
+  // and home team has no realistic chance (optional future enhancement)
   inningNumber++;
   simHalfTop=!simHalfTop;
 }
