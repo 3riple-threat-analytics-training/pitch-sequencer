@@ -1004,8 +1004,63 @@ function showGameReport(game,title,onClose){
         tnSection.appendChild(row);
       });
     }
+    // Tunnel zone heat map
+    const allTnZones={};
+    Object.values(game.tunnelZones||{}).forEach(function(zoneMap){
+      Object.entries(zoneMap).forEach(function(e){
+        allTnZones[e[0]]=(allTnZones[e[0]]||0)+e[1];
+      });
+    });
+    if(Object.keys(allTnZones).length>0){
+      const zmLabel=document.createElement('div');
+      zmLabel.style.cssText='font-size:8px;font-weight:700;color:#0c4a6e;'
+        +'letter-spacing:1px;margin:8px 0 4px 0;';
+      zmLabel.textContent='WHERE TUNNELS WERE CREATED (CATCHER\'S POV)';
+      tnSection.appendChild(zmLabel);
+      const zmNote=document.createElement('div');
+      zmNote.style.cssText='font-size:7px;color:#475569;margin-bottom:6px;';
+      zmNote.textContent='Heat map shows landing zones of tunneled pitches this game.';
+      tnSection.appendChild(zmNote);
+      // Inner zone grid
+      const innerZones=[['TR','TM','TL'],['MR','MM','ML'],['BR','BM','BL']];
+      const innerMax=Math.max.apply(null,
+        ['TL','TM','TR','ML','MM','MR','BL','BM','BR'].map(function(z){return allTnZones[z]||0;}))||1;
+      const zmGrid=document.createElement('div');
+      zmGrid.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);'
+        +'gap:3px;max-width:180px;margin:0 auto 6px auto;';
+      innerZones.forEach(function(row){
+        row.forEach(function(zk){
+          const cnt=allTnZones[zk]||0;
+          const intensity=cnt/innerMax;
+          const cell=document.createElement('div');
+          cell.style.cssText='height:36px;border-radius:3px;display:flex;align-items:center;'
+            +'justify-content:center;font-size:10px;font-weight:700;border:0.5px solid #bae6fd;'
+            +'background:rgba(8,145,178,'+Math.max(0.06,intensity).toFixed(2)+');'
+            +'color:'+(intensity>0.4?'#fff':'#334155')+';';
+          cell.textContent=cnt>0?cnt:'';
+          zmGrid.appendChild(cell);
+        });
+      });
+      tnSection.appendChild(zmGrid);
+      // Edge and chase summary
+      const edgeZones=['TL-CRN','TR-CRN','BL-CRN','BR-CRN','TOP-EDG','BOT-EDG','LFT-EDG','RGT-EDG'];
+      const chaseZones=['CUL','CUM','CUR','CLO-L','CLO-M','CLO-R','CIN','COUT'];
+      const edgeTotal=edgeZones.reduce(function(s,z){return s+(allTnZones[z]||0);},0);
+      const chaseTotal=chaseZones.reduce(function(s,z){return s+(allTnZones[z]||0);},0);
+      const innerTotal=['TL','TM','TR','ML','MM','MR','BL','BM','BR']
+        .reduce(function(s,z){return s+(allTnZones[z]||0);},0);
+      const grandTotal=edgeTotal+chaseTotal+innerTotal||1;
+      const zoneSummary=document.createElement('div');
+      zoneSummary.style.cssText='display:flex;gap:8px;justify-content:center;'
+        +'font-size:8px;font-weight:700;margin-bottom:4px;';
+      zoneSummary.innerHTML='<span style="color:#dc2626;">IN ZONE: '+Math.round(innerTotal/grandTotal*100)+'%</span>'
+        +'<span style="color:#d97706;">EDGE: '+Math.round(edgeTotal/grandTotal*100)+'%</span>'
+        +'<span style="color:#2563eb;">CHASE: '+Math.round(chaseTotal/grandTotal*100)+'%</span>';
+      tnSection.appendChild(zoneSummary);
+    }
     gameTab.appendChild(tnSection);
   }
+  // Add inning tracking note for future feature
   const exportBtn=document.createElement('button');
   exportBtn.style.cssText='width:100%;margin-top:16px;padding:10px;border-radius:6px;'
     +'border:1px solid #0c4a6e;background:#e0f2fe;color:#0c4a6e;'
