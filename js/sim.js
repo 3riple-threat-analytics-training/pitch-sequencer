@@ -953,6 +953,59 @@ function showGameReport(game,title,onClose){
   buildGameHandHeatMap(gameHandWrap,game.vsRHB&&game.vsRHB.zoneMap||{},'VS RHB');
   gameTab.appendChild(gameHandWrap);
   // Export PDF button
+  // ── Tunnel summary for this game ──
+  if(game.totalTunnels>0){
+    const tnSection=document.createElement('div');
+    tnSection.style.cssText='margin-top:12px;';
+    const tnSectionLbl=document.createElement('div');
+    tnSectionLbl.style.cssText='font-family:\'Bebas Neue\',sans-serif;font-size:13px;'
+      +'color:#0c4a6e;letter-spacing:2px;border-bottom:1px solid #bae6fd;'
+      +'padding-bottom:4px;margin-bottom:8px;';
+    tnSectionLbl.textContent='TUNNEL ANALYSIS';
+    tnSection.appendChild(tnSectionLbl);
+    // Stats row
+    const tnStats=document.createElement('div');
+    tnStats.style.cssText='display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:8px;';
+    function tnGameStat(label,value,color){
+      const box=document.createElement('div');
+      box.style.cssText='background:#f0f9ff;border:1px solid #7dd3fc;border-radius:6px;'
+        +'padding:8px;text-align:center;';
+      box.innerHTML='<div style="font-family:\'Bebas Neue\',sans-serif;font-size:22px;color:'
+        +(color||'#0c4a6e')+';">'+value+'</div>'
+        +'<div style="font-size:7px;color:#0c4a6e;letter-spacing:1px;font-weight:600;">'+label+'</div>';
+      return box;
+    }
+    tnStats.appendChild(tnGameStat('TUNNELS CREATED',game.totalTunnels,'#0891b2'));
+    tnStats.appendChild(tnGameStat('AVG QUALITY',game.avgTunnelQuality+'%',
+      game.avgTunnelQuality>=60?'#166534':game.avgTunnelQuality>=40?'#ca8a04':'#991b1b'));
+    tnSection.appendChild(tnStats);
+    // Top tunnel pairs this game
+    const gamePairs=Object.entries(game.tunnelPairs||{}).sort(function(a,b){return b[1]-a[1];}).slice(0,4);
+    if(gamePairs.length>0){
+      const pairsLabel=document.createElement('div');
+      pairsLabel.style.cssText='font-size:8px;font-weight:700;color:#0c4a6e;'
+        +'letter-spacing:1px;margin-bottom:4px;';
+      pairsLabel.textContent='TUNNEL PAIRS THIS GAME';
+      tnSection.appendChild(pairsLabel);
+      gamePairs.forEach(function(e){
+        const pair=e[0],count=e[1];
+        const pairOutcomes=game.tunnelOutcomes&&game.tunnelOutcomes[pair]||{};
+        const pairTotal=Object.values(pairOutcomes).reduce(function(a,b){return a+b;},0)||1;
+        const kCount=['STRIKEOUT','SWING & MISS','CALLED STRIKE'].reduce(function(s,o){
+          return s+(pairOutcomes[o]||0);},0);
+        const row=document.createElement('div');
+        row.style.cssText='display:flex;justify-content:space-between;align-items:center;'
+          +'padding:4px 6px;border-radius:4px;margin-bottom:3px;'
+          +'background:#f0f9ff;border-left:3px solid #0891b2;';
+        row.innerHTML='<span style="font-size:9px;font-weight:700;color:#0c4a6e;">'+pair+'</span>'
+          +'<span style="font-size:9px;color:#475569;">'+count+'x</span>'
+          +'<span style="font-size:9px;font-weight:700;color:#166534;">'
+          +Math.round(kCount/pairTotal*100)+'% K/Strike</span>';
+        tnSection.appendChild(row);
+      });
+    }
+    gameTab.appendChild(tnSection);
+  }
   const exportBtn=document.createElement('button');
   exportBtn.style.cssText='width:100%;margin-top:16px;padding:10px;border-radius:6px;'
     +'border:1px solid #0c4a6e;background:#e0f2fe;color:#0c4a6e;'
