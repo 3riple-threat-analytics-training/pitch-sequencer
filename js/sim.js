@@ -3783,6 +3783,8 @@ function showInningCapModal(situation){
   const endBtn=document.getElementById('inning-cap-end');
   if(endBtn) endBtn.onclick=function(){
     overlay.remove();
+    // Flush current at-bat pitches to gameSeq before saving
+    if(typeof simClearSequenceOnly==='function') simClearSequenceOnly();
     if(typeof endGame==='function') endGame();
   };
 }
