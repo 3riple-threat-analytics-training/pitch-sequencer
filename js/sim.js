@@ -3244,6 +3244,29 @@ function toggleSimMode(){
   const b=document.getElementById('simbtn');
   b.textContent=simMode?'SIM MODE ON':'SIM MODE OFF';
   b.classList.toggle('on',simMode);
+  // Show tunnel reminder every time sim mode turns ON and tunnel is OFF
+  if(simMode&&typeof tunnelOn!=='undefined'&&!tunnelOn){
+    const existing=document.getElementById('tunnel-reminder-toast');
+    if(existing) existing.remove();
+    const toast=document.createElement('div');
+    toast.id='tunnel-reminder-toast';
+    toast.style.cssText='position:fixed;top:70px;left:50%;transform:translateX(-50%);'
+      +'background:#0a1628;border:1.5px solid #CCBB44;color:#CCBB44;'
+      +'padding:10px 16px;border-radius:8px;font-size:10px;font-weight:700;'
+      +'letter-spacing:0.5px;z-index:9999;display:flex;align-items:center;'
+      +'gap:10px;box-shadow:0 2px 16px rgba(0,0,0,0.5);max-width:320px;';
+    toast.innerHTML='<span>💡 TUNNEL VISION IS OFF — toggle TUNNEL ON to see pitch tunnels as you pitch</span>'
+      +'<button onclick="document.getElementById(\'tunnel-reminder-toast\').remove();" '
+      +'style="background:transparent;border:0.5px solid #CCBB44;color:#CCBB44;'
+      +'padding:2px 8px;border-radius:4px;cursor:pointer;font-size:9px;'
+      +'font-family:\'DM Mono\',monospace;flex-shrink:0;">OK</button>';
+    document.body.appendChild(toast);
+    // Auto dismiss after 6 seconds
+    setTimeout(function(){
+      const t=document.getElementById('tunnel-reminder-toast');
+      if(t) t.remove();
+    },6000);
+  }
   batterType='RANDOM';
   secretBatterType='';
   batterRevealed=false;
