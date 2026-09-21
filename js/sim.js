@@ -597,7 +597,7 @@ function showGameReport(game,title,onClose){
   // Tab bar
   const tabBar=document.createElement('div');
   tabBar.style.cssText='display:flex;gap:4px;margin-bottom:16px;border-bottom:2px solid #bae6fd;';
-  const tabs=['GAME','BUNDLES','CAREER','SEQUENCES'];
+  const tabs=['GAME','BUNDLES','CAREER','SEQUENCES','TUNNEL'];
   const tabContents={};
   tabs.forEach(function(t){
     const btn=document.createElement('button');
@@ -3222,6 +3222,243 @@ function showGameReport(game,title,onClose){
     seqErr.style.cssText='padding:20px;color:#991b1b;font-size:11px;';
     seqErr.textContent='Error loading sequence data: '+e.message;
     seqTab.appendChild(seqErr);
+  }
+
+  // ── TUNNEL TAB ──
+  const tunnelTab=tabContents['TUNNEL'];
+  try{
+    const tnRaw=localStorage.getItem('pitchseq-game-history');
+    const tnGames=tnRaw?JSON.parse(tnRaw):[];
+    // Filter games that have tunnel data
+    const tnGamesWith=tnGames.filter(function(g){return g.totalTunnels>0;});
+    const tnLabel=function(text){
+      const s=document.createElement('div');
+      s.style.cssText='font-family:\'Bebas Neue\',sans-serif;font-size:13px;'
+        +'color:#0c4a6e;letter-spacing:2px;border-bottom:1px solid #bae6fd;'
+        +'padding-bottom:4px;margin:14px 0 8px 0;';
+      s.textContent=text;
+      tunnelTab.appendChild(s);
+    };
+    if(tnGamesWith.length===0){
+      const tnMsg=document.createElement('div');
+      tnMsg.style.cssText='padding:20px;text-align:center;font-size:11px;color:#475569;';
+      tnMsg.innerHTML='No tunnel data yet.<br>Toggle TUNNEL ON in sim mode and play games to generate tunnel analysis.';
+      tunnelTab.appendChild(tnMsg);
+    } else {
+      // Header
+      const tnHdr=document.createElement('div');
+      tnHdr.style.cssText='font-family:\'Bebas Neue\',sans-serif;font-size:16px;'
+        +'color:#0c4a6e;letter-spacing:2px;margin-bottom:4px;';
+      tnHdr.textContent='TUNNEL ANALYSIS';
+      tunnelTab.appendChild(tnHdr);
+      const tnSubHdr=document.createElement('div');
+      tnSubHdr.style.cssText='font-size:9px;color:#475569;margin-bottom:12px;line-height:1.5;';
+      tnSubHdr.textContent='Career tunnel data across '+tnGamesWith.length+' games with tunnel vision enabled.';
+      tunnelTab.appendChild(tnSubHdr);
+      // Aggregate tunnel data across all games
+      const aggPairs={},aggOutcomes={},aggZones={};
+      let totalTunnels=0,totalQuality=0,qualityCount=0;
+      tnGamesWith.forEach(function(g){
+        totalTunnels+=(g.totalTunnels||0);
+        if(g.avgTunnelQuality){totalQuality+=g.avgTunnelQuality;qualityCount++;}
+        Object.entries(g.tunnelPairs||{}).forEach(function(e){
+          aggPairs[e[0]]=(aggPairs[e[0]]||0)+e[1];
+        });
+        Object.entries(g.tunnelOutcomes||{}).forEach(function(e){
+          if(!aggOutcomes[e[0]]) aggOutcomes[e[0]]={};
+          Object.entries(e[1]).forEach(function(oe){
+            aggOutcomes[e[0]][oe[0]]=(aggOutcomes[e[0]][oe[0]]||0)+oe[1];
+          });
+        });
+        Object.entries(g.tunnelZones||{}).forEach(function(e){
+          if(!aggZones[e[0]]) aggZones[e[0]]={};
+          Object.entries(e[1]).forEach(function(ze){
+            aggZones[e[0]][ze[0]]=(aggZones[e[0]][ze[0]]||0)+ze[1];
+          });
+        });
+      });
+      const avgQuality=qualityCount?Math.round(totalQuality/qualityCount):0;
+      // ── Overview stats ──
+      const tnOverview=document.createElement('div');
+      tnOverview.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px;';
+      function tnStatBox(label,value,color){
+        const box=document.createElement('div');
+        box.style.cssText='background:#f0f9ff;border:1px solid #7dd3fc;border-radius:6px;'
+          +'padding:8px;text-align:center;';
+        box.innerHTML='<div style="font-family:\'Bebas Neue\',sans-serif;font-size:24px;color:'
+          +(color||'#0c4a6e')+';">'+value+'</div>'
+          +'<div style="font-size:7px;color:#0c4a6e;letter-spacing:1px;font-weight:600;">'+label+'</div>';
+        return box;
+      }
+      tnOverview.appendChild(tnStatBox('TOTAL TUNNELS',totalTunnels,'#0891b2'));
+      tnOverview.appendChild(tnStatBox('AVG QUALITY',avgQuality+'%',avgQuality>=60?'#166534':avgQuality>=40?'#ca8a04':'#991b1b'));
+      tnOverview.appendChild(tnStatBox('GAMES TRACKED',tnGamesWith.length,'#0c4a6e'));
+      tunnelTab.appendChild(tnOverview);
+      // Quality explanation
+      const tnQualNote=document.createElement('div');
+      tnQualNote.style.cssText='font-size:9px;color:#475569;margin-bottom:12px;'
+        +'padding:6px;background:#f0f9ff;border-radius:4px;border-left:3px solid #0891b2;';
+      tnQualNote.textContent='Tunnel quality measures how closely two pitches share the same early flight path (0-100%). '
+        +'Higher quality means the batter has less time to distinguish between pitches.';
+      tunnelTab.appendChild(tnQualNote);
+      // ── Top tunnel pairs ──
+      tnLabel('TOP TUNNEL PAIRS');
+      const sortedPairs=Object.entries(aggPairs).sort(function(a,b){return b[1]-a[1];});
+      const maxPairCount=sortedPairs[0]?sortedPairs[0][1]:1;
+      sortedPairs.slice(0,8).forEach(function(e){
+        const pair=e[0],count=e[1];
+        const pairOutcomes=aggOutcomes[pair]||{};
+        const pairTotal=Object.values(pairOutcomes).reduce(function(a,b){return a+b;},0)||1;
+        // Calculate strike/positive outcomes
+        const positiveOutcomes=['STRIKEOUT','CALLED STRIKE','SWING & MISS','CHECK SWING (STRIKE)','GROUND OUT','POP FLY'];
+        const positiveCount=positiveOutcomes.reduce(function(s,o){return s+(pairOutcomes[o]||0);},0);
+        const positivePct=Math.round(positiveCount/pairTotal*100);
+        const foulCount=Object.entries(pairOutcomes).reduce(function(s,e){
+          return s+(e[0].startsWith('FOUL')?e[1]:0);
+        },0);
+        const hitCount=['SINGLE','DOUBLE','TRIPLE','HOME RUN'].reduce(function(s,o){
+          return s+(pairOutcomes[o]||0);
+        },0);
+        const pct=Math.round(count/maxPairCount*100);
+        const row=document.createElement('div');
+        row.style.cssText='margin-bottom:8px;padding:8px;border-radius:6px;'
+          +'background:'+(positivePct>=60?'#f0fff4':positivePct>=40?'#f0f9ff':'#fff1f0')+';'
+          +'border:1px solid '+(positivePct>=60?'#86efac':positivePct>=40?'#7dd3fc':'#fca5a5')+';';
+        // Pair name and count
+        const pairHdr=document.createElement('div');
+        pairHdr.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;';
+        pairHdr.innerHTML='<span style="font-family:\'Bebas Neue\',sans-serif;font-size:14px;'
+          +'color:#0c4a6e;letter-spacing:1px;">'+pair+'</span>'
+          +'<span style="font-size:9px;font-weight:700;color:#0c4a6e;">'+count+' tunnels</span>';
+        row.appendChild(pairHdr);
+        // Bar
+        const barWrap=document.createElement('div');
+        barWrap.style.cssText='background:#bae6fd;border-radius:2px;height:8px;margin-bottom:6px;';
+        const barFill=document.createElement('div');
+        barFill.style.cssText='height:100%;border-radius:2px;width:'+pct+'%;'
+          +'background:'+(positivePct>=60?'#166534':positivePct>=40?'#0891b2':'#991b1b')+';';
+        barWrap.appendChild(barFill);
+        row.appendChild(barWrap);
+        // Outcome breakdown
+        const outcomeRow=document.createElement('div');
+        outcomeRow.style.cssText='display:flex;gap:8px;flex-wrap:wrap;font-size:8px;font-weight:700;';
+        const kCount=['STRIKEOUT','SWING & MISS','CALLED STRIKE'].reduce(function(s,o){return s+(pairOutcomes[o]||0);},0);
+        const ballCount2=(['BALL','CALLED BALL']).reduce(function(s,o){return s+(pairOutcomes[o]||0);},0);
+        if(kCount>0) outcomeRow.innerHTML+='<span style="color:#166534;">★ '+Math.round(kCount/pairTotal*100)+'% K/Strike</span>';
+        if(foulCount>0) outcomeRow.innerHTML+='<span style="color:#ca8a04;">◆ '+Math.round(foulCount/pairTotal*100)+'% Foul</span>';
+        if(ballCount2>0) outcomeRow.innerHTML+='<span style="color:#64748b;">○ '+Math.round(ballCount2/pairTotal*100)+'% Ball</span>';
+        if(hitCount>0) outcomeRow.innerHTML+='<span style="color:#991b1b;">▲ '+Math.round(hitCount/pairTotal*100)+'% Hit</span>';
+        row.appendChild(outcomeRow);
+        // Coaching note
+        if(hitCount>0&&hitCount/pairTotal>0.15){
+          const warn=document.createElement('div');
+          warn.style.cssText='font-size:8px;color:#991b1b;margin-top:4px;font-weight:700;';
+          warn.textContent='⚠ Batter making contact on this tunnel — vary the sequence';
+          row.appendChild(warn);
+        } else if(positivePct>=60){
+          const good=document.createElement('div');
+          good.style.cssText='font-size:8px;color:#166534;margin-top:4px;font-weight:700;';
+          good.textContent='✓ Effective tunnel — keep using this combination';
+          row.appendChild(good);
+        }
+        tunnelTab.appendChild(row);
+      });
+      // ── Zone heat map ──
+      tnLabel('WHERE TUNNELS ARE CREATED');
+      const allTunnelZones={};
+      Object.values(aggZones).forEach(function(zoneMap){
+        Object.entries(zoneMap).forEach(function(e){
+          allTunnelZones[e[0]]=(allTunnelZones[e[0]]||0)+e[1];
+        });
+      });
+      const zoneOrder=[['TR','TM','TL'],['MR','MM','ML'],['BR','BM','BL']];
+      const maxZone=Math.max.apply(null,Object.values(allTunnelZones))||1;
+      const zmWrap=document.createElement('div');
+      zmWrap.style.cssText='max-width:200px;margin:0 auto 12px auto;';
+      const zmNote=document.createElement('div');
+      zmNote.style.cssText='font-size:8px;color:#475569;text-align:center;margin-bottom:6px;';
+      zmNote.textContent='Zones where tunneled pitches land (catcher\'s POV)';
+      zmWrap.appendChild(zmNote);
+      const zmGrid=document.createElement('div');
+      zmGrid.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:3px;';
+      zoneOrder.forEach(function(row){
+        row.forEach(function(zk){
+          const cnt=allTunnelZones[zk]||0;
+          const intensity=cnt/maxZone;
+          const cell=document.createElement('div');
+          cell.style.cssText='height:40px;border-radius:3px;display:flex;align-items:center;'
+            +'justify-content:center;font-size:10px;font-weight:700;border:0.5px solid #bae6fd;'
+            +'background:rgba(8,145,178,'+Math.max(0.06,intensity).toFixed(2)+');'
+            +'color:'+(intensity>0.4?'#fff':'#334155')+';';
+          cell.textContent=cnt>0?cnt:'';
+          zmGrid.appendChild(cell);
+        });
+      });
+      zmWrap.appendChild(zmGrid);
+      tunnelTab.appendChild(zmWrap);
+      // ── Tunnel coaching insights ──
+      tnLabel('TUNNEL COACHING INSIGHTS');
+      const insights=[];
+      // Most effective tunnel pair
+      const bestPair=sortedPairs[0];
+      if(bestPair){
+        const bp=bestPair[0];
+        const bpOut=aggOutcomes[bp]||{};
+        const bpTotal=Object.values(bpOut).reduce(function(a,b){return a+b;},0)||1;
+        const bpK=['STRIKEOUT','SWING & MISS','CALLED STRIKE'].reduce(function(s,o){return s+(bpOut[o]||0);},0);
+        insights.push('→ Your best tunnel: '+bp+' ('+bestPair[1]+' times, '+Math.round(bpK/bpTotal*100)+'% positive outcome)');
+      }
+      // Quality assessment
+      if(avgQuality>=65){
+        insights.push('✓ Excellent tunnel quality ('+avgQuality+'%) — your release point is very consistent');
+      } else if(avgQuality>=45){
+        insights.push('→ Good tunnel quality ('+avgQuality+'%) — focus on consistent release point to improve');
+      } else {
+        insights.push('⚠ Low tunnel quality ('+avgQuality+'%) — work on release point consistency');
+      }
+      // Same pitch tunneling
+      const samePitchTunnels=sortedPairs.filter(function(e){
+        const parts=e[0].split('→');
+        return parts[0]===parts[1];
+      });
+      if(samePitchTunnels.length>0){
+        insights.push('→ '+samePitchTunnels[0][0]+' tunnels with itself ('+samePitchTunnels[0][1]+'x) — consistent arm slot on repeated pitches');
+      }
+      insights.forEach(function(insight){
+        const el=document.createElement('div');
+        el.style.cssText='font-size:9px;color:#0c4a6e;font-weight:600;'
+          +'padding:4px 6px;border-left:3px solid #0891b2;'
+          +'background:#f0f9ff;margin-bottom:4px;line-height:1.5;';
+        el.textContent=insight;
+        tunnelTab.appendChild(el);
+      });
+      // Export button
+      const tnExportBtn=document.createElement('button');
+      tnExportBtn.style.cssText='width:100%;margin-top:16px;padding:10px;border-radius:6px;'
+        +'border:1px solid #0c4a6e;background:#e0f2fe;color:#0c4a6e;'
+        +'font-family:\'Bebas Neue\',sans-serif;font-size:14px;letter-spacing:2px;cursor:pointer;';
+      tnExportBtn.textContent='EXPORT TUNNEL REPORT TO PDF';
+      tnExportBtn.onclick=function(){
+        try{
+          const raw=localStorage.getItem('pitchseq-game-history');
+          const history=raw?JSON.parse(raw):[];
+          const exportData={
+            tab:'tunnel',
+            games:history,
+            profile:typeof getProfile==='function'?getProfile():null,
+            generatedAt:Date.now()
+          };
+          localStorage.setItem('pitchseq-report-export',JSON.stringify(exportData));
+          window.open('report.html?tab=tunnel','_blank');
+        }catch(e){alert('Could not export report.');}
+      };
+      tunnelTab.appendChild(tnExportBtn);
+    }
+  }catch(e){
+    const tnErr=document.createElement('div');
+    tnErr.style.cssText='padding:20px;color:#991b1b;font-size:11px;';
+    tnErr.textContent='Error loading tunnel data: '+e.message;
+    tunnelTab.appendChild(tnErr);
   }
 
   overlay.appendChild(card);
