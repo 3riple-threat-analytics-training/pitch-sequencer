@@ -1079,6 +1079,72 @@ function showGameReport(game,title,onClose){
     gameTab.appendChild(tnSection);
   }
   // Add inning tracking note for future feature
+  // ── Contact by inning section ──
+  if(game.contactByInning&&Object.keys(game.contactByInning).length>0){
+    const cbiSection=document.createElement('div');
+    cbiSection.style.cssText='margin-top:12px;';
+    const cbiLabel=document.createElement('div');
+    cbiLabel.style.cssText='font-family:\'Bebas Neue\',sans-serif;font-size:13px;'
+      +'color:#0c4a6e;letter-spacing:2px;border-bottom:1px solid #bae6fd;'
+      +'padding-bottom:4px;margin-bottom:8px;';
+    cbiLabel.textContent='CONTACT BY INNING';
+    cbiSection.appendChild(cbiLabel);
+    const cbiNote=document.createElement('div');
+    cbiNote.style.cssText='font-size:8px;color:#475569;margin-bottom:8px;';
+    cbiNote.textContent='Contact = hits + fouls + weak contact. Rising contact late in game may indicate fatigue.';
+    cbiSection.appendChild(cbiNote);
+    const innings=Object.keys(game.contactByInning).map(Number).sort(function(a,b){return a-b;});
+    innings.forEach(function(inn){
+      const data=game.contactByInning[inn];
+      const contactCount=data.hits+data.fouls+data.weakContact;
+      const contactPct=data.total>0?Math.round(contactCount/data.total*100):0;
+      const hitPct=data.total>0?Math.round(data.hits/data.total*100):0;
+      const row=document.createElement('div');
+      row.style.cssText='margin-bottom:5px;';
+      const rowHdr=document.createElement('div');
+      rowHdr.style.cssText='display:flex;justify-content:space-between;'
+        +'font-size:8px;font-weight:700;color:#0c4a6e;margin-bottom:2px;';
+      rowHdr.innerHTML='<span>INN '+inn+'</span>'
+        +'<span style="color:'+(hitPct>15?'#991b1b':contactPct>40?'#ca8a04':'#166534')+'">'
+        +contactCount+' contacts ('+contactPct+'%) — '+data.hits+' hits</span>';
+      row.appendChild(rowHdr);
+      // Contact bar
+      const barWrap=document.createElement('div');
+      barWrap.style.cssText='display:flex;height:10px;border-radius:3px;overflow:hidden;'
+        +'background:#f0f9ff;border:0.5px solid #bae6fd;';
+      // Hits (red)
+      if(data.hits>0){
+        const hitBar=document.createElement('div');
+        hitBar.style.cssText='background:#991b1b;width:'+Math.round(data.hits/data.total*100)+'%;';
+        barWrap.appendChild(hitBar);
+      }
+      // Fouls (amber)
+      if(data.fouls>0){
+        const foulBar=document.createElement('div');
+        foulBar.style.cssText='background:#ca8a04;width:'+Math.round(data.fouls/data.total*100)+'%;';
+        barWrap.appendChild(foulBar);
+      }
+      // Weak contact (blue)
+      if(data.weakContact>0){
+        const weakBar=document.createElement('div');
+        weakBar.style.cssText='background:#1d4ed8;width:'+Math.round(data.weakContact/data.total*100)+'%;';
+        barWrap.appendChild(weakBar);
+      }
+      row.appendChild(barWrap);
+      cbiSection.appendChild(row);
+    });
+    // Legend
+    const cbiLegend=document.createElement('div');
+    cbiLegend.style.cssText='display:flex;gap:10px;margin-top:6px;font-size:8px;font-weight:700;';
+    cbiLegend.innerHTML='<span><span style="display:inline-block;width:10px;height:10px;'
+      +'background:#991b1b;border-radius:2px;vertical-align:middle;margin-right:3px;"></span>Hits</span>'
+      +'<span><span style="display:inline-block;width:10px;height:10px;'
+      +'background:#ca8a04;border-radius:2px;vertical-align:middle;margin-right:3px;"></span>Fouls</span>'
+      +'<span><span style="display:inline-block;width:10px;height:10px;'
+      +'background:#1d4ed8;border-radius:2px;vertical-align:middle;margin-right:3px;"></span>Weak Contact</span>';
+    cbiSection.appendChild(cbiLegend);
+    gameTab.appendChild(cbiSection);
+  }
   const exportBtn=document.createElement('button');
   exportBtn.style.cssText='width:100%;margin-top:16px;padding:10px;border-radius:6px;'
     +'border:1px solid #0c4a6e;background:#e0f2fe;color:#0c4a6e;'
