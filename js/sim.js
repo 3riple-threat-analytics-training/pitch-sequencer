@@ -2276,6 +2276,148 @@ function showGameReport(game,title,onClose){
         dividerNote.textContent='Bundle breaks every 10 games — vertical reference for trend comparison';
         careerTab.appendChild(dividerNote);
       }
+      // ── Contact Rate Trend ──
+      cLabel('CONTACT RATE TREND (ML DIFFICULTY ASSESSMENT)');
+      const contactNote=document.createElement('div');
+      contactNote.style.cssText='font-size:8px;color:#475569;margin-bottom:6px;line-height:1.5;';
+      contactNote.textContent='Rising contact rate over time indicates the ML batter is adapting. '
+        +'Fouls = batter making contact but not driving ball. Hits = quality contact.';
+      careerTab.appendChild(contactNote);
+      const contactCanvas=document.createElement('canvas');
+      contactCanvas.style.cssText='width:100%;max-height:220px;';
+      careerTab.appendChild(contactCanvas);
+      // Calculate contact rates per game
+      const contactRateData=allGames.map(function(g){
+        if(!g.contactByInning) return null;
+        const totals=Object.values(g.contactByInning).reduce(function(acc,inn){
+          return {
+            hits:acc.hits+(inn.hits||0),
+            fouls:acc.fouls+(inn.fouls||0),
+            weakContact:acc.weakContact+(inn.weakContact||0),
+            total:acc.total+(inn.total||0)
+          };
+        },{hits:0,fouls:0,weakContact:0,total:0});
+        if(!totals.total) return null;
+        return {
+          contactPct:Math.round((totals.hits+totals.fouls+totals.weakContact)/totals.total*100),
+          hitPct:Math.round(totals.hits/totals.total*100),
+          foulPct:Math.round(totals.fouls/totals.total*100)
+        };
+      });
+      const hasContactData=contactRateData.some(function(d){return d!==null;});
+      if(hasContactData){
+        new Chart(contactCanvas,{
+          type:'line',
+          data:{
+            labels:gameLabels,
+            datasets:[
+              {
+                label:'Total contact %',
+                data:contactRateData.map(function(d){return d?d.contactPct:null;}),
+                borderColor:'#0891b2',
+                backgroundColor:'rgba(8,145,178,0.05)',
+                borderWidth:2,
+                pointBackgroundColor:'#0891b2',
+                pointRadius:3,
+                tension:0.3,
+                fill:false,
+                spanGaps:true
+              },
+              {
+                label:'Hit %',
+                data:contactRateData.map(function(d){return d?d.hitPct:null;}),
+                borderColor:'#991b1b',
+                backgroundColor:'rgba(153,27,27,0.05)',
+                borderWidth:2,
+                pointBackgroundColor:'#991b1b',
+                pointRadius:3,
+                tension:0.3,
+                fill:false,
+                spanGaps:true
+              },
+              {
+                label:'Foul %',
+                data:contactRateData.map(function(d){return d?d.foulPct:null;}),
+                borderColor:'#ca8a04',
+                backgroundColor:'rgba(202,138,4,0.05)',
+                borderWidth:2,
+                pointBackgroundColor:'#ca8a04',
+                pointRadius:3,
+                tension:0.3,
+                fill:false,
+                spanGaps:true
+              }
+            ]
+          },
+          options:{
+            responsive:true,
+            interaction:{mode:'index',intersect:false},
+            plugins:{
+              legend:{
+                position:'bottom',
+                labels:{color:'#0c4a6e',font:{weight:'bold'},boxWidth:12}
+              },
+              tooltip:{
+                callbacks:{
+                  title:function(items){return 'Game '+items[0].label.replace('G','');}
+                }
+              }
+            },
+            scales:{
+              y:{
+                beginAtZero:true,
+                max:100,
+                ticks:{
+                  color:'#0c4a6e',
+                  font:{weight:'bold'},
+                  callback:function(v){return v+'%';}
+                },
+                grid:{color:'#e0f2fe'}
+              },
+              x:{
+                ticks:{color:'#0c4a6e',font:{weight:'bold'}},
+                grid:{display:false}
+              }
+            }
+          }
+        });
+        // ML assessment note
+        const recentGames=allGames.filter(function(g){return g.contactByInning;}).slice(-5);
+        const earlyGames=allGames.filter(function(g){return g.contactByInning;}).slice(0,5);
+        if(recentGames.length>=2&&earlyGames.length>=2){
+          function avgContact(games){
+            const tot=games.reduce(function(acc,g){
+              const t=Object.values(g.contactByInning||{}).reduce(function(s,inn){
+                return {
+                  contact:s.contact+(inn.hits||0)+(inn.fouls||0)+(inn.weakContact||0),
+                  total:s.total+(inn.total||0)
+                };
+              },{contact:0,total:0});
+              return {contact:acc.contact+t.contact,total:acc.total+t.total};
+            },{contact:0,total:0});
+            return tot.total?Math.round(tot.contact/tot.total*100):0;
+          }
+          const earlyAvg=avgContact(earlyGames);
+          const recentAvg=avgContact(recentGames);
+          const diff=recentAvg-earlyAvg;
+          const assessEl=document.createElement('div');
+          assessEl.style.cssText='margin-top:6px;padding:8px;border-radius:6px;font-size:9px;font-weight:700;'
+            +'background:'+(diff>5?'#fff1f0':diff>0?'#fffbeb':'#f0fff4')+';'
+            +'border:1px solid '+(diff>5?'#fca5a5':diff>0?'#fde68a':'#86efac')+';';
+          assessEl.innerHTML='<span style="color:#0c4a6e;">ML ASSESSMENT: </span>'
+            +'<span style="color:'+(diff>5?'#991b1b':diff>0?'#92400e':'#166534')+'">'
+            +(diff>5?'⚠ Contact rising significantly (+'+diff+'%) — ML batter is adapting effectively':
+              diff>0?'→ Contact rising slightly (+'+diff+'%) — ML batter beginning to adapt':
+              '✓ Contact stable or decreasing ('+diff+'%) — pitcher is adjusting well')
+            +'</span>';
+          careerTab.appendChild(assessEl);
+        }
+      } else {
+        const noContactMsg=document.createElement('div');
+        noContactMsg.style.cssText='font-size:9px;color:#475569;padding:8px;text-align:center;';
+        noContactMsg.textContent='Play more games with the latest version to see contact trend data.';
+        careerTab.appendChild(noContactMsg);
+      }
       // Stage C — Pitch analysis
       // Career pitch mix
       cLabel('CAREER PITCH MIX');
