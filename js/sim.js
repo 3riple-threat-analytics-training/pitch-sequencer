@@ -318,6 +318,8 @@ function saveGameHistory(){
     const tunnelOutcomes={}; // 'prevPk→pk': {outcome: count}
     const tunnelZones={};   // 'prevPk→pk': {zone: count}
     const tunnelQualities=[]; // length scores for average quality
+    const contactByInning={};  // inning→{hits,fouls,total}
+    const tunnelsByInning={};  // inning→count
     pitches.forEach(function(p,i){
       const pk=p.pk||'';
       const zk=p.zk||'';
@@ -335,6 +337,20 @@ function saveGameHistory(){
           tunnelZones[tKey][zk]=(tunnelZones[tKey][zk]||0)+1;
         }
         tunnelQualities.push(td.length||0);
+      }
+      // Contact and tunnel by inning
+      const inn=p.inning||1;
+      if(!contactByInning[inn]) contactByInning[inn]={hits:0,fouls:0,weakContact:0,total:0};
+      contactByInning[inn].total++;
+      const isHit=outcome==='SINGLE'||outcome==='DOUBLE'||outcome==='TRIPLE'||outcome==='HOME RUN';
+      const isFoul=outcome.startsWith('FOUL')||outcome==='CHECK SWING (BALL)';
+      const isWeakContact=outcome==='GROUND OUT'||outcome==='POP FLY';
+      if(isHit) contactByInning[inn].hits++;
+      if(isFoul) contactByInning[inn].fouls++;
+      if(isWeakContact) contactByInning[inn].weakContact++;
+      // Tunnel by inning
+      if(p.tunnelData&&p.tunnelData.detected){
+        tunnelsByInning[inn]=(tunnelsByInning[inn]||0)+1;
       }
       const bh=p.batterHand||'RHB';
       const bt=p.batterType||'GENERIC';
@@ -426,10 +442,11 @@ function saveGameHistory(){
       })(),
       pitchMix,zoneMap,firstPitches,sequences,
       outcomes,countTendencies,countOutcomes,countSequences,countPitchZoneOutcomes,
-      tunnelPairs,tunnelOutcomes,tunnelZones,
+      tunnelPairs,tunnelOutcomes,tunnelZones,tunnelsByInning,
       avgTunnelQuality:tunnelQualities.length?
         Math.round(tunnelQualities.reduce(function(a,b){return a+b;},0)/tunnelQualities.length*100):0,
       totalTunnels:tunnelQualities.length,
+      contactByInning,
       vsBatterType,vsLHB,vsRHB
     };
     // Load existing history
