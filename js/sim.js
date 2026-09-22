@@ -30,7 +30,7 @@ let atBatOver=false;
 let runners={first:false, second:false, third:false};
 let totalScore=0;
 let teamScore=0;
-let isHomeTeam=true;
+let isHomeTeam=(localStorage.getItem('pitchseq-next-home-away')||'home')==='home';
 let inningRunsAllowed=0;
 let inningHits=0;
 let scoreboardData=[]; // array of {inning, hits, score} per completed inning
@@ -490,6 +490,8 @@ function endGame(){
   } else {
     isHomeTeam=Math.random()<0.5;
   }
+  // Persist home/away for next game so page reloads don't reset it
+  localStorage.setItem('pitchseq-next-home-away',isHomeTeam?'home':'away');
   inningRunsAllowed=0;
   inningHits=0;
   scoreboardData=[];
