@@ -492,6 +492,8 @@ function endGame(){
   }
   // Persist home/away for next game so page reloads don't reset it
   localStorage.setItem('pitchseq-next-home-away',isHomeTeam?'home':'away');
+  // Flag away opener for next game
+  window._pendingAwayOpener=!isHomeTeam;
   inningRunsAllowed=0;
   inningHits=0;
   scoreboardData=[];
@@ -541,6 +543,24 @@ function confirmEndGame(){
     +'This will reset the game to inning 1.\nAll pitch counts and fatigue will reset.';
   if(!confirm(msg)) return;
   endGame();
+}
+
+function checkPendingAwayOpener(){
+  if(window._pendingAwayOpener&&simMode&&!window.tutorialActive){
+    window._pendingAwayOpener=false;
+    setTimeout(function(){
+      showAwayGameOpener(function(){
+        const awayRuns=Math.floor(Math.random()*3);
+        teamScore+=awayRuns;
+        const msg=awayRuns===0?'Your team did not score.':
+          awayRuns===1?'Your team scored 1 run!':
+          'Your team scored '+awayRuns+' runs!';
+        showTeamRunsNotification(msg,function(){
+          updateSimStatBar();
+        });
+      });
+    },500);
+  }
 }
 
 function showGameSummary(){
@@ -610,7 +630,11 @@ function showGameReport(game,title,onClose){
     +'color:#0c4a6e;padding:4px 10px;border-radius:4px;cursor:pointer;'
     +'font-family:\'DM Mono\',monospace;font-size:10px;';
   closeBtn.textContent='CLOSE';
-  closeBtn.onclick=function(){overlay.remove();if(onClose)onClose();};
+  closeBtn.onclick=function(){
+    overlay.remove();
+    if(onClose) onClose();
+    if(typeof checkPendingAwayOpener==='function') checkPendingAwayOpener();
+  };
   hdr.appendChild(htitle);
   hdr.appendChild(closeBtn);
   card.appendChild(hdr);
