@@ -21,6 +21,7 @@ let batterRevealed=false;
 
 let simHalfTop=true;
 let simInningBreak=false;
+let inningStrikePitches=0; // consecutive strike-result pitches this inning
 let simInningLogPending=false;
 let simClearTimer=null;
 let pitchCount='0-0';
@@ -3898,6 +3899,7 @@ function showInningCapModal(situation){
 }
 function handleNewInning(){
   simInningBreak=false;
+  inningStrikePitches=0; // reset on new inning
   resetRunners();
   outCount=0;
   // Check inning cap before incrementing
@@ -3929,6 +3931,8 @@ function handleNewInning(){
 
 function addSimOutCore(){
   outCount++;
+  // Reset inning strike counter between batters (not between innings)
+  // Keep accumulating within the inning for immaculate inning detection
   if(outCount>=3){
     outCount=3;
     simInningBreak=true;
@@ -4917,6 +4921,35 @@ function buildSimWeights(zk,rl,bd,ct,speed,pitchKey){
   const sitMod=getSituationModifier();
   w['STRONG CONTACT']=Math.max(1,w['STRONG CONTACT']*sitMod.contactQualityMult);
   w['WEAK CONTACT']=Math.max(1,w['WEAK CONTACT']*(2-sitMod.contactQualityMult));
+  // ── Immaculate inning prevention ──
+  // When pitcher has thrown 6+ strike pitches with 2 outs, batter becomes more alert
+  if(outCount>=2&&inningStrikePitches>=6){
+    const mlConf=window._mlWeights?window._mlWeights.confidence:0;
+    const mlBoost=1+mlConf*0.5; // up to 50% stronger at 85% confidence
+    if(inningStrikePitches>=8){
+      // STRONG prevention — immaculate inning moment
+      // Batter is fully locked in — expect fouls and battles
+      const strongFoulMult=3.0*mlBoost;
+      const strongMissMult=0.4;
+      const strongHitMult=2.0*mlBoost;
+      w['FOUL (STRAIGHT BACK)']=Math.round((w['FOUL (STRAIGHT BACK)']||0)*strongFoulMult);
+      w['FOUL (PULLED)']=Math.round((w['FOUL (PULLED)']||0)*strongFoulMult);
+      w['FOUL (LATE)']=Math.round((w['FOUL (LATE)']||0)*strongFoulMult);
+      w['SWING & MISS']=Math.max(1,Math.round((w['SWING & MISS']||0)*strongMissMult));
+      w['STRONG CONTACT']=Math.round((w['STRONG CONTACT']||0)*strongHitMult);
+      w['WEAK CONTACT']=Math.round((w['WEAK CONTACT']||0)*strongHitMult);
+      if(w.STRIKE!==undefined) w.STRIKE=Math.max(1,Math.round(w.STRIKE*0.5));
+    } else {
+      // LIGHT prevention — pitcher on a roll, batter waking up
+      const lightFoulMult=2.0*mlBoost;
+      const lightHitMult=1.5*mlBoost;
+      w['FOUL (STRAIGHT BACK)']=Math.round((w['FOUL (STRAIGHT BACK)']||0)*lightFoulMult);
+      w['FOUL (PULLED)']=Math.round((w['FOUL (PULLED)']||0)*lightFoulMult);
+      w['FOUL (LATE)']=Math.round((w['FOUL (LATE)']||0)*lightFoulMult);
+      w['STRONG CONTACT']=Math.round((w['STRONG CONTACT']||0)*lightHitMult);
+      w['WEAK CONTACT']=Math.round((w['WEAK CONTACT']||0)*lightHitMult);
+    }
+  }
 
   if(PITCHER_COUNTS.includes(ct)){
     w.BALL=Math.max(0,(w.BALL||0)-8);
@@ -5394,6 +5427,13 @@ function handleSimOutcome(pitchName,outcome,speed,pitchKey){
   else if(['SINGLE','DOUBLE','TRIPLE','HOME RUN'].includes(outcome)) totalHits++;
   const effSpeed=typeof speed==='number'?speed:parseInt((document.getElementById('spd')||{}).value,10)||0;
   if(effSpeed) lastPitchSpeed=effSpeed;
+  // Track strike pitches this inning for immaculate inning prevention
+  const strikeOutcomes=['STRIKE','CALLED STRIKE','SWING & MISS','FOUL',
+    'FOUL (STRAIGHT BACK)','FOUL (PULLED)','FOUL (LATE)',
+    'CHECK SWING (STRIKE)','STRIKEOUT'];
+  if(strikeOutcomes.includes(outcome)){
+    inningStrikePitches++;
+  }
   const prominent=outcome==='WALK'||outcome==='STRIKEOUT';
   const showLbl=(batterType!=='RANDOM')||batterRevealed;
   const takePrefix=(outcome==='CALLED STRIKE'||outcome==='CALLED BALL')?'TAKE: ':'';
