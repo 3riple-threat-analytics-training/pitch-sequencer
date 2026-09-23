@@ -463,6 +463,8 @@ function saveGameHistory(){
 function endGame(){
   // Save game history BEFORE resetting data
   saveGameHistory();
+  // Ensure tutorial flag is cleared so away opener can fire
+  if(typeof window.tutorialActive!=='undefined') window.tutorialActive=false;
   // Randomize first batter handedness for next game
   if(typeof setBatter==='function'){
     const firstHand=Math.random()<0.5?'RHB':'LHB';
