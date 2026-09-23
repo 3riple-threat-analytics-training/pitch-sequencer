@@ -558,6 +558,8 @@ function checkPendingAwayOpener(){
           awayRuns===1?'Your team scored 1 run!':
           'Your team scored '+awayRuns+' runs!';
         showTeamRunsNotification(msg,function(){
+          // Flip to bottom half — away team batted, now pitcher pitches bottom
+          simHalfTop=false;
           updateSimStatBar();
         });
       });
