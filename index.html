@@ -531,7 +531,7 @@ STEP FWD ▶▶</button>
             cursor:pointer;letter-spacing:1px;transition:all 0.15s;">
             ⇄ CHANGE
           </button>
-          <button onclick="confirmEndGame()" style="flex:1;padding:4px;
+          <button onclick="if(window._endGamePending)return;window._endGamePending=true;setTimeout(function(){window._endGamePending=false;},3000);confirmEndGame();" style="flex:1;padding:4px;
             border-radius:4px;border:0.5px solid #cc1a1a;background:#cc1a1a;
             color:#ffffff;font-family:'DM Mono',monospace;font-size:8px;
             cursor:pointer;letter-spacing:1px;transition:all 0.15s;">
