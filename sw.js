@@ -1,4 +1,4 @@
-const CACHE_NAME='pitchseq-v44';
+const CACHE_NAME='pitchseq-v45';
 
 // All files to cache for offline use
 const FILES_TO_CACHE=[
