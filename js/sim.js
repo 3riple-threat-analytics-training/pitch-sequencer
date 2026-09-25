@@ -567,6 +567,20 @@ function checkPendingAwayOpener(){
   }
 }
 
+function openCareerReport(tab){
+  try{
+    const raw=localStorage.getItem('pitchseq-game-history');
+    const history=raw?JSON.parse(raw):[];
+    if(!history.length){alert('No game data available. Play some games first.');return;}
+    const game=history[history.length-1];
+    showGameReport(game,'GAME REPORT',function(){});
+    // Switch to requested tab after modal opens
+    setTimeout(function(){
+      const tabBtn=document.getElementById('report-tab-'+tab);
+      if(tabBtn) tabBtn.click();
+    },150);
+  }catch(e){alert('Could not load report.');}
+}
 function showGameSummary(){
   // Load the most recently saved game
   try{
