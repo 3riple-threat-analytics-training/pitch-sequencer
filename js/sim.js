@@ -3797,6 +3797,57 @@ function showGameReport(game,title,onClose){
         tunnelTab.appendChild(el);
       });
       // Export button
+      // ── Tunnels by inning ──
+      const allTunnelsByInning={};
+      tnGamesWith.forEach(function(g){
+        Object.entries(g.tunnelsByInning||{}).forEach(function(e){
+          const inn=parseInt(e[0]);
+          allTunnelsByInning[inn]=(allTunnelsByInning[inn]||0)+e[1];
+        });
+      });
+      if(Object.keys(allTunnelsByInning).length>0){
+        tnLabel('TUNNELS BY INNING');
+        const tbiNote=document.createElement('div');
+        tbiNote.style.cssText='font-size:8px;color:#475569;margin-bottom:8px;';
+        tbiNote.textContent='Career tunnel totals per inning. Declining tunnels late in game may indicate fatigue affecting release point consistency.';
+        tunnelTab.appendChild(tbiNote);
+        const innings=Object.keys(allTunnelsByInning).map(Number).sort(function(a,b){return a-b;});
+        const maxTunnels=Math.max.apply(null,Object.values(allTunnelsByInning))||1;
+        innings.forEach(function(inn){
+          const count=allTunnelsByInning[inn];
+          const pct=Math.round(count/maxTunnels*100);
+          const row=document.createElement('div');
+          row.style.cssText='margin-bottom:5px;';
+          const rowHdr=document.createElement('div');
+          rowHdr.style.cssText='display:flex;justify-content:space-between;'
+            +'font-size:8px;font-weight:700;color:#0c4a6e;margin-bottom:2px;';
+          rowHdr.innerHTML='<span>INN '+inn+'</span>'
+            +'<span style="color:#0891b2;">'+count+' tunnels</span>';
+          row.appendChild(rowHdr);
+          const barWrap=document.createElement('div');
+          barWrap.style.cssText='background:#e0f2fe;border-radius:3px;height:10px;';
+          const barFill=document.createElement('div');
+          barFill.style.cssText='height:100%;border-radius:3px;width:'+pct+'%;'
+            +'background:#0891b2;';
+          barWrap.appendChild(barFill);
+          row.appendChild(barWrap);
+          tunnelTab.appendChild(row);
+        });
+        // Fatigue insight
+        if(innings.length>=4){
+          const earlyAvg=(allTunnelsByInning[1]||0)+(allTunnelsByInning[2]||0);
+          const lateAvg=(allTunnelsByInning[innings[innings.length-2]]||0)
+            +(allTunnelsByInning[innings[innings.length-1]]||0);
+          const fatigueEl=document.createElement('div');
+          fatigueEl.style.cssText='font-size:9px;font-weight:700;margin-top:6px;padding:6px;'
+            +'border-radius:4px;border-left:3px solid '+(lateAvg<earlyAvg*0.7?'#991b1b':'#0891b2')+';'
+            +'background:'+(lateAvg<earlyAvg*0.7?'#fff1f0':'#f0f9ff')+';';
+          fatigueEl.textContent=lateAvg<earlyAvg*0.7?
+            '⚠ Tunnel frequency drops significantly late in games — fatigue may be affecting release point consistency':
+            '✓ Tunnel frequency consistent across innings — good release point endurance';
+          tunnelTab.appendChild(fatigueEl);
+        }
+      }
       const tnExportBtn=document.createElement('button');
       tnExportBtn.style.cssText='width:100%;margin-top:16px;padding:10px;border-radius:6px;'
         +'border:1px solid #0c4a6e;background:#e0f2fe;color:#0c4a6e;'
