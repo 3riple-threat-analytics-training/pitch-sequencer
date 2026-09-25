@@ -320,6 +320,7 @@ function saveGameHistory(){
     const tunnelQualities=[]; // length scores for average quality
     const contactByInning={};  // inning→{hits,fouls,total}
     const tunnelsByInning={};  // inning→count
+    const tunnelsByInningDetail={}; // inning→{pairs:{key:count}, zones:{key:count}}
     pitches.forEach(function(p,i){
       const pk=p.pk||'';
       const zk=p.zk||'';
@@ -351,6 +352,11 @@ function saveGameHistory(){
       // Tunnel by inning
       if(p.tunnelData&&p.tunnelData.detected){
         tunnelsByInning[inn]=(tunnelsByInning[inn]||0)+1;
+        // Detailed tunnel data by inning
+        if(!tunnelsByInningDetail[inn]) tunnelsByInningDetail[inn]={pairs:{},zones:{}};
+        const tKey2=p.tunnelData.prevPk+'→'+pk;
+        tunnelsByInningDetail[inn].pairs[tKey2]=(tunnelsByInningDetail[inn].pairs[tKey2]||0)+1;
+        if(zk) tunnelsByInningDetail[inn].zones[zk]=(tunnelsByInningDetail[inn].zones[zk]||0)+1;
       }
       const bh=p.batterHand||'RHB';
       const bt=p.batterType||'GENERIC';
@@ -442,7 +448,7 @@ function saveGameHistory(){
       })(),
       pitchMix,zoneMap,firstPitches,sequences,
       outcomes,countTendencies,countOutcomes,countSequences,countPitchZoneOutcomes,
-      tunnelPairs,tunnelOutcomes,tunnelZones,tunnelsByInning,
+      tunnelPairs,tunnelOutcomes,tunnelZones,tunnelsByInning,tunnelsByInningDetail,
       avgTunnelQuality:tunnelQualities.length?
         Math.round(tunnelQualities.reduce(function(a,b){return a+b;},0)/tunnelQualities.length*100):0,
       totalTunnels:tunnelQualities.length,
