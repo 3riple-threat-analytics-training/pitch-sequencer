@@ -3831,26 +3831,129 @@ function showGameReport(game,title,onClose){
         tbiNote.style.cssText='font-size:8px;color:#475569;margin-bottom:8px;';
         tbiNote.textContent='Career tunnel totals per inning. Declining tunnels late in game may indicate fatigue affecting release point consistency.';
         tunnelTab.appendChild(tbiNote);
+        // Aggregate tunnelsByInningDetail across all games
+        const allTbiDetail={};
+        tnGamesWith.forEach(function(g){
+          Object.entries(g.tunnelsByInningDetail||{}).forEach(function(e){
+            const inn=e[0];
+            if(!allTbiDetail[inn]) allTbiDetail[inn]={pairs:{},zones:{}};
+            Object.entries(e[1].pairs||{}).forEach(function(pe){
+              allTbiDetail[inn].pairs[pe[0]]=(allTbiDetail[inn].pairs[pe[0]]||0)+pe[1];
+            });
+            Object.entries(e[1].zones||{}).forEach(function(ze){
+              allTbiDetail[inn].zones[ze[0]]=(allTbiDetail[inn].zones[ze[0]]||0)+ze[1];
+            });
+          });
+        });
+        // Inning tunnel popup function
+        function showTunnelInningPopup(inn,count,detail){
+          const existing=document.getElementById('tunnel-inning-popup');
+          if(existing) existing.remove();
+          const overlay=document.createElement('div');
+          overlay.id='tunnel-inning-popup';
+          overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;'
+            +'z-index:11000;background:rgba(0,0,0,0.75);display:flex;'
+            +'align-items:center;justify-content:center;';
+          const card=document.createElement('div');
+          card.style.cssText='background:#fff;border-radius:12px;padding:20px;'
+            +'max-width:360px;width:90%;border:2px solid #0891b2;max-height:80vh;overflow-y:auto;';
+          // Header
+          const hdr=document.createElement('div');
+          hdr.style.cssText='display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;';
+          const title=document.createElement('div');
+          title.style.cssText='font-family:\'Bebas Neue\',sans-serif;font-size:18px;'
+            +'color:#0891b2;letter-spacing:2px;';
+          title.textContent='INNING '+inn+' — '+count+' TUNNELS';
+          const closeBtn=document.createElement('button');
+          closeBtn.style.cssText='background:transparent;border:1px solid #bae6fd;'
+            +'color:#0c4a6e;padding:3px 8px;border-radius:4px;cursor:pointer;'
+            +'font-family:\'DM Mono\',monospace;font-size:9px;';
+          closeBtn.textContent='CLOSE';
+          closeBtn.onclick=function(){overlay.remove();};
+          hdr.appendChild(title);hdr.appendChild(closeBtn);
+          card.appendChild(hdr);
+          // Top tunnel pairs this inning
+          const pairsLabel=document.createElement('div');
+          pairsLabel.style.cssText='font-size:8px;font-weight:700;color:#0c4a6e;'
+            +'letter-spacing:1px;margin-bottom:6px;';
+          pairsLabel.textContent='TOP TUNNEL PAIRS';
+          card.appendChild(pairsLabel);
+          const sortedPairs=Object.entries(detail.pairs||{})
+            .sort(function(a,b){return b[1]-a[1];}).slice(0,5);
+          const maxPairCount=sortedPairs[0]?sortedPairs[0][1]:1;
+          sortedPairs.forEach(function(e){
+            const pair=e[0],cnt=e[1];
+            const pct=Math.round(cnt/count*100);
+            const barPct=Math.round(cnt/maxPairCount*100);
+            const pRow=document.createElement('div');
+            pRow.style.cssText='margin-bottom:5px;';
+            const pHdr=document.createElement('div');
+            pHdr.style.cssText='display:flex;justify-content:space-between;'
+              +'font-size:8px;font-weight:700;color:#0c4a6e;margin-bottom:2px;';
+            pHdr.innerHTML='<span>'+pair+'</span><span style="color:#0891b2;">'+cnt+'x ('+pct+'%)</span>';
+            pRow.appendChild(pHdr);
+            const bWrap=document.createElement('div');
+            bWrap.style.cssText='background:#e0f2fe;border-radius:2px;height:8px;';
+            const bFill=document.createElement('div');
+            bFill.style.cssText='height:100%;border-radius:2px;width:'+barPct+'%;background:#0891b2;';
+            bWrap.appendChild(bFill);
+            pRow.appendChild(bWrap);
+            card.appendChild(pRow);
+          });
+          // Zone heat map
+          const zmLbl=document.createElement('div');
+          zmLbl.style.cssText='font-size:8px;font-weight:700;color:#0c4a6e;'
+            +'letter-spacing:1px;margin:10px 0 4px 0;';
+          zmLbl.textContent='ZONE HEAT MAP (CATCHER\'S POV)';
+          card.appendChild(zmLbl);
+          const zoneOrder=[['TR','TM','TL'],['MR','MM','ML'],['BR','BM','BL']];
+          const zones=detail.zones||{};
+          const maxZ=Math.max.apply(null,Object.values(zones))||1;
+          const zmGrid=document.createElement('div');
+          zmGrid.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);'
+            +'gap:3px;max-width:180px;margin:0 auto 8px auto;';
+          zoneOrder.forEach(function(rowZ){
+            rowZ.forEach(function(zk){
+              const cnt=zones[zk]||0;
+              const intensity=cnt/maxZ;
+              const cell=document.createElement('div');
+              cell.style.cssText='height:36px;border-radius:3px;display:flex;align-items:center;'
+                +'justify-content:center;font-size:10px;font-weight:700;border:0.5px solid #bae6fd;'
+                +'background:rgba(8,145,178,'+Math.max(0.06,intensity).toFixed(2)+');'
+                +'color:'+(intensity>0.4?'#fff':'#334155')+';';
+              cell.textContent=cnt>0?cnt:'';
+              zmGrid.appendChild(cell);
+            });
+          });
+          card.appendChild(zmGrid);
+          overlay.appendChild(card);
+          document.body.appendChild(overlay);
+          overlay.addEventListener('click',function(e){if(e.target===overlay)overlay.remove();});
+        }
         const innings=Object.keys(allTunnelsByInning).map(Number).sort(function(a,b){return a-b;});
         const maxTunnels=Math.max.apply(null,Object.values(allTunnelsByInning))||1;
         innings.forEach(function(inn){
           const count=allTunnelsByInning[inn];
           const pct=Math.round(count/maxTunnels*100);
+          const detail=allTbiDetail[inn]||{pairs:{},zones:{}};
           const row=document.createElement('div');
-          row.style.cssText='margin-bottom:5px;';
+          row.style.cssText='margin-bottom:5px;cursor:pointer;';
+          row.title='Click to see inning '+inn+' tunnel details';
           const rowHdr=document.createElement('div');
           rowHdr.style.cssText='display:flex;justify-content:space-between;'
             +'font-size:8px;font-weight:700;color:#0c4a6e;margin-bottom:2px;';
-          rowHdr.innerHTML='<span>INN '+inn+'</span>'
+          rowHdr.innerHTML='<span>INN '+inn+' <span style="font-size:7px;color:#0891b2;">TAP FOR DETAILS</span></span>'
             +'<span style="color:#0891b2;">'+count+' tunnels</span>';
           row.appendChild(rowHdr);
           const barWrap=document.createElement('div');
           barWrap.style.cssText='background:#e0f2fe;border-radius:3px;height:10px;';
           const barFill=document.createElement('div');
-          barFill.style.cssText='height:100%;border-radius:3px;width:'+pct+'%;'
-            +'background:#0891b2;';
+          barFill.style.cssText='height:100%;border-radius:3px;width:'+pct+'%;background:#0891b2;';
           barWrap.appendChild(barFill);
           row.appendChild(barWrap);
+          row.addEventListener('click',function(){
+            showTunnelInningPopup(inn,count,detail);
+          });
           tunnelTab.appendChild(row);
         });
         // Fatigue insight
