@@ -311,6 +311,8 @@ function saveGameHistory(){
     const countOutcomes={};
     const countSequences={}; // count→pitch→outcome→nextPitch
     const countPitchZoneOutcomes={}; // count→pitch→outcome→zone
+    const firstPitchLocations={}; // 'pk→zk': count
+    const firstPitchOutcomes={}; // 'pk→zk': {strikes,total}
     const vsBatterType={};
     const vsLHB={pitchMix:{},zoneMap:{},outcomes:{}};
     const vsRHB={pitchMix:{},zoneMap:{},outcomes:{}};
@@ -365,7 +367,19 @@ function saveGameHistory(){
       // Zone map
       if(zk) zoneMap[zk]=(zoneMap[zk]||0)+1;
       // First pitch of each at-bat (count===0-0)
-      if(count==='0-0') firstPitches[pk]=(firstPitches[pk]||0)+1;
+      if(count==='0-0'){
+        firstPitches[pk]=(firstPitches[pk]||0)+1;
+        if(zk){
+          const fpKey=pk+'→'+zk;
+          firstPitchLocations[fpKey]=(firstPitchLocations[fpKey]||0)+1;
+          if(!firstPitchOutcomes[fpKey]) firstPitchOutcomes[fpKey]={strikes:0,total:0};
+          firstPitchOutcomes[fpKey].total++;
+          const fpStrike=['STRIKE','CALLED STRIKE','SWING & MISS','FOUL',
+            'FOUL (STRAIGHT BACK)','FOUL (PULLED)','FOUL (LATE)',
+            'CHECK SWING (STRIKE)'].includes(outcome);
+          if(fpStrike) firstPitchOutcomes[fpKey].strikes++;
+        }
+      }
       // Sequences — what follows what
       if(i>0){
         const prev=pitches[i-1].pk||'';
@@ -448,6 +462,7 @@ function saveGameHistory(){
       })(),
       pitchMix,zoneMap,firstPitches,sequences,
       outcomes,countTendencies,countOutcomes,countSequences,countPitchZoneOutcomes,
+      firstPitchLocations,firstPitchOutcomes,
       tunnelPairs,tunnelOutcomes,tunnelZones,tunnelsByInning,tunnelsByInningDetail,
       avgTunnelQuality:tunnelQualities.length?
         Math.round(tunnelQualities.reduce(function(a,b){return a+b;},0)/tunnelQualities.length*100):0,
