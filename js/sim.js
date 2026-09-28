@@ -665,7 +665,7 @@ function showGameReport(game,title,onClose){
   // Tab bar
   const tabBar=document.createElement('div');
   tabBar.style.cssText='display:flex;gap:4px;margin-bottom:16px;border-bottom:2px solid #bae6fd;';
-  const tabs=['GAME','BUNDLES','CAREER','SEQUENCES','TUNNEL'];
+  const tabs=['GAME','BUNDLES','CAREER','SEQUENCES','TUNNEL','COUNTER'];
   const tabContents={};
   tabs.forEach(function(t){
     const btn=document.createElement('button');
@@ -3997,6 +3997,367 @@ function showGameReport(game,title,onClose){
     tnErr.style.cssText='padding:20px;color:#991b1b;font-size:11px;';
     tnErr.textContent='Error loading tunnel data: '+e.message;
     tunnelTab.appendChild(tnErr);
+  }
+
+  // ── COUNTER PLAN TAB ──
+  const counterTab=tabContents['COUNTER'];
+  try{
+    const cpRaw=localStorage.getItem('pitchseq-game-history');
+    const cpGames=cpRaw?JSON.parse(cpRaw):[];
+    const cpProfile=typeof getProfile==='function'?getProfile():null;
+    const cpArsenal=cpProfile&&cpProfile.arsenal?cpProfile.arsenal:[];
+    // Pitch family safety rules
+    const PITCH_SAFE_ZONES={
+      '4FB':['TL','TM','TR','ML','MM','MR','BL','BM','BR','TOP-EDG','BOT-EDG','LFT-EDG','RGT-EDG'],
+      '2FB':['ML','MM','MR','BL','BM','BR','BOT-EDG'],
+      'SK': ['ML','MM','MR','BL','BM','BR','BOT-EDG','CLO-L','CLO-M','CLO-R'],
+      'CT': ['TL','TM','TR','ML','MM','MR','LFT-EDG','RGT-EDG'],
+      'FK': ['BL','BM','BR','BOT-EDG','CLO-L','CLO-M','CLO-R'],
+      'SL': ['ML','MM','MR','BL','BM','BR','BOT-EDG','CLO-L','CLO-M','CLO-R'],
+      'CB': ['ML','MM','MR','BL','BM','BR','BOT-EDG','CLO-L','CLO-M','CLO-R'],
+      'SWP':['ML','MM','MR','BL','BM','BR','BOT-EDG','CLO-L','CLO-M','CLO-R'],
+      'SLV':['ML','MM','MR','BL','BM','BR','BOT-EDG'],
+      'KC': ['BL','BM','BR','BOT-EDG'],
+      'CH': ['ML','MM','MR','BL','BM','BR','BOT-EDG','CLO-L','CLO-M','CLO-R'],
+      'SCR':['ML','MM','MR','BL','BM','BR'],
+      'EPH':['TL','TM','TR','ML','MM','MR','BL','BM','BR'],
+      'SP': ['BL','BM','BR','BOT-EDG','CLO-L','CLO-M','CLO-R'],
+      'KN': ['TL','TM','TR','ML','MM','MR','BL','BM','BR']
+    };
+    const FASTBALL_FAMILY=['4FB','2FB','SK','CT','FK'];
+    const BREAKING_FAMILY=['SL','CB','SWP','SLV','KC'];
+    const OFFSPEED_FAMILY=['CH','SCR','EPH','SP','KN'];
+    function pitchFamily(pk){
+      if(FASTBALL_FAMILY.includes(pk)) return 'fastball';
+      if(BREAKING_FAMILY.includes(pk)) return 'breaking';
+      return 'offspeed';
+    }
+    function isSafeZone(pk,zk){
+      const safe=PITCH_SAFE_ZONES[pk];
+      if(!safe) return true;
+      return safe.includes(zk);
+    }
+    function getBestCounterPitch(currentPk,excludePk,arsenal){
+      const currentFamily=pitchFamily(currentPk);
+      // Counter hierarchy based on current pitch family
+      let preferred=[];
+      if(currentFamily==='fastball'){
+        // Speed change first — offspeed, then breaking
+        preferred=OFFSPEED_FAMILY.concat(BREAKING_FAMILY);
+      } else if(currentFamily==='breaking'){
+        // Go up with fastball
+        preferred=FASTBALL_FAMILY.concat(OFFSPEED_FAMILY);
+      } else {
+        // Offspeed failing — try different offspeed or fastball
+        preferred=FASTBALL_FAMILY.concat(OFFSPEED_FAMILY);
+      }
+      return preferred.find(function(pk){
+        return pk!==excludePk&&arsenal.includes(pk);
+      })||null;
+    }
+    // Load previous recommendations for evolution tracking
+    let prevRecs=[];
+    try{
+      const prevRaw=localStorage.getItem('pitchseq-counter-history');
+      if(prevRaw) prevRecs=JSON.parse(prevRaw).recommendations||[];
+    }catch(e){}
+    if(cpGames.length<5){
+      const cpMsg=document.createElement('div');
+      cpMsg.style.cssText='padding:20px;text-align:center;font-size:11px;color:#475569;';
+      cpMsg.textContent='Play at least 5 games to generate a counter plan. You have '+cpGames.length+' games.';
+      counterTab.appendChild(cpMsg);
+    } else {
+      // Aggregate career data
+      const cpCT={},cpFP={},cpSeq={},cpZM={},cpCO={};
+      cpGames.forEach(function(g){
+        Object.entries(g.countTendencies||{}).forEach(function(e){
+          if(!cpCT[e[0]]) cpCT[e[0]]={};
+          Object.entries(e[1]).forEach(function(pe){cpCT[e[0]][pe[0]]=(cpCT[e[0]][pe[0]]||0)+pe[1];});
+        });
+        Object.entries(g.firstPitches||{}).forEach(function(e){cpFP[e[0]]=(cpFP[e[0]]||0)+e[1];});
+        Object.entries(g.sequences||{}).forEach(function(e){cpSeq[e[0]]=(cpSeq[e[0]]||0)+e[1];});
+        Object.entries(g.zoneMap||{}).forEach(function(e){cpZM[e[0]]=(cpZM[e[0]]||0)+e[1];});
+        Object.entries(g.countOutcomes||{}).forEach(function(e){
+          if(!cpCO[e[0]]) cpCO[e[0]]={};
+          Object.entries(e[1]).forEach(function(oe){cpCO[e[0]][oe[0]]=(cpCO[e[0]][oe[0]]||0)+oe[1];});
+        });
+      });
+      // Helper: top pitch in a count
+      function topInCount(ct){
+        const d=cpCT[ct];
+        if(!d) return null;
+        const total=Object.values(d).reduce(function(a,b){return a+b;},0)||1;
+        const top=Object.entries(d).sort(function(a,b){return b[1]-a[1];})[0];
+        return top?{pk:top[0],pct:Math.round(top[1]/total*100)}:null;
+      }
+      // Helper: finish rate for a count
+      function finishRate(ct){
+        const d=cpCO[ct];
+        if(!d) return 0;
+        const total=Object.values(d).reduce(function(a,b){return a+b;},0)||1;
+        const finish=['STRIKEOUT','GROUND OUT','POP FLY'].reduce(function(s,o){return s+(d[o]||0);},0);
+        return Math.round(finish/total*100);
+      }
+      // Header
+      const cpHdr=document.createElement('div');
+      cpHdr.style.cssText='font-family:\'Bebas Neue\',sans-serif;font-size:16px;'
+        +'color:#0c4a6e;letter-spacing:2px;margin-bottom:4px;';
+      cpHdr.textContent='GO AGAINST YOUR PATTERNS';
+      counterTab.appendChild(cpHdr);
+      const cpSubHdr=document.createElement('div');
+      cpSubHdr.style.cssText='font-size:9px;color:#475569;margin-bottom:12px;line-height:1.5;';
+      cpSubHdr.textContent='Based on '+cpGames.length+' games. Recommendations use only pitches in your arsenal.';
+      counterTab.appendChild(cpSubHdr);
+      function cpLabel(text){
+        const s=document.createElement('div');
+        s.style.cssText='font-family:\'Bebas Neue\',sans-serif;font-size:13px;'
+          +'color:#0c4a6e;letter-spacing:2px;border-bottom:1px solid #bae6fd;'
+          +'padding-bottom:4px;margin:14px 0 8px 0;';
+        s.textContent=text;
+        counterTab.appendChild(s);
+      }
+      function cpRec(text,type,detail){
+        const el=document.createElement('div');
+        const colors={alert:'#991b1b',warn:'#92400e',good:'#166534',info:'#0891b2'};
+        const bgs={alert:'#fff1f0',warn:'#fffbeb',good:'#f0fff4',info:'#f0f9ff'};
+        el.style.cssText='padding:8px 10px;border-radius:6px;margin-bottom:6px;'
+          +'border-left:4px solid '+(colors[type]||'#0c4a6e')+';'
+          +'background:'+(bgs[type]||'#f0f9ff')+';';
+        el.innerHTML='<div style="font-size:10px;font-weight:700;color:'+(colors[type]||'#0c4a6e')+';">'+text+'</div>'
+          +(detail?'<div style="font-size:8px;color:#475569;margin-top:3px;line-height:1.5;">'+detail+'</div>':'');
+        counterTab.appendChild(el);
+      }
+      // ── Section 1: Top pattern alerts ──
+      cpLabel('YOUR BIGGEST TELLS');
+      const alerts=[];
+      // First pitch
+      const fpTotal=Object.values(cpFP).reduce(function(a,b){return a+b;},0)||1;
+      const topFP=Object.entries(cpFP).sort(function(a,b){return b[1]-a[1];})[0];
+      if(topFP&&topFP[1]/fpTotal>0.45){
+        const counterFP=getBestCounterPitch(topFP[0],topFP[0],cpArsenal);
+        alerts.push({
+          text:'FIRST PITCH: '+topFP[0]+' '+Math.round(topFP[1]/fpTotal*100)+'% — batter is sitting on your opener',
+          type:'alert',
+          detail:counterFP?'→ Mix in '+counterFP+' as your opener to keep batter guessing':'→ Vary your first pitch — lead with different pitch types'
+        });
+      }
+      // Key counts
+      ['0-0','1-0','3-2'].forEach(function(ct){
+        const top=topInCount(ct);
+        if(top&&top.pct>=60){
+          const counter=getBestCounterPitch(top.pk,top.pk,cpArsenal);
+          const fr=finishRate(ct);
+          const isGood=fr>=50;
+          alerts.push({
+            text:ct+' COUNT: '+top.pk+' '+top.pct+'% — '+(isGood?'working well':'predictable, low finish rate '+fr+'%'),
+            type:isGood?'good':'alert',
+            detail:isGood?'✓ Keep this pattern — it\'s generating outs':
+              (counter?'→ Mix in '+counter+' to same location for speed change':'→ Vary pitch type in this count')
+          });
+        }
+      });
+      // Top predictable sequence
+      const topSeq=Object.entries(cpSeq).sort(function(a,b){return b[1]-a[1];})[0];
+      if(topSeq&&topSeq[1]>=5){
+        const parts=topSeq[0].split('→');
+        if(parts.length===2){
+          const prevPk=parts[0].trim();
+          const nextPk=parts[1].trim();
+          const seqTotal=Object.values(cpSeq).reduce(function(a,b){return a+b;},0)||1;
+          const seqPct=Math.round(topSeq[1]/seqTotal*100);
+          if(seqPct>=40){
+            const counter=getBestCounterPitch(nextPk,nextPk,cpArsenal);
+            alerts.push({
+              text:'SEQUENCE: After '+prevPk+' → '+nextPk+' '+seqPct+'% — predictable follow-up',
+              type:'warn',
+              detail:counter?'→ After '+prevPk+' try '+counter+' to same location before going to '+nextPk:'→ Mix up your follow-up pitch after '+prevPk
+            });
+          }
+        }
+      }
+      if(!alerts.length){
+        cpRec('✓ No major pattern alerts — good variety!','good','Your pitch sequences are well mixed. Keep varying your approach.');
+      } else {
+        alerts.slice(0,4).forEach(function(a){cpRec(a.text,a.type,a.detail);});
+      }
+      // ── Section 2: Zone heat maps ──
+      cpLabel('YOUR ZONES VS COUNTER ZONES');
+      const zmNote=document.createElement('div');
+      zmNote.style.cssText='font-size:8px;color:#475569;margin-bottom:8px;';
+      zmNote.textContent='Left: your most frequent zones. Right: suggested counter zones (safe for your arsenal).';
+      counterTab.appendChild(zmNote);
+      const zmWrapCP=document.createElement('div');
+      zmWrapCP.style.cssText='display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:8px;';
+      // Your zones
+      const yourZoneDiv=document.createElement('div');
+      const yourZoneLbl=document.createElement('div');
+      yourZoneLbl.style.cssText='font-size:8px;font-weight:700;color:#991b1b;text-align:center;margin-bottom:4px;';
+      yourZoneLbl.textContent='YOUR PATTERN';
+      yourZoneDiv.appendChild(yourZoneLbl);
+      // Counter zones — zones you rarely use that are safe for your pitches
+      const counterZoneDiv=document.createElement('div');
+      const counterZoneLbl=document.createElement('div');
+      counterZoneLbl.style.cssText='font-size:8px;font-weight:700;color:#166534;text-align:center;margin-bottom:4px;';
+      counterZoneLbl.textContent='GO HERE INSTEAD';
+      counterZoneDiv.appendChild(counterZoneLbl);
+      const innerZones=['TL','TM','TR','ML','MM','MR','BL','BM','BR'];
+      const maxZone=Math.max.apply(null,innerZones.map(function(z){return cpZM[z]||0;}))||1;
+      // Find top 3 and bottom 3 inner zones
+      const zoneSorted=innerZones.slice().sort(function(a,b){return (cpZM[b]||0)-(cpZM[a]||0);});
+      const topZones=zoneSorted.slice(0,3);
+      const bottomZones=zoneSorted.slice(-3);
+      // Safe counter zones — bottom zones that are safe for arsenal
+      const safeCounterZones=bottomZones.filter(function(zk){
+        return cpArsenal.some(function(pk){return isSafeZone(pk,zk);});
+      });
+      const zoneOrder=[['TR','TM','TL'],['MR','MM','ML'],['BR','BM','BL']];
+      function buildZoneGrid(container,highlightZones,highlightColor,defaultColor){
+        const grid=document.createElement('div');
+        grid.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:2px;max-width:140px;margin:0 auto;';
+        zoneOrder.forEach(function(row){
+          row.forEach(function(zk){
+            const cnt=cpZM[zk]||0;
+            const isHighlight=highlightZones.includes(zk);
+            const intensity=cnt/maxZone;
+            const cell=document.createElement('div');
+            cell.style.cssText='height:32px;border-radius:3px;display:flex;align-items:center;'
+              +'justify-content:center;font-size:9px;font-weight:700;'
+              +'border:'+(isHighlight?'2px':'0.5px')+' solid '+(isHighlight?highlightColor:'#bae6fd')+';'
+              +'background:'+(isHighlight?highlightColor:'rgba(220,38,38,'+Math.max(0.04,intensity).toFixed(2)+')')+';'
+              +'color:'+(isHighlight||intensity>0.4?'#fff':'#334155')+';';
+            cell.textContent=cnt>0?cnt:'';
+            grid.appendChild(cell);
+          });
+        });
+        container.appendChild(grid);
+      }
+      buildZoneGrid(yourZoneDiv,topZones,'#991b1b','');
+      buildZoneGrid(counterZoneDiv,safeCounterZones,'#166534','');
+      zmWrapCP.appendChild(yourZoneDiv);
+      zmWrapCP.appendChild(counterZoneDiv);
+      counterTab.appendChild(zmWrapCP);
+      // Zone coaching note
+      if(safeCounterZones.length>0){
+        const zoneNote=document.createElement('div');
+        zoneNote.style.cssText='font-size:9px;color:#0c4a6e;font-weight:600;'
+          +'padding:6px;background:#f0fff4;border-radius:4px;border-left:3px solid #166534;margin-bottom:4px;';
+        zoneNote.textContent='→ Your underused zones: '+safeCounterZones.join(', ')+'. These are safe for your arsenal pitches.';
+        counterTab.appendChild(zoneNote);
+      }
+      // ── Section 3: Two-strike analysis ──
+      cpLabel('TWO-STRIKE FINISH ANALYSIS');
+      const twoStrikeCounts=['0-2','1-2','2-2','3-2'];
+      twoStrikeCounts.forEach(function(ct){
+        const top=topInCount(ct);
+        if(!top) return;
+        const fr=finishRate(ct);
+        const isSuccess=fr>=50;
+        const box=document.createElement('div');
+        box.style.cssText='padding:8px;border-radius:6px;margin-bottom:6px;'
+          +'background:'+(isSuccess?'#f0fff4':'#fff1f0')+';'
+          +'border:1px solid '+(isSuccess?'#86efac':'#fca5a5')+';';
+        const boxHdr=document.createElement('div');
+        boxHdr.style.cssText='display:flex;justify-content:space-between;'
+          +'font-size:9px;font-weight:700;color:#0c4a6e;margin-bottom:4px;';
+        boxHdr.innerHTML='<span>'+ct+' COUNT</span>'
+          +'<span style="color:'+(isSuccess?'#166534':'#991b1b')+';">'
+          +fr+'% finish rate '+(isSuccess?'✓':'⚠')+'</span>';
+        box.appendChild(boxHdr);
+        const pitchLine=document.createElement('div');
+        pitchLine.style.cssText='font-size:8px;color:#475569;margin-bottom:4px;';
+        pitchLine.textContent='Top pitch: '+top.pk+' '+top.pct+'% of the time';
+        box.appendChild(pitchLine);
+        const adviceLine=document.createElement('div');
+        adviceLine.style.cssText='font-size:9px;font-weight:700;'
+          +'color:'+(isSuccess?'#166534':'#991b1b')+';';
+        if(isSuccess){
+          adviceLine.textContent='✓ Keep this approach — generating outs effectively';
+        } else {
+          const counter=getBestCounterPitch(top.pk,top.pk,cpArsenal);
+          // Check if previously recommended
+          const prevRec=prevRecs.find(function(r){return r.count===ct;});
+          if(prevRec&&counter){
+            // Escalate — previous recommendation not working
+            adviceLine.textContent='→ Previously tried '+prevRec.suggestion+'. Try '+counter+' BELOW zone next — make batter chase';
+          } else {
+            adviceLine.textContent=counter?
+              '→ Try '+counter+' to same location — speed change may generate more swings':
+              '→ Vary location within safe zones for '+top.pk;
+          }
+        }
+        box.appendChild(adviceLine);
+        counterTab.appendChild(box);
+      });
+      // ── Save recommendations for evolution tracking ──
+      const newRecs=[];
+      twoStrikeCounts.forEach(function(ct){
+        const top=topInCount(ct);
+        const fr=finishRate(ct);
+        if(top&&fr<50){
+          const counter=getBestCounterPitch(top.pk,top.pk,cpArsenal);
+          if(counter) newRecs.push({count:ct,issue:top.pk+' '+top.pct+'%',suggestion:counter,games:cpGames.length,date:Date.now()});
+        }
+      });
+      try{
+        localStorage.setItem('pitchseq-counter-history',JSON.stringify({
+          generatedAt:Date.now(),
+          gamesAnalyzed:cpGames.length,
+          recommendations:newRecs
+        }));
+      }catch(e){}
+      // ── Generate button for settings access ──
+      const cpBtn=document.createElement('button');
+      cpBtn.style.cssText='width:100%;margin-top:16px;padding:10px;border-radius:6px;'
+        +'border:1px solid #7c3aed;background:#f5f3ff;color:#7c3aed;'
+        +'font-family:\'Bebas Neue\',sans-serif;font-size:14px;letter-spacing:2px;cursor:pointer;';
+      cpBtn.textContent='LOAD COUNTER PLAN INTO PLANNER';
+      cpBtn.onclick=function(){
+        // Generate a counter sequence plan and save it
+        const today=new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
+        const planName='COUNTER PLAN — '+today;
+        // Build a 3-pitch counter sequence
+        const counterSeq=[];
+        const fpTop=Object.entries(cpFP).sort(function(a,b){return b[1]-a[1];})[0];
+        if(fpTop){
+          const counterFP=getBestCounterPitch(fpTop[0],fpTop[0],cpArsenal);
+          if(counterFP) counterSeq.push({pk:counterFP,zk:'MM',spd:0,bd:false,role:'SETUP',count:'0-0',outcome:''});
+        }
+        const top02=topInCount('0-2');
+        if(top02){
+          const counter02=getBestCounterPitch(top02.pk,top02.pk,cpArsenal);
+          if(counter02) counterSeq.push({pk:counter02,zk:'BM',spd:0,bd:false,role:'PUTAWAY',count:'0-2',outcome:''});
+        }
+        const top32=topInCount('3-2');
+        if(top32){
+          const counter32=getBestCounterPitch(top32.pk,top32.pk,cpArsenal);
+          if(counter32) counterSeq.push({pk:counter32,zk:'BL',spd:0,bd:false,role:'PUTAWAY',count:'3-2',outcome:''});
+        }
+        if(counterSeq.length===0){
+          alert('Not enough data to generate a counter sequence yet.');
+          return;
+        }
+        if(typeof setSavedPlans==='function'&&typeof getSavedPlans==='function'){
+          const plans=getSavedPlans();
+          plans.push({
+            id:'cp-'+Date.now(),
+            name:planName,
+            seq:counterSeq,
+            opponent:'',
+            outcome:'UNTESTED',
+            batterNotes:'Generated counter plan — goes against detected patterns',
+            gameNotes:'Auto-generated on '+today
+          });
+          setSavedPlans(plans);
+          alert('Counter plan saved as "'+planName+'" — open it in planning mode.');
+        }
+      };
+      counterTab.appendChild(cpBtn);
+    }
+  }catch(e){
+    const cpErr=document.createElement('div');
+    cpErr.style.cssText='padding:20px;color:#991b1b;font-size:11px;';
+    cpErr.textContent='Error loading counter plan: '+e.message;
+    counterTab.appendChild(cpErr);
   }
 
   overlay.appendChild(card);
