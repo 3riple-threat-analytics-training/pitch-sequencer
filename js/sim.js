@@ -962,6 +962,36 @@ function showGameReport(game,title,onClose){
     al.textContent=a;
     gameTab.appendChild(al);
   });
+  // First pitch location analysis for this game
+  if(game.firstPitchOutcomes&&Object.keys(game.firstPitchOutcomes).length>0){
+    sectionLabel('FIRST PITCH STRIKE RATE — THIS GAME');
+    const fpNote=document.createElement('div');
+    fpNote.style.cssText='font-size:8px;color:#475569;margin-bottom:6px;';
+    fpNote.textContent='Strike = called strike, swing & miss, or foul on first pitch of at-bat.';
+    gameTab.appendChild(fpNote);
+    const fpEntries=Object.entries(game.firstPitchOutcomes)
+      .filter(function(e){return e[1].total>=1;})
+      .sort(function(a,b){
+        const rateA=b[1].strikes/b[1].total;
+        const rateB=a[1].strikes/a[1].total;
+        return rateA-rateB;
+      });
+    fpEntries.forEach(function(e){
+      const key=e[0],data=e[1];
+      const rate=Math.round(data.strikes/data.total*100);
+      const parts=key.split('→');
+      const pk=parts[0],zk=parts[1]||'?';
+      const row=document.createElement('div');
+      row.style.cssText='margin-bottom:4px;padding:4px 6px;border-radius:4px;'
+        +'background:'+(rate>=60?'#f0fff4':rate>=40?'#f0f9ff':'#fff1f0')+';';
+      row.innerHTML='<div style="display:flex;justify-content:space-between;font-size:8px;font-weight:700;color:#0c4a6e;">'
+        +'<span>'+pk+' → '+zk+'</span>'
+        +'<span>'+data.strikes+'/'+data.total+' strikes ('
+        +'<span style="color:'+(rate>=60?'#166534':rate>=40?'#0891b2':'#991b1b')+';">'+rate+'%</span>)</span>'
+        +'</div>';
+      gameTab.appendChild(row);
+    });
+  }
   // Strikeout pitch selection for this game
   sectionLabel('STRIKEOUT PITCH SELECTION');
   const gameSoPitches={};
@@ -2888,6 +2918,81 @@ function showGameReport(game,title,onClose){
     err.textContent='Error loading career data: '+e.message;
     careerTab.appendChild(err);
   }
+  // First pitch location analysis — career
+  const careerFPO={};
+  allGames.forEach(function(g){
+    Object.entries(g.firstPitchOutcomes||{}).forEach(function(e){
+      const key=e[0];
+      if(!careerFPO[key]) careerFPO[key]={strikes:0,total:0};
+      careerFPO[key].strikes+=e[1].strikes||0;
+      careerFPO[key].total+=e[1].total||0;
+    });
+  });
+  const careerFPOFiltered=Object.entries(careerFPO)
+    .filter(function(e){return e[1].total>=5;})
+    .sort(function(a,b){
+      const rateA=a[1].strikes/a[1].total;
+      const rateB=b[1].strikes/b[1].total;
+      return rateB-rateA;
+    });
+  if(careerFPOFiltered.length>0){
+    cLabel('FIRST PITCH STRIKE RATE BY LOCATION');
+    const fpCareerNote=document.createElement('div');
+    fpCareerNote.style.cssText='font-size:8px;color:#475569;margin-bottom:8px;line-height:1.5;';
+    fpCareerNote.textContent='Minimum 5 first pitches per location. Higher strike rate = better opener for that pitch+zone combo.';
+    careerTab.appendChild(fpCareerNote);
+    // Find best opener for comparison
+    const bestRate=careerFPOFiltered[0]?careerFPOFiltered[0][1].strikes/careerFPOFiltered[0][1].total:1;
+    careerFPOFiltered.forEach(function(e){
+      const key=e[0],data=e[1];
+      const rate=Math.round(data.strikes/data.total*100);
+      const bestRatePct=Math.round(bestRate*100);
+      const gap=bestRatePct-rate;
+      const parts=key.split('→');
+      const pk=parts[0],zk=parts[1]||'?';
+      const row=document.createElement('div');
+      row.style.cssText='margin-bottom:5px;padding:6px 8px;border-radius:6px;'
+        +'background:'+(rate>=60?'#f0fff4':rate>=40?'#f0f9ff':'#fff1f0')+';'
+        +'border:1px solid '+(rate>=60?'#86efac':rate>=40?'#7dd3fc':'#fca5a5')+';';
+      // Bar
+      const barWrap=document.createElement('div');
+      barWrap.style.cssText='display:flex;align-items:center;gap:8px;margin-bottom:3px;';
+      const pitchLabel=document.createElement('div');
+      pitchLabel.style.cssText='font-size:9px;font-weight:700;color:#0c4a6e;width:80px;flex-shrink:0;';
+      pitchLabel.textContent=pk+' → '+zk;
+      const bar=document.createElement('div');
+      bar.style.cssText='flex:1;background:#e0f2fe;border-radius:2px;height:10px;';
+      const fill=document.createElement('div');
+      fill.style.cssText='height:100%;border-radius:2px;width:'+rate+'%;'
+        +'background:'+(rate>=60?'#166534':rate>=40?'#0891b2':'#991b1b')+';';
+      bar.appendChild(fill);
+      const pctLabel=document.createElement('div');
+      pctLabel.style.cssText='font-size:9px;font-weight:700;width:36px;text-align:right;'
+        +'color:'+(rate>=60?'#166534':rate>=40?'#0891b2':'#991b1b')+';';
+      pctLabel.textContent=rate+'%';
+      const countLabel=document.createElement('div');
+      countLabel.style.cssText='font-size:8px;color:#475569;width:40px;text-align:right;';
+      countLabel.textContent=data.strikes+'/'+data.total;
+      barWrap.appendChild(pitchLabel);
+      barWrap.appendChild(bar);
+      barWrap.appendChild(pctLabel);
+      barWrap.appendChild(countLabel);
+      row.appendChild(barWrap);
+      // Gap note
+      if(gap>=20&&data.total>=5){
+        const gapNote=document.createElement('div');
+        gapNote.style.cssText='font-size:8px;color:#991b1b;font-weight:700;margin-top:2px;';
+        gapNote.textContent='⚠ '+gap+'% lower than your best opener ('+careerFPOFiltered[0][0]+' at '+bestRatePct+'%)';
+        row.appendChild(gapNote);
+      } else if(rate>=60&&data.total>=5){
+        const goodNote=document.createElement('div');
+        goodNote.style.cssText='font-size:8px;color:#166534;font-weight:700;margin-top:2px;';
+        goodNote.textContent='✓ Best opener — use this more to get ahead 0-1';
+        row.appendChild(goodNote);
+      }
+      careerTab.appendChild(row);
+    });
+  }
   // Career export button
   const careerExportBtn=document.createElement('button');
   careerExportBtn.style.cssText='width:100%;margin-top:16px;padding:10px;border-radius:6px;'
@@ -4260,6 +4365,48 @@ function showGameReport(game,title,onClose){
         counterTab.appendChild(zoneNote);
       }
       // ── Section 3: Two-strike analysis ──
+      // ── Opener gap analysis ──
+      const cpFPO={};
+      cpGames.forEach(function(g){
+        Object.entries(g.firstPitchOutcomes||{}).forEach(function(e){
+          const key=e[0];
+          if(!cpFPO[key]) cpFPO[key]={strikes:0,total:0};
+          cpFPO[key].strikes+=e[1].strikes||0;
+          cpFPO[key].total+=e[1].total||0;
+        });
+      });
+      const cpFPOFiltered=Object.entries(cpFPO)
+        .filter(function(e){return e[1].total>=5;})
+        .sort(function(a,b){return (b[1].strikes/b[1].total)-(a[1].strikes/a[1].total);});
+      if(cpFPOFiltered.length>=2){
+        cpLabel('OPENER GAP ALERT');
+        const best=cpFPOFiltered[0];
+        const worst=cpFPOFiltered[cpFPOFiltered.length-1];
+        const bestRate=Math.round(best[1].strikes/best[1].total*100);
+        const worstRate=Math.round(worst[1].strikes/worst[1].total*100);
+        const gap=bestRate-worstRate;
+        if(gap>=15){
+          const gapEl=document.createElement('div');
+          gapEl.style.cssText='padding:10px;border-radius:6px;margin-bottom:8px;'
+            +'background:#fff1f0;border:2px solid #991b1b;';
+          gapEl.innerHTML='<div style="font-size:10px;font-weight:700;color:#991b1b;margin-bottom:6px;">'
+            +'🎯 SIGNIFICANT OPENER GAP DETECTED</div>'
+            +'<div style="font-size:9px;color:#0c4a6e;margin-bottom:4px;">'
+            +'<strong>Best opener:</strong> '+best[0]+' → '+bestRate+'% strike rate ('+best[1].total+' pitches)</div>'
+            +'<div style="font-size:9px;color:#0c4a6e;margin-bottom:6px;">'
+            +'<strong>Worst opener:</strong> '+worst[0]+' → '+worstRate+'% strike rate ('+worst[1].total+' pitches)</div>'
+            +'<div style="font-size:9px;font-weight:700;color:#991b1b;">'
+            +'→ Use '+best[0].split('→')[0]+' to '+best[0].split('→')[1]+' more as your opener. '
+            +'Avoid '+worst[0].split('→')[0]+' to '+worst[0].split('→')[1]+' as opener — '+gap+'% lower strike rate.</div>';
+          counterTab.appendChild(gapEl);
+        } else {
+          const noGapEl=document.createElement('div');
+          noGapEl.style.cssText='padding:8px;border-radius:6px;margin-bottom:8px;'
+            +'background:#f0fff4;border:1px solid #86efac;font-size:9px;color:#166534;font-weight:700;';
+          noGapEl.textContent='✓ Your opener strike rates are consistent across pitch+location combos — good variety.';
+          counterTab.appendChild(noGapEl);
+        }
+      }
       cpLabel('TWO-STRIKE FINISH ANALYSIS');
       const twoStrikeCounts=['0-2','1-2','2-2','3-2'];
       twoStrikeCounts.forEach(function(ct){
