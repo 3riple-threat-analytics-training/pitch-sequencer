@@ -642,7 +642,7 @@ function showGameSummary(){
         },2500);
       }
     });
-  }catch(e){alert('Could not load game report.');}
+  }catch(e){alert('Could not load game report: '+e.message+' (line check console)');console.error('showGameSummary error:',e);}
 }
 function showGameReport(game,title,onClose){
   const existing=document.getElementById('game-report-overlay');
