@@ -2912,30 +2912,24 @@ function showGameReport(game,title,onClose){
         careerTab.appendChild(row);
       });
     }
-  }catch(e){
-    const err=document.createElement('div');
-    err.style.cssText='padding:20px;color:#991b1b;font-size:11px;';
-    err.textContent='Error loading career data: '+e.message;
-    careerTab.appendChild(err);
-  }
-  // First pitch location analysis — career
-  const careerFPO={};
-  allGames.forEach(function(g){
+      // First pitch location analysis — career
+      const careerFPO={};
+      allGames.forEach(function(g){
     Object.entries(g.firstPitchOutcomes||{}).forEach(function(e){
       const key=e[0];
       if(!careerFPO[key]) careerFPO[key]={strikes:0,total:0};
       careerFPO[key].strikes+=e[1].strikes||0;
       careerFPO[key].total+=e[1].total||0;
     });
-  });
-  const careerFPOFiltered=Object.entries(careerFPO)
-    .filter(function(e){return e[1].total>=5;})
-    .sort(function(a,b){
-      const rateA=a[1].strikes/a[1].total;
-      const rateB=b[1].strikes/b[1].total;
-      return rateB-rateA;
-    });
-  if(careerFPOFiltered.length>0){
+      });
+      const careerFPOFiltered=Object.entries(careerFPO)
+        .filter(function(e){return e[1].total>=5;})
+        .sort(function(a,b){
+          const rateA=a[1].strikes/a[1].total;
+          const rateB=b[1].strikes/b[1].total;
+          return rateB-rateA;
+        });
+      if(careerFPOFiltered.length>0){
     cLabel('FIRST PITCH STRIKE RATE BY LOCATION');
     const fpCareerNote=document.createElement('div');
     fpCareerNote.style.cssText='font-size:8px;color:#475569;margin-bottom:8px;line-height:1.5;';
@@ -2992,6 +2986,12 @@ function showGameReport(game,title,onClose){
       }
       careerTab.appendChild(row);
     });
+  }
+  }catch(e){
+    const err=document.createElement('div');
+    err.style.cssText='padding:20px;color:#991b1b;font-size:11px;';
+    err.textContent='Error loading career data: '+e.message;
+    careerTab.appendChild(err);
   }
   // Career export button
   const careerExportBtn=document.createElement('button');
