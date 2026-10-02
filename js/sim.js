@@ -5723,8 +5723,6 @@ function getCountLocationModifier(zk,pitchKey){
         Math.max(0.30,1.0-(0.55*scale*neutralMult)):
         Math.max(0.50,1.0-(0.35*scale*neutralMult));
 
-      console.log('COUNT-LOC DEBUG: DANGER ZONE ct=',ct,'zk=',zk,'type=',effType,'dangerStrong=',dangerStrong,'level=',batterLevel);
-
       return {
         strongMult:dangerStrong,
         weakMult:dangerWeak,
@@ -5750,8 +5748,6 @@ function getCountLocationModifier(zk,pitchKey){
         courageSwingMiss=1.0+(0.18*scale*neutralMult);
         courageStrong=Math.max(0.70,1.0-(0.18*scale*neutralMult));
       }
-
-      console.log('COUNT-LOC DEBUG: COURAGE PITCH ct=',ct,'zk=',zk,'type=',effType,'courageSwingMiss=',courageSwingMiss,'level=',batterLevel);
 
       return {
         strongMult:courageStrong,
