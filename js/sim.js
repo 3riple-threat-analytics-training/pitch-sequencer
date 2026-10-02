@@ -510,11 +510,15 @@ function endGame(){
   if(!localStorage.getItem('pitchseq-sim-first-run')){
     isHomeTeam=true;
     localStorage.setItem('pitchseq-sim-first-run','1');
+    console.log('HOME/AWAY: first-run branch, forced HOME');
   } else {
-    isHomeTeam=Math.random()<0.5;
+    const _roll=Math.random();
+    isHomeTeam=_roll<0.5;
+    console.log('HOME/AWAY: rolled',_roll,'→',isHomeTeam?'HOME':'AWAY');
   }
   // Persist home/away for next game so page reloads don't reset it
   localStorage.setItem('pitchseq-next-home-away',isHomeTeam?'home':'away');
+  console.log('HOME/AWAY: saved to localStorage as',isHomeTeam?'home':'away');
   // Flag away opener for next game
   window._pendingAwayOpener=!isHomeTeam;
   inningRunsAllowed=0;
@@ -537,7 +541,8 @@ function endGame(){
   clearSimStateSession();
   // Clear sequence
   if(typeof clearAll==='function') clearAll();
-  showFatigueToast('NEW GAME — PLAY BALL!');
+  showFatigueToast('GAME OVER — LOADING REPORT...');
+  setTimeout(function(){ showFatigueToast('NEW GAME — PLAY BALL!'); }, 2000);
   // Run ML update after game ends
   setTimeout(function(){
     // ML update runs after game summary loads (see setTimeout below)
