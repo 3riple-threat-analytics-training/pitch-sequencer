@@ -4509,11 +4509,13 @@ function showGameReport(game,title,onClose){
           return;
         }
         if(typeof setSavedPlans==='function'&&typeof getSavedPlans==='function'){
+          const pitcherId=typeof getActivePitcherId==='function'?getActivePitcherId():null;
           const plans=getSavedPlans();
           plans.push({
             id:'cp-'+Date.now(),
             name:planName,
             seq:counterSeq,
+            pitcherId:pitcherId,
             opponent:'',
             outcome:'UNTESTED',
             batterNotes:'Generated counter plan — goes against detected patterns',
