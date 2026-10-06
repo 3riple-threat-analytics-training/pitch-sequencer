@@ -4482,48 +4482,18 @@ function showGameReport(game,title,onClose){
       cpBtn.style.cssText='width:100%;margin-top:16px;padding:10px;border-radius:6px;'
         +'border:1px solid #7c3aed;background:#f5f3ff;color:#7c3aed;'
         +'font-family:\'Bebas Neue\',sans-serif;font-size:14px;letter-spacing:2px;cursor:pointer;';
-      cpBtn.textContent='LOAD COUNTER PLAN INTO PLANNER';
+      cpBtn.textContent='EXPORT COUNTER REPORT TO PDF';
       cpBtn.onclick=function(){
-        // Generate a counter sequence plan and save it
-        const today=new Date().toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'});
-        const planName='COUNTER PLAN — '+today;
-        // Build a 3-pitch counter sequence
-        const counterSeq=[];
-        const fpTop=Object.entries(cpFP).sort(function(a,b){return b[1]-a[1];})[0];
-        if(fpTop){
-          const counterFP=getBestCounterPitch(fpTop[0],fpTop[0],cpArsenal);
-          if(counterFP) counterSeq.push({pk:counterFP,zk:'MM',spd:0,bd:false,role:'SETUP',count:'0-0',outcome:''});
-        }
-        const top02=topInCount('0-2');
-        if(top02){
-          const counter02=getBestCounterPitch(top02.pk,top02.pk,cpArsenal);
-          if(counter02) counterSeq.push({pk:counter02,zk:'BM',spd:0,bd:false,role:'PUTAWAY',count:'0-2',outcome:''});
-        }
-        const top32=topInCount('3-2');
-        if(top32){
-          const counter32=getBestCounterPitch(top32.pk,top32.pk,cpArsenal);
-          if(counter32) counterSeq.push({pk:counter32,zk:'BL',spd:0,bd:false,role:'PUTAWAY',count:'3-2',outcome:''});
-        }
-        if(counterSeq.length===0){
-          alert('Not enough data to generate a counter sequence yet.');
-          return;
-        }
-        if(typeof setSavedPlans==='function'&&typeof getSavedPlans==='function'){
-          const pitcherId=typeof getActivePitcherId==='function'?getActivePitcherId():null;
-          const plans=getSavedPlans();
-          plans.push({
-            id:'cp-'+Date.now(),
-            name:planName,
-            sequence:counterSeq,
-            pitcherId:pitcherId,
-            opponent:'',
-            outcome:'UNTESTED',
-            batterNotes:'Generated counter plan — goes against detected patterns',
-            gameNotes:'Auto-generated on '+today
-          });
-          setSavedPlans(plans);
-          alert('Counter plan saved as "'+planName+'" — open it in planning mode.');
-        }
+        try{
+          const exportData={
+            tab:'counter',
+            games:cpGames,
+            profile:cpProfile,
+            generatedAt:Date.now()
+          };
+          localStorage.setItem('pitchseq-report-export',JSON.stringify(exportData));
+          setTimeout(function(){ window.open('report.html?tab=counter','_blank'); },150);
+        }catch(e){alert('Could not export counter report.');}
       };
       counterTab.appendChild(cpBtn);
     }

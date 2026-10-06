@@ -1036,6 +1036,7 @@ window.onload=function(){
     else if(tab==='career') buildCareerReport(data);
     else if(tab==='sequences') buildSequencesReport(data);
     else if(tab==='tunnel') buildTunnelReport(data);
+    else if(tab==='counter') buildCounterReport(data);
   }catch(e){
     document.getElementById('pages').innerHTML='<div style="padding:40px;text-align:center;color:#991b1b;">Error loading report: '+e.message+'</div>';
   }
@@ -1141,6 +1142,142 @@ function buildTunnelReport(data){
       +'<span style="color:#2563eb;">CHASE: '+Math.round(chaseTotal/grandTotal*100)+'%</span>';
     page.appendChild(zoneSummary);
   }
+  pages.appendChild(page);
+}
+function buildCounterReport(data){
+  const allGames=data.games||[];
+  const profile=data.profile;
+  const arsenal=profile&&profile.arsenal?profile.arsenal:[];
+  document.getElementById('report-info').textContent=
+    'COUNTER REPORT — '+(profile?profile.name:'')
+    +' — '+allGames.length+' games — '+formatDate(data.generatedAt);
+  const pages=document.getElementById('pages');
+  pages.innerHTML='';
+  if(allGames.length<5){
+    pages.innerHTML='<div style="padding:40px;text-align:center;color:#991b1b;">Play at least 5 games to generate a counter report. You have '+allGames.length+' game(s).</div>';
+    return;
+  }
+  // Aggregate data
+  const cpFP={};
+  const cpCounts={};
+  const cpSeq={};
+  allGames.forEach(function(game){
+    (game.pitches||[]).forEach(function(p){
+      if(p.isFirstPitch||p.count==='0-0'){
+        cpFP[p.pk]=(cpFP[p.pk]||0)+1;
+      }
+      if(p.count){
+        if(!cpCounts[p.count]) cpCounts[p.count]={pitches:{},finish:0,total:0};
+        cpCounts[p.count].pitches[p.pk]=(cpCounts[p.count].pitches[p.pk]||0)+1;
+        cpCounts[p.count].total++;
+        if(p.outcome==='K'||p.outcome==='SO'||p.outcome==='OUT') cpCounts[p.count].finish++;
+      }
+    });
+  });
+  function topInCount(ct){
+    const d=cpCounts[ct];
+    if(!d||!d.total) return null;
+    const top=Object.entries(d.pitches).sort(function(a,b){return b[1]-a[1];})[0];
+    if(!top) return null;
+    return {pk:top[0],pct:Math.round(top[1]/d.total*100)};
+  }
+  function finishRate(ct){
+    const d=cpCounts[ct];
+    if(!d||!d.total) return 0;
+    return Math.round(d.finish/d.total*100);
+  }
+  const FASTBALL_FAMILY=['4FB','2FB','SK','CT','FK'];
+  const BREAKING_FAMILY=['SL','CB','SWP','SLV','KC'];
+  const OFFSPEED_FAMILY=['CH','SCR','EPH','SP','KN'];
+  function pitchFamily(pk){
+    if(FASTBALL_FAMILY.includes(pk)) return 'fastball';
+    if(BREAKING_FAMILY.includes(pk)) return 'breaking';
+    return 'offspeed';
+  }
+  function getBestCounterPitch(currentPk,arsenal){
+    const fam=pitchFamily(currentPk);
+    let preferred=[];
+    if(fam==='fastball') preferred=OFFSPEED_FAMILY.concat(BREAKING_FAMILY);
+    else if(fam==='breaking') preferred=FASTBALL_FAMILY.concat(OFFSPEED_FAMILY);
+    else preferred=FASTBALL_FAMILY.concat(BREAKING_FAMILY);
+    for(var i=0;i<preferred.length;i++){
+      if(arsenal.includes(preferred[i])&&preferred[i]!==currentPk) return preferred[i];
+    }
+    return null;
+  }
+  const page=document.createElement('div');
+  page.className='page';
+  // Header
+  const hdr=document.createElement('div');
+  hdr.style.cssText='font-family:\'Bebas Neue\',sans-serif;font-size:18px;color:#0c4a6e;'
+    +'letter-spacing:3px;border-bottom:2px solid #0c4a6e;padding-bottom:6px;margin-bottom:4px;';
+  hdr.textContent='COUNTER REPORT';
+  page.appendChild(hdr);
+  const sub=document.createElement('div');
+  sub.style.cssText='font-size:9px;color:#475569;margin-bottom:12px;';
+  sub.textContent='Based on '+allGames.length+' games. Recommendations use only pitches in your arsenal.';
+  page.appendChild(sub);
+  // Section label helper
+  function secLabel(txt){
+    const s=document.createElement('div');
+    s.style.cssText='font-family:\'Bebas Neue\',sans-serif;font-size:13px;color:#0c4a6e;'
+      +'letter-spacing:2px;border-bottom:1px solid #bae6fd;padding-bottom:4px;margin:14px 0 8px 0;';
+    s.textContent=txt;
+    page.appendChild(s);
+  }
+  function recBox(text,type,detail){
+    const colors={alert:'#991b1b',warn:'#92400e',good:'#166534',info:'#0891b2'};
+    const bgs={alert:'#fff1f0',warn:'#fffbeb',good:'#f0fff4',info:'#f0f9ff'};
+    const el=document.createElement('div');
+    el.style.cssText='padding:8px 10px;border-radius:6px;margin-bottom:6px;'
+      +'border-left:4px solid '+(colors[type]||'#0c4a6e')+';'
+      +'background:'+(bgs[type]||'#f0f9ff')+';';
+    el.innerHTML='<div style="font-size:10px;font-weight:700;color:'+(colors[type]||'#0c4a6e')+';">'+text+'</div>'
+      +(detail?'<div style="font-size:8px;color:#475569;margin-top:3px;line-height:1.5;">'+detail+'</div>':'');
+    page.appendChild(el);
+  }
+  // Section 1: Biggest tells
+  secLabel('YOUR BIGGEST TELLS');
+  const fpTotal=Object.values(cpFP).reduce(function(a,b){return a+b;},0)||1;
+  const topFP=Object.entries(cpFP).sort(function(a,b){return b[1]-a[1];})[0];
+  if(topFP&&topFP[1]/fpTotal>0.45){
+    const counterFP=getBestCounterPitch(topFP[0],arsenal);
+    recBox('FIRST PITCH: '+topFP[0]+' '+Math.round(topFP[1]/fpTotal*100)+'% — batter is sitting on your opener',
+      'alert',counterFP?'→ Mix in '+counterFP+' as your opener to keep batter guessing':'→ Vary your first pitch');
+  }
+  ['0-0','1-0','3-2'].forEach(function(ct){
+    const top=topInCount(ct);
+    if(top&&top.pct>=60){
+      const counter=getBestCounterPitch(top.pk,arsenal);
+      const fr=finishRate(ct);
+      const isGood=fr>=50;
+      recBox(ct+' COUNT: '+top.pk+' '+top.pct+'% — '+(isGood?'working well':'predictable, low finish rate '+fr+'%'),
+        isGood?'good':'alert',
+        isGood?'✓ Keep this pattern — it\'s generating outs':
+        (counter?'→ Mix in '+counter+' to same location for speed change':'→ Vary pitch type in this count'));
+    }
+  });
+  // Section 2: Two-strike finish
+  secLabel('TWO-STRIKE FINISH ANALYSIS');
+  ['0-2','1-2','2-2','3-2'].forEach(function(ct){
+    const top=topInCount(ct);
+    if(!top) return;
+    const fr=finishRate(ct);
+    const isSuccess=fr>=50;
+    const box=document.createElement('div');
+    box.style.cssText='padding:8px;border-radius:6px;margin-bottom:6px;'
+      +'background:'+(isSuccess?'#f0fff4':'#fff1f0')+';'
+      +'border:1px solid '+(isSuccess?'#86efac':'#fca5a5')+';';
+    box.innerHTML='<div style="display:flex;justify-content:space-between;font-size:9px;font-weight:700;color:#0c4a6e;margin-bottom:4px;">'
+      +'<span>'+ct+' COUNT</span>'
+      +'<span style="color:'+(isSuccess?'#166534':'#991b1b')+';">'+fr+'% finish rate '+(isSuccess?'✓':'⚠')+'</span></div>'
+      +'<div style="font-size:8px;color:#475569;margin-bottom:4px;">Top pitch: '+top.pk+' '+top.pct+'% of the time</div>'
+      +'<div style="font-size:9px;font-weight:700;color:'+(isSuccess?'#166534':'#991b1b')+';">'
+      +(isSuccess?'✓ Keep this approach — generating outs effectively':
+        (function(){var c=getBestCounterPitch(top.pk,arsenal);return c?'→ Try '+c+' to same location — speed change may generate more swings':'→ Vary location for '+top.pk;})())
+      +'</div>';
+    page.appendChild(box);
+  });
   pages.appendChild(page);
 }
 </script>
