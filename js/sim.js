@@ -4514,7 +4514,7 @@ function showGameReport(game,title,onClose){
           plans.push({
             id:'cp-'+Date.now(),
             name:planName,
-            seq:counterSeq,
+            sequence:counterSeq,
             pitcherId:pitcherId,
             opponent:'',
             outcome:'UNTESTED',
