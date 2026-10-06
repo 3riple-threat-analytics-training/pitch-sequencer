@@ -4112,7 +4112,7 @@ function showGameReport(game,title,onClose){
             generatedAt:Date.now()
           };
           localStorage.setItem('pitchseq-report-export',JSON.stringify(exportData));
-          window.open('report.html?tab=tunnel','_blank');
+          setTimeout(function(){ window.open('report.html?tab=tunnel','_blank'); }, 150);
         }catch(e){alert('Could not export report.');}
       };
       tunnelTab.appendChild(tnExportBtn);
