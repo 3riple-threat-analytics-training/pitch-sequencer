@@ -1171,6 +1171,21 @@ function buildCounterReport(data){
       Object.entries(e[1]).forEach(function(oe){cpCO[e[0]][oe[0]]=(cpCO[e[0]][oe[0]]||0)+oe[1];});
     });
   });
+  // Aggregate zone usage for two-strike counts
+  const cpZones={}; // zone -> count of pitches thrown there in 2-strike counts
+  const TWO_STRIKE=['0-2','1-2','2-2','3-2'];
+  allGames.forEach(function(g){
+    TWO_STRIKE.forEach(function(ct){
+      const byPitch=(g.countPitchZoneOutcomes||{})[ct]||{};
+      Object.values(byPitch).forEach(function(byOutcome){
+        Object.values(byOutcome).forEach(function(byZone){
+          Object.entries(byZone).forEach(function(ze){
+            cpZones[ze[0]]=(cpZones[ze[0]]||0)+ze[1];
+          });
+        });
+      });
+    });
+  });
   function topInCount(ct){
     const d=cpCT[ct];
     if(!d) return null;
@@ -1255,23 +1270,74 @@ function buildCounterReport(data){
         (counter?'→ Mix in '+counter+' to same location for speed change':'→ Vary pitch type in this count'));
     }
   });
+  // Section 2: Two-strike finish — top 2 pitches per count
   secLabel('TWO-STRIKE FINISH ANALYSIS');
   const tsCounts=['0-2','1-2','2-2','3-2'];
   let anyTS=false;
   tsCounts.forEach(function(ct){
-    const top=topInCount(ct);
-    if(!top) return;
+    const d=cpCT[ct];
+    if(!d) return;
+    const total=Object.values(d).reduce(function(a,b){return a+b;},0)||1;
+    const sorted=Object.entries(d).sort(function(a,b){return b[1]-a[1];});
+    if(!sorted.length) return;
     anyTS=true;
     const fr=finishRate(ct);
-    const counter=getBestCounterPitch(top.pk,arsenal);
-    recBox(ct+': '+top.pk+' '+top.pct+'% — finish rate '+fr+'%',
-      fr>=50?'good':fr>=35?'warn':'alert',
-      fr>=50?'✓ Effective strikeout pitch in this count':
-      (counter?'→ Try '+counter+' to expand zone or change eye level':'→ Mix locations more in this count'));
+    const top1=sorted[0];
+    const top2=sorted[1]||null;
+    const pct1=Math.round(top1[1]/total*100);
+    const pct2=top2?Math.round(top2[1]/total*100):0;
+    const detail=(top2?top1[0]+' '+pct1+'% · '+top2[0]+' '+pct2+'%':top1[0]+' '+pct1+'%')
+      +' — finish rate '+fr+'%';
+    recBox(ct+' COUNT',fr>=50?'good':fr>=35?'warn':'alert',
+      detail+(fr>=50?' ✓ Effective strikeout count':' → Vary pitch type or location'));
   });
   if(!anyTS){
     recBox('Not enough two-strike data yet','info','Finish more at-bats to see patterns here');
   }
+  // Section 3: Counter heatmap
+  secLabel('WHERE TO PITCH — COUNTER HEATMAP');
+  const ZONES=['TL','TM','TR','ML','MM','MR','BL','BM','BR'];
+  const ZONE_LABELS={'TL':'TL','TM':'TM','TR':'TR','ML':'ML','MM':'MM','MR':'MR','BL':'BL','BM':'BM','BR':'BR'};
+  const COUNTER_ZONE={'TL':'BR','TM':'BM','TR':'BL','ML':'MR','MM':'MM','MR':'ML','BL':'TR','BM':'TM','BR':'TL'};
+  const zTotal=Object.values(cpZones).reduce(function(a,b){return a+b;},0)||1;
+  const maxZ=Math.max.apply(null,ZONES.map(function(z){return cpZones[z]||0;}))||1;
+  // Find their most-used zone
+  const topZone=ZONES.slice().sort(function(a,b){return (cpZones[b]||0)-(cpZones[a]||0);})[0];
+  const counterZone=COUNTER_ZONE[topZone];
+  const hmWrap=document.createElement('div');
+  hmWrap.style.cssText='margin:8px 0 12px 0;';
+  const hmNote=document.createElement('div');
+  hmNote.style.cssText='font-size:8px;color:#475569;margin-bottom:6px;';
+  hmNote.textContent='Red = where you pitch most in 2-strike counts. Green = suggested counter zone.';
+  hmWrap.appendChild(hmNote);
+  const tbl=document.createElement('table');
+  tbl.style.cssText='border-collapse:collapse;margin:0 auto;';
+  [['TL','TM','TR'],['ML','MM','MR'],['BL','BM','BR']].forEach(function(row){
+    const tr=document.createElement('tr');
+    row.forEach(function(zk){
+      const td=document.createElement('td');
+      const cnt=cpZones[zk]||0;
+      const pct=Math.round(cnt/zTotal*100);
+      const intensity=cnt/maxZ;
+      const isTop=zk===topZone;
+      const isCounter=zk===counterZone;
+      let bg='#f8fafc';
+      if(isCounter) bg='#dcfce7';
+      else if(isTop) bg='#fee2e2';
+      else if(intensity>0.6) bg='#fecaca';
+      else if(intensity>0.3) bg='#fed7aa';
+      td.style.cssText='width:70px;height:50px;text-align:center;vertical-align:middle;'
+        +'border:1px solid #cbd5e1;background:'+bg+';border-radius:4px;';
+      td.innerHTML='<div style="font-size:9px;font-weight:700;color:#0c4a6e;">'+zk+'</div>'
+        +'<div style="font-size:11px;font-weight:700;color:'+(isTop?'#991b1b':isCounter?'#166534':'#334155')+';">'+pct+'%</div>'
+        +(isCounter?'<div style="font-size:7px;color:#166534;">TARGET</div>':'')
+        +(isTop?'<div style="font-size:7px;color:#991b1b;">HABIT</div>':'');
+      tr.appendChild(td);
+    });
+    tbl.appendChild(tr);
+  });
+  hmWrap.appendChild(tbl);
+  page.appendChild(hmWrap);
   pages.appendChild(page);
 }
 </script>
