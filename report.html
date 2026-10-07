@@ -1495,9 +1495,10 @@ function buildCounterReport(data){
   ['CUL','CUM','CUR'].forEach(function(zk){r1.appendChild(zoneCell(zk,50,32));});
   r1.appendChild(emptyCell(50,32)); r1.appendChild(emptyCell(44,32));
   tbl.appendChild(r1);
-  // Row 2: empty | TL-CRN | TOP-EDG | TR-CRN | empty
+  // Row 2: empty | empty | TL-CRN | TOP-EDG | TR-CRN | empty | empty
   var r2=document.createElement('tr');
-  r2.appendChild(emptyCell(44,32)); r2.appendChild(zoneCell('TL-CRN',50,32));
+  r2.appendChild(emptyCell(44,32)); r2.appendChild(emptyCell(50,32));
+  r2.appendChild(zoneCell('TL-CRN',50,32));
   r2.appendChild(zoneCell('TOP-EDG',50,32)); r2.appendChild(zoneCell('TR-CRN',50,32));
   r2.appendChild(emptyCell(50,32)); r2.appendChild(emptyCell(44,32));
   tbl.appendChild(r2);
@@ -1539,9 +1540,10 @@ function buildCounterReport(data){
     }
     tbl.appendChild(tr);
   });
-  // Row 6: empty | BL-CRN | BOT-EDG | BR-CRN | empty | empty
+  // Row 6: empty | empty | BL-CRN | BOT-EDG | BR-CRN | empty | empty
   var r6=document.createElement('tr');
-  r6.appendChild(emptyCell(44,32)); r6.appendChild(zoneCell('BL-CRN',50,32));
+  r6.appendChild(emptyCell(44,32)); r6.appendChild(emptyCell(50,32));
+  r6.appendChild(zoneCell('BL-CRN',50,32));
   r6.appendChild(zoneCell('BOT-EDG',50,32)); r6.appendChild(zoneCell('BR-CRN',50,32));
   r6.appendChild(emptyCell(50,32)); r6.appendChild(emptyCell(44,32));
   tbl.appendChild(r6);
