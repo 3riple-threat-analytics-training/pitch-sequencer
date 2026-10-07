@@ -1,10 +1,11 @@
-const CACHE_NAME='pitchseq-v61';
+const CACHE_NAME='pitchseq-v62';
 
 // All files to cache for offline use
 const FILES_TO_CACHE=[
   './',
   './index.html',
   './print.html',
+  './report.html',
   './css/styles.css',
   './js/app.js',
   './js/config.js',
