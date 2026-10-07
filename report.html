@@ -1181,7 +1181,7 @@ function buildCounterReport(data){
   function finishRate(ct){
     const d=cpCO[ct];
     if(!d) return 0;
-    const finish=(d['K']||0)+(d['SO']||0)+(d['OUT']||0);
+    const finish=(d['STRIKEOUT']||0)+(d['GROUND OUT']||0)+(d['POP FLY']||0);
     const total=Object.values(d).reduce(function(a,b){return a+b;},0)||1;
     return Math.round(finish/total*100);
   }
