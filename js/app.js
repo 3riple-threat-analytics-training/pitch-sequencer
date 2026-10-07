@@ -1,0 +1,5873 @@
+let hand='R',pitch='4FB',zone='MM',rubber=0.5;
+let mrOGVisible=true;
+let sreEnabled=false;
+let tutorialActive=false;
+Object.defineProperty(window,'tutorialActive',{
+  get:function(){return tutorialActive;},
+  set:function(v){tutorialActive=v;}
+});
+let tutorialStep=0;
+
+function showTutorialPrompt(){
+  if(document.getElementById('tutorial-prompt-overlay')) return;
+  const overlay=document.createElement('div');
+  overlay.id='tutorial-prompt-overlay';
+  overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;'
+    +'z-index:10001;display:flex;align-items:center;justify-content:center;'
+    +'background:rgba(0,0,0,0.75);';
+  const box=document.createElement('div');
+  box.style.cssText='background:#0a1520;border:2px solid #06b6d4;border-radius:12px;'
+    +'padding:24px 28px;text-align:center;font-family:\'Bebas Neue\',sans-serif;'
+    +'max-width:320px;width:90%;';
+  const title=document.createElement('div');
+  title.style.cssText='font-size:20px;color:#06b6d4;letter-spacing:3px;margin-bottom:8px;';
+  title.textContent='WELCOME TO PITCH SEQUENCER';
+  const msg=document.createElement('div');
+  msg.style.cssText='font-size:11px;color:#e8f4fd;font-family:\'DM Mono\',monospace;'
+    +'line-height:1.6;margin-bottom:20px;';
+  msg.textContent='Would you like a quick tutorial to learn how the app works?';
+  const yesBtn=document.createElement('button');
+  yesBtn.style.cssText='width:100%;padding:10px;border-radius:6px;border:none;'
+    +'background:#06b6d4;color:#fff;font-family:\'Bebas Neue\',sans-serif;'
+    +'font-size:16px;letter-spacing:2px;cursor:pointer;margin-bottom:8px;';
+  yesBtn.textContent='YES — SHOW ME HOW';
+  yesBtn.onclick=function(){
+    document.body.removeChild(overlay);
+    localStorage.setItem('pitchseq-tutorial-basic-seen','1');
+    showTutorial1(0);
+  };
+  const noBtn=document.createElement('button');
+  noBtn.style.cssText='width:100%;padding:10px;border-radius:6px;'
+    +'border:0.5px solid #3a5a7a;background:transparent;color:#5a8aaa;'
+    +'font-family:\'Bebas Neue\',sans-serif;font-size:16px;letter-spacing:2px;cursor:pointer;';
+  noBtn.textContent='NO THANKS — SKIP';
+  noBtn.onclick=function(){
+    document.body.removeChild(overlay);
+    localStorage.setItem('pitchseq-tutorial-basic-seen','1');
+  };
+  box.appendChild(title);
+  box.appendChild(msg);
+  box.appendChild(yesBtn);
+  box.appendChild(noBtn);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+}
+
+function showTutorial2Prompt(){
+  if(document.getElementById('tutorial-prompt-overlay')) return;
+  const overlay=document.createElement('div');
+  overlay.id='tutorial-prompt-overlay';
+  overlay.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;'
+    +'z-index:10001;display:flex;align-items:center;justify-content:center;'
+    +'background:rgba(0,0,0,0.75);';
+  const box=document.createElement('div');
+  box.style.cssText='background:#0a1520;border:2px solid #06b6d4;border-radius:12px;'
+    +'padding:24px 28px;text-align:center;font-family:\'Bebas Neue\',sans-serif;'
+    +'max-width:320px;width:90%;';
+  const title=document.createElement('div');
+  title.style.cssText='font-size:20px;color:#06b6d4;letter-spacing:3px;margin-bottom:8px;';
+  title.textContent='ADVANCED TUTORIAL';
+  const msg=document.createElement('div');
+  msg.style.cssText='font-size:11px;color:#e8f4fd;font-family:\'DM Mono\',monospace;'
+    +'line-height:1.6;margin-bottom:20px;';
+  msg.textContent='Learn advanced features: backdoor pitches, tunneling, anchor system and planning mode.';
+  const yesBtn=document.createElement('button');
+  yesBtn.style.cssText='width:100%;padding:10px;border-radius:6px;border:none;'
+    +'background:#06b6d4;color:#fff;font-family:\'Bebas Neue\',sans-serif;'
+    +'font-size:16px;letter-spacing:2px;cursor:pointer;margin-bottom:8px;';
+  yesBtn.textContent='YES — SHOW ME';
+  yesBtn.onclick=function(){
+    document.body.removeChild(overlay);
+    localStorage.setItem('pitchseq-tutorial-advanced-seen','1');
+    showTutorial2(0);
+  };
+  const noBtn=document.createElement('button');
+  noBtn.style.cssText='width:100%;padding:10px;border-radius:6px;'
+    +'border:0.5px solid #3a5a7a;background:transparent;color:#5a8aaa;'
+    +'font-family:\'Bebas Neue\',sans-serif;font-size:16px;letter-spacing:2px;cursor:pointer;';
+  noBtn.textContent='NO THANKS — SKIP';
+  noBtn.onclick=function(){
+    document.body.removeChild(overlay);
+    localStorage.setItem('pitchseq-tutorial-advanced-seen','1');
+  };
+  box.appendChild(title);
+  box.appendChild(msg);
+  box.appendChild(yesBtn);
+  box.appendChild(noBtn);
+  overlay.appendChild(box);
+  document.body.appendChild(overlay);
+}
+
+function _tutorialHighlight(elId,on){
+  // supports single id string or array of id strings
+  const ids=Array.isArray(elId)?elId:(elId?[elId]:[]);
+  const els=ids.map(function(id){return document.getElementById(id);}).filter(Boolean);
+  els.forEach(function(el){
+    if(on){
+      el.style.outline='2px solid #06b6d4';
+      el.style.boxShadow='0 0 12px rgba(6,182,212,0.5)';
+      el.style.borderRadius='4px';
+    } else {
+      el.style.outline='';
+      el.style.boxShadow='';
+    }
+  });
+  if(on&&els.length>0){
+    // Check if elements are inside the panel scroll container
+    const panel=document.getElementById('panel');
+    const inPanel=panel&&els.some(function(el){return panel.contains(el);});
+    if(inPanel&&panel){
+      const lastEl=els[els.length-1];
+      const panelRect=panel.getBoundingClientRect();
+      const lastRect=lastEl.getBoundingClientRect();
+      // Check if panel is scrollable (desktop) or page scrolls (mobile)
+      const panelScrollable=panel.scrollHeight>panel.clientHeight&&
+        getComputedStyle(panel).overflowY!=='visible';
+      if(panelScrollable){
+        // Desktop: scroll the panel container
+        const relativeTop=(lastRect.top-panelRect.top)+panel.scrollTop;
+        const targetScrollTop=relativeTop-280;
+        panel.scrollTo({top:Math.max(0,targetScrollTop),behavior:'smooth'});
+      } else {
+        // Mobile: scroll the window to show the element
+        const elementTop=lastRect.top+window.scrollY;
+        const targetScrollTop=elementTop-window.innerHeight*0.35;
+        window.scrollTo({top:Math.max(0,targetScrollTop),behavior:'smooth'});
+      }
+    } else {
+      // Fall back to window scroll for elements outside panel
+      const tops=els.map(function(el){
+        return el.getBoundingClientRect().top+window.scrollY;});
+      const bots=els.map(function(el){
+        return el.getBoundingClientRect().bottom+window.scrollY;});
+      const minTop=Math.min.apply(null,tops);
+      const maxBot=Math.max.apply(null,bots);
+      const cardHeight=200;
+      const visibleHeight=window.innerHeight-cardHeight;
+      const rangeHeight=maxBot-minTop;
+      const scrollTo=minTop-(visibleHeight/2-rangeHeight/2);
+      window.scrollTo({top:Math.max(0,scrollTo),behavior:'smooth'});
+    }
+  }
+}
+
+function _showTutorialCard(stepIndex,totalSteps,title,body,targetElId,onNext,onSkip){
+  const existing=document.getElementById('tutorial-card');
+  if(existing) existing.remove();
+  tutorialActive=true;
+  _tutorialHighlight(targetElId,true);
+  const card=document.createElement('div');
+  card.id='tutorial-card';
+  card.style.cssText='position:fixed;bottom:20px;left:50%;'
+    +'transform:translateX(-50%);'
+    +'background:#0a1520;border:2px solid #06b6d4;border-radius:12px;'
+    +'padding:18px 20px;max-width:340px;width:90%;'
+    +'z-index:10002;font-family:\'DM Mono\',monospace;'
+    +'box-shadow:0 4px 24px rgba(6,182,212,0.25);';
+  const progress=document.createElement('div');
+  progress.style.cssText='font-size:8px;color:#06b6d4;letter-spacing:1px;margin-bottom:6px;';
+  progress.textContent='STEP '+(stepIndex+1)+' OF '+totalSteps;
+  const ttl=document.createElement('div');
+  ttl.style.cssText='font-size:14px;font-family:\'Bebas Neue\',sans-serif;'
+    +'color:#e8f4fd;letter-spacing:2px;margin-bottom:8px;';
+  ttl.textContent=title;
+  const bod=document.createElement('div');
+  bod.style.cssText='font-size:10px;color:#8aabb8;line-height:1.6;margin-bottom:14px;';
+  bod.textContent=body;
+  const btnRow=document.createElement('div');
+  btnRow.style.cssText='display:flex;gap:8px;';
+  const skipBtn=document.createElement('button');
+  skipBtn.style.cssText='flex:1;padding:8px;border-radius:6px;'
+    +'border:0.5px solid #3a5a7a;background:transparent;color:#5a8aaa;'
+    +'font-family:\'Bebas Neue\',sans-serif;font-size:13px;letter-spacing:1px;cursor:pointer;';
+  skipBtn.textContent='SKIP';
+  skipBtn.onclick=function(){
+    _tutorialHighlight(targetElId,false);
+    card.remove();
+    tutorialActive=false;
+    if(onSkip) onSkip();
+  };
+  const nextBtn=document.createElement('button');
+  nextBtn.style.cssText='flex:2;padding:8px;border-radius:6px;border:none;'
+    +'background:#06b6d4;color:#fff;'
+    +'font-family:\'Bebas Neue\',sans-serif;font-size:13px;letter-spacing:1px;cursor:pointer;';
+  nextBtn.textContent=stepIndex===totalSteps-1?'FINISH':'NEXT →';
+  nextBtn.onclick=function(){
+    _tutorialHighlight(targetElId,false);
+    card.remove();
+    if(onNext) onNext();
+  };
+  btnRow.appendChild(skipBtn);
+  btnRow.appendChild(nextBtn);
+  card.appendChild(progress);
+  card.appendChild(ttl);
+  card.appendChild(bod);
+  card.appendChild(btnRow);
+  document.body.appendChild(card);
+}
+
+function showTutorial1(step){
+  const TOTAL=8;
+  if(step>=TOTAL){tutorialActive=false;return;}
+  switch(step){
+    case 0:
+      _showTutorialCard(0,TOTAL,
+        'WELCOME TO PITCH SEQUENCER',
+        'Pitch Sequencer is a training tool designed to help pitchers think smarter on the mound. It simulates real game situations so you can practice pitch sequencing, tunneling, and reading batters — all without throwing a single pitch.',
+        null,
+        ()=>showTutorial1(1),
+        ()=>{tutorialActive=false;}
+      );
+      break;
+    case 1:
+      _showTutorialCard(1,TOTAL,
+        'TARGET ZONE',
+        'The strike zone grid shows the catcher\'s view — exactly what the catcher sees behind home plate. Use the ZONE tab to select where you want the pitch to land. The EDGE tab gives you access to corner and edge locations just outside the strike zone. Hitting edges consistently is the mark of an elite pitcher.',
+        'zonediagram',
+        ()=>showTutorial1(2),
+        ()=>{tutorialActive=false;}
+      );
+      break;
+    case 2:
+      _showTutorialCard(2,TOTAL,
+        'PITCH TYPE',
+        'Select which pitch you want to throw from your arsenal. Each pitch has a unique flight path and movement profile. A 4-seam fastball rises, a slider breaks glove-side, a changeup drops and fades. Building a diverse arsenal with different speeds and movement directions is key to keeping batters off balance.',
+        'pitchtypesection',
+        ()=>showTutorial1(3),
+        ()=>{tutorialActive=false;}
+      );
+      break;
+    case 3:
+      _showTutorialCard(3,TOTAL,
+        'SPEED & RUBBER POSITION',
+        'The speed slider sets your pitch velocity. The rubber position slider moves you along the pitching rubber from the 3B side to the 1B side. Changing your position on the rubber changes your release angle — creating new tunnel paths the batter hasn\'t seen. Elite pitchers use rubber position to open up backdoor breaking balls and extend the strike zone.',
+        ['srow','rwrap'],
+        ()=>showTutorial1(4),
+        ()=>{tutorialActive=false;}
+      );
+      break;
+    case 4:
+      _showTutorialCard(4,TOTAL,
+        'PITCH ROLE',
+        'Before each pitch select your role. SETUP pitches establish patterns and set up future pitches. PUTAWAY pitches are your strikeout pitches when ahead in the count. TUNNEL pitches share the same early flight path as your last pitch to deceive the batter. CHASE pitches are thrown out of the zone when the batter is likely to chase. RESET clears your selection.',
+        'rolepills',
+        ()=>showTutorial1(5),
+        ()=>{tutorialActive=false;}
+      );
+      break;
+    case 5:
+      _showTutorialCard(5,TOTAL,
+        'PITCH COUNT & FATIGUE',
+        'This section tracks how many pitches have been thrown and monitors pitcher fatigue. As pitch count increases the system automatically reduces velocity to simulate arm fatigue — just like in a real game. Every age group has a recommended pitch count limit. Staying within it keeps your arm healthy and your velocity up.',
+        'fatiguewrap',
+        ()=>showTutorial1(6),
+        ()=>{tutorialActive=false;}
+      );
+      break;
+    case 6:
+      _showTutorialCard(6,TOTAL,
+        'SIM MODE',
+        'SIM MODE turns the app into a full game simulator. Toggle it on using the SIM MODE button at the top of the panel. Once on you will face real batters, track balls and strikes, advance through innings and see a live score. The app randomly assigns home or away — away teams bat first, home teams pitch first. Use SIM MODE to practice pitching under real game pressure.',
+        'simbtn',
+        ()=>showTutorial1(7),
+        ()=>{tutorialActive=false;}
+      );
+      break;
+    case 7:
+      _showTutorialCard(7,TOTAL,
+        'SMART ROLE ENGINE (SRE)',
+        'The Smart Role Engine is your AI pitching coach. After each pitch in SIM MODE it analyzes your sequence and provides coaching hints — suggesting tunnels, speed contrasts, location shifts and putaway pitches based on what the batter has shown you. Enable it in Settings under Smart Role Engine. The more you follow its advice the smarter your sequences become.',
+        'sretoggle',
+        ()=>{
+          tutorialActive=false;
+          showSimBannerIfNeeded();
+          setTimeout(()=>showTutorial2Prompt(),600);
+        },
+        ()=>{tutorialActive=false;}
+      );
+      break;
+    default:
+      tutorialActive=false;
+  }
+}
+
+function showTutorial2(step){
+  const TOTAL=8;
+  if(step>=TOTAL){tutorialActive=false;return;}
+  switch(step){
+    case 0:
+      _showTutorialCard(0,TOTAL,
+        'BATTER TYPE & LEVEL',
+        'In SIM MODE you can select the type of batter you face. RANDOM cycles through all types automatically — the best way to simulate a real lineup. PULL hitters look to yank the ball, FREE SWINGERS chase everything, PATIENT hitters wait for their pitch, LOW BALL and HIGH BALL hitters have specific zone preferences. Batter Level sets how skilled the hitter is — from youth rec to pro.',
+        ['battertypewrap','batterlevelwrap'],
+        ()=>showTutorial2(1),
+        ()=>{tutorialActive=false;}
+      );
+      break;
+    case 1:
+      _showTutorialCard(1,TOTAL,
+        'UMPIRE & GAME SITUATION',
+        'The Umpire setting controls how the strike zone is called. GOOD umpires call a tight accurate zone. BAD umpires have a wider inconsistent zone — teaching you to pitch to contact. HOMER umpires favor the home team, shrinking or expanding the zone situationally. Game Situation sets the scenario: runners on base, late inning pressure, or a clean slate. Use these to simulate real game stress.',
+        ['umpirewrap','situationwrap'],
+        ()=>showTutorial2(2),
+        ()=>{tutorialActive=false;}
+      );
+      break;
+    case 2:
+      _showTutorialCard(2,TOTAL,
+        'THE BACKDOOR PITCH',
+        'A backdoor pitch starts outside the strike zone and breaks back across the plate at the last second — catching the batter completely frozen. The batter sees the ball heading away and relaxes, then it sneaks back in for a called strike. It is thrown from the 3B side of the rubber for a right handed pitcher and the 1B side for a left handed pitcher. Best thrown with a slider, sweeper or curveball.',
+        'ckbd-backdoor',
+        ()=>showTutorial2(3),
+        ()=>{tutorialActive=false;}
+      );
+      break;
+    case 3:
+      _showTutorialCard(3,TOTAL,
+        'THE BACK-FOOT PITCH',
+        'A back-foot pitch breaks low and in toward the batter\'s back foot — the foot furthest from the plate. For a right handed pitcher against a left handed batter the ball breaks down and to the right catching the batter off guard near their back foot. It is thrown from the center of the rubber and works best with a slider or sweeper. The batter sees a strike heading their way and then it dives away from the barrel.',
+        'ckbd-backfoot',
+        ()=>showTutorial2(4),
+        ()=>{tutorialActive=false;}
+      );
+      break;
+    case 4:
+      _showTutorialCard(4,TOTAL,
+        'HOW TO THROW BACKDOOR & BACK-FOOT',
+        'Step 1: Select a qualifying pitch — Slider, Sweeper or Curveball. Step 2: Select MM as your target zone. Step 3: Click the BACKDOOR or BACK-FOOT button in the Options section — it will highlight cyan when active. Step 4: Click THROW. The system automatically adjusts the rubber position and flight path based on your pitcher and batter handedness.',
+        ['ckbd-backdoor','ckbd-backfoot','zonediagram'],
+        ()=>showTutorial2(5),
+        ()=>{tutorialActive=false;}
+      );
+      break;
+    case 5:
+      _showTutorialCard(5,TOTAL,
+        'TUNNEL VISUALIZATION',
+        'A tunnel is when two pitches share the same early flight path but break in different directions at the plate. The batter cannot tell them apart until it is too late. Toggle TUNNEL ON to see yellow tunnel zones drawn between pitches that share a path. The goal is to build sequences where your fastball and breaking ball look identical out of your hand. Tunneling is one of the most powerful weapons in pitching.',
+        'tunnelbtn',
+        ()=>showTutorial2(6),
+        ()=>{tutorialActive=false;}
+      );
+      break;
+    case 6:
+      _showTutorialCard(6,TOTAL,
+        'ANCHOR SYSTEM',
+        'The anchor is the zone your pitching sequence is built around — the reference point the batter has to protect. After two or more pitches the system calculates the geometric midpoint of your attack sequence and highlights it in CYAN on the zone grid. Build your tunnels around this anchor. If you throw your first pitch to MM you establish MM as your anchor immediately — giving you maximum tunneling options in all directions.',
+        'zonediagram',
+        ()=>showTutorial2(7),
+        ()=>{tutorialActive=false;}
+      );
+      break;
+    case 7:
+      _showTutorialCard(7,TOTAL,
+        'PLANNING MODE (SIM OFF)',
+        'With SIM MODE off the app becomes a pitch sequence planner. Build attack sequences against specific batters, save them as named plans, and export them as a PDF to print and bring to the dugout. The PDF automatically includes your attack anchor so you always know the corridor to build your tunnels through. Use planning mode to prepare for games and study how different sequences work against different batter types.',
+        'simbtn',
+        ()=>{tutorialActive=false;},
+        ()=>{tutorialActive=false;}
+      );
+      break;
+    default:
+      tutorialActive=false;
+  }
+}
+let tunnelOn=false,role='SETUP',batter='RHB';
+let targetMode='ZONE';
+let extendedAtBat=false;
+let currentView='catcher';
+let knuckleballZoneDisabled=false;
+let seq=[],pathObjs=[],landObjs=[],ghostLines=[],tunnelObjs=[];
+let statics=[];
+const ALL_PITCHES_LIST=[
+  {key:'4FB',name:'4-seam FB',color:'#ef4444'},
+  {key:'2FB',name:'2-seam FB',color:'#f97316'},
+  {key:'CB', name:'Curveball', color:'#3b82f6'},
+  {key:'SL', name:'Slider',    color:'#a855f7'},
+  {key:'CH', name:'Changeup',  color:'#22c55e'},
+  {key:'CT', name:'Cutter',    color:'#eab308'},
+  {key:'SP', name:'Splitter',  color:'#06b6d4'},
+  {key:'SK', name:'Sinker',    color:'#f43f5e'},
+  {key:'FK', name:'Forkball',  color:'#0891b2'},
+  {key:'SCR',name:'Screwball', color:'#ec4899'},
+  {key:'EPH',name:'Eephus',    color:'#d97706'},
+  {key:'SLV',name:'Slurve',    color:'#7c3aed'},
+  {key:'SWP',name:'Sweeper',   color:'#10b981'},
+  {key:'KN', name:'Knuckleball',color:'#94a3b8'},
+  {key:'KC', name:'Knuckle Curve', color:'#6366f1'},
+];
+
+let profHand='R';
+let profSelectedPitches=[];
+
+const cv=document.getElementById('c');
+const wrap=document.getElementById('cwrap');
+const renderer=new THREE.WebGLRenderer({canvas:cv,antialias:true,alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio,2));
+renderer.setClearColor(0x13281b,1);
+const scene=new THREE.Scene();
+const cam=new THREE.PerspectiveCamera(52,1,0.1,200);
+
+function resize(){const w=wrap.clientWidth||480,h=wrap.clientHeight||560;renderer.setSize(w,h);cam.aspect=w/h;cam.updateProjectionMatrix();}
+resize();
+new ResizeObserver(resize).observe(wrap);
+
+function getRP(bdMode){
+  // Backdoor: shift release point to correct rubber edge
+  // RHP backdoor → 3B side (pitcher's right) → rubber=0.85
+  // LHP backdoor → 1B side (pitcher's left) → rubber=0.15
+  // All other modes: use actual rubber position unchanged
+  const _rubber=(bdMode==='backdoor')?
+    (hand==='R'?0.85:0.15):rubber;
+  const rx=(_rubber-0.5)*0.6;
+  const ho=hand==='R'?0.26:-0.26;
+  return new THREE.Vector3(rx+ho,1.58,17.0);
+}
+function setCamera(){cam.fov=52;cam.position.set(0,1.06,-1.2);cam.lookAt(0,1.06,17);cam.updateProjectionMatrix();}
+
+function setHand(h){hand=h;document.getElementById('brhp').classList.toggle('active',h==='R');document.getElementById('blhp').classList.toggle('active',h==='L');buildStatic();rebuildPaths();refreshGhost();}
+function setBatter(b){batter=b;['LHB','OFF','RHB'].forEach(x=>document.getElementById('b'+x.toLowerCase()).classList.toggle('active',x===b));buildStatic();rebuildPaths();refreshGhost();if(typeof dismissBatterHandednessNotification==='function') dismissBatterHandednessNotification();if(typeof updateZoneGlows==='function') updateZoneGlows();}
+function selPitch(p){
+  pitch=p;
+  document.querySelectorAll('.pbtn').forEach(b=>b.classList.remove('sel'));
+  document.getElementById('p'+p).classList.add('sel');
+  if(p==='KN'){
+    // Knuckleball — force MM, disable zone controls
+    zone='MM';
+    if(targetMode!=='ZONE') setTargetMode('ZONE');
+    const zeedge=document.getElementById('zeedge');
+    if(zeedge) zeedge.classList.add('zebtn-disabled');
+    const zezone=document.getElementById('zezone');
+    if(zezone) zezone.classList.add('zebtn-disabled');
+    knuckleballZoneDisabled=true;
+  } else {
+    // Any other pitch — re-enable zone controls
+    const zeedge=document.getElementById('zeedge');
+    if(zeedge) zeedge.classList.remove('zebtn-disabled');
+    const zezone=document.getElementById('zezone');
+    if(zezone) zezone.classList.remove('zebtn-disabled');
+    knuckleballZoneDisabled=false;
+  }
+  rebuildTargetDiagram();
+  refreshGhost();
+  applyPitchVelocity(p);
+  if(typeof simMode!=='undefined'&&simMode&&typeof applyFatigueToVelocity==='function')applyFatigueToVelocity();
+}
+function selRole(r){role=r;document.querySelectorAll('.rpill').forEach(b=>b.classList.toggle('active',b.dataset.role===r));}
+function setRubber(e){
+  const rect=document.getElementById('rwrap').getBoundingClientRect();
+  rubber=Math.max(0,Math.min(1,(e.clientX-rect.left)/rect.width));
+  document.getElementById('rdot').style.left=(10+rubber*(rect.width-20))+'px';
+  document.getElementById('tip').textContent=TIPS[rubber<0.33?'left':rubber>0.66?'right':'center'];
+  buildStatic();rebuildPaths();refreshGhost();
+}
+function toggleTunnel(){tunnelOn=!tunnelOn;const b=document.getElementById('tunnelbtn');b.textContent=tunnelOn?'⬡ TUNNEL ON':'⬡ TUNNEL OFF';b.classList.toggle('on',tunnelOn);buildTunnels();}
+
+function toggleMrOG(on){
+  mrOGVisible=on;
+  localStorage.setItem('pitchseq-mrog',on?'1':'0');
+  buildStatic();
+}
+
+function toggleSRE(on){
+  sreEnabled=on;
+  localStorage.setItem('pitchseq-sre',on?'1':'0');
+}
+
+function getAutoRole(count,seq,zk,batter,gameState){
+  const balls=parseInt(count.split('-')[0]||0);
+  const strikes=parseInt(count.split('-')[1]||0);
+  const outs=gameState.outs||0;
+  const runners=gameState.runners||
+    {first:false,second:false,third:false};
+  const runsAllowed=gameState.runsAllowed||0;
+  // Catcher POV swap — internal RHB = display LHB and vice versa
+  const isLHB=batter==='RHB';
+
+  // ── ARSENAL AWARENESS ──
+  const profile=typeof getProfile==='function'?getProfile():null;
+  const arsenal=profile&&profile.arsenal?profile.arsenal:[];
+
+  // Pitch categories
+  const FASTBALL_FAMILY=['4FB','2FB','CT','SK','SP'];
+  const BREAKING_FAMILY=['SL','CB','KC','SWP','FK','SLV','SCR','KN'];
+  const OFFSPEED_FAMILY=['CH','EPH'];
+
+  function getPitchCategory(pk){
+    if(FASTBALL_FAMILY.includes(pk)) return 'fastball';
+    if(BREAKING_FAMILY.includes(pk)) return 'breaking';
+    if(OFFSPEED_FAMILY.includes(pk)) return 'offspeed';
+    return 'other';
+  }
+
+  function getPitchName(pk){
+    const names={
+      '4FB':'4-seam fastball','2FB':'2-seam fastball',
+      'CB':'curveball','SL':'slider','CH':'changeup',
+      'CT':'cutter','SK':'sinker','SP':'splitter',
+      'SP':'splitter','SLV':'slurve','SWP':'sweeper',
+      'FK':'forkball','KC':'knuckle curve','SCR':'screwball',
+      'EPH':'eephus'
+    };
+    return names[pk]||pk;
+  }
+
+  function get2FBMovementDesc(){
+    // Describes likely 2FB movement based on last pitch's
+    // zone — low zones suggest sink, glove-side middle
+    // zones suggest run/tail, otherwise generic.
+    if(!lastZone) return 'moves differently than your last pitch';
+    const row=getZoneRow(lastZone);
+    const lowZones=['BL','BM','BR','BOT-EDG','BL-CRN','BR-CRN',
+      'CLO-L','CLO-M','CLO-R'];
+    const armSideMidZones=['ML','MR','LFT-EDG','RGT-EDG'];
+    if(lowZones.includes(lastZone)||row==='down'){
+      return 'sinks down and to your arm side — locate it low '+
+        'for ground ball contact';
+    }
+    if(armSideMidZones.includes(lastZone)){
+      return 'runs and tails toward the batter\'s hands — '+
+        'arm-side action batters struggle to square up';
+    }
+    return 'moves differently than your last pitch';
+  }
+
+  function getSpeedDirectionDesc(suggestedPk){
+    // Determines if suggestedPk is faster or slower than
+    // the last pitch thrown, using actual thrown speeds
+    // when available, falling back to PITCH_VELOCITY_PCT.
+    // Uses existing contrastThreshold (scales with age group)
+    // as the buffer for "close enough to call similar speed."
+    if(!lastPitch||!lastPitch.pk) return 'arrives at a different speed';
+    const lastSpd=lastPitch.spd||0;
+
+    const thrown=prevPitches.filter(s=>s.pk===suggestedPk&&s.spd>0);
+    let suggestedSpd;
+    if(thrown.length){
+      suggestedSpd=thrown.reduce((a,b)=>a+b.spd,0)/thrown.length;
+    } else if(lastSpd>0&&typeof PITCH_VELOCITY_PCT!=='undefined'){
+      const lastPct=PITCH_VELOCITY_PCT[lastPitch.pk]||0.85;
+      const suggestedPct=PITCH_VELOCITY_PCT[suggestedPk]||0.85;
+      const impliedMax=lastSpd/lastPct;
+      suggestedSpd=impliedMax*suggestedPct;
+    } else {
+      return 'arrives at a different speed';
+    }
+
+    const diff=suggestedSpd-lastSpd;
+    const buffer=contrastThreshold||6;
+    if(diff>=buffer){
+      return 'arrives faster — after your '+
+        getPitchName(lastPitch.pk)+
+        ' it will appear even quicker than it is';
+    } else if(diff<=-buffer){
+      return 'arrives slower';
+    }
+    // Movement contrast — describe HOW the pitch moves differently
+    // even when speed is similar, so the pitcher understands the value
+    const _GLOVE=['SL','CT','SWP','KC'];
+    const _ARM=['2FB','SK','CH','SCR'];
+    const _DOWN=['SP','FK','EPH','CB','SLV','KN'];
+    const _STRAIGHT=['4FB'];
+    function _getMoveGroup(pk){
+      if(_GLOVE.includes(pk)) return 'glove';
+      if(_ARM.includes(pk)) return 'arm';
+      if(_DOWN.includes(pk)) return 'down';
+      if(_STRAIGHT.includes(pk)) return 'straight';
+      return 'unknown';
+    }
+    const _lastPk=lastPitch?lastPitch.pk:'';
+    const _sugPk=suggestedPk||'';
+    const _lastGrp=_getMoveGroup(_lastPk);
+    const _sugGrp=_getMoveGroup(_sugPk);
+    const _opposite=
+      (_lastGrp==='glove'&&_sugGrp==='arm')||
+      (_lastGrp==='arm'&&_sugGrp==='glove')||
+      (_lastGrp==='straight'&&_sugGrp==='down')||
+      (_lastGrp==='down'&&_sugGrp==='straight')||
+      (_lastGrp==='glove'&&_sugGrp==='down')||
+      (_lastGrp==='down'&&_sugGrp==='glove')||
+      (_lastGrp==='arm'&&_sugGrp==='straight')||
+      (_lastGrp==='straight'&&_sugGrp==='arm');
+    if(_lastGrp!=='unknown'&&_sugGrp!=='unknown'&&_lastGrp!==_sugGrp){
+      if(_opposite){
+        return 'arrives at a similar speed but breaks in the opposite direction';
+      }
+      return 'arrives at a similar speed with different movement';
+    }
+    return 'arrives at a similar speed';
+  }
+
+  // Zone analysis helpers
+  function getZoneRow(zk){
+    if(['TL','TM','TR','TOP-EDG','TL-CRN','TR-CRN',
+      'CUR','CUM','CUL'].includes(zk)) return 'up';
+    if(['BL','BM','BR','BOT-EDG','BL-CRN','BR-CRN',
+      'CLO-L','CLO-M','CLO-R'].includes(zk)) return 'down';
+    return 'mid';
+  }
+
+  function getZoneCol(zk,isLHB){
+    // Chase zone keys render on OPPOSITE screen side from
+    // their key name — confirmed via live visual testing.
+    // CLO-L/CUL actually render RIGHT; CLO-R/CUR actually
+    // render LEFT; CIN actually renders RIGHT; COUT
+    // actually renders LEFT. This is isolated to SRE's
+    // hint text only — does not affect throwing/rendering.
+    const leftKeys=['TL','ML','BL','LFT-EDG','TL-CRN','BL-CRN',
+      'CLO-R','CUR','COUT'];
+    const rightKeys=['TR','MR','BR','RGT-EDG','TR-CRN','BR-CRN',
+      'CLO-L','CUL','CIN'];
+    if(leftKeys.includes(zk))
+      return isLHB?'outside':'inside';
+    if(rightKeys.includes(zk))
+      return isLHB?'inside':'outside';
+    return 'middle';
+  }
+
+  function getZoneQuadrant(zk,isLHB){
+    return getZoneRow(zk)+'-'+getZoneCol(zk,isLHB);
+  }
+
+  function zonesAreDifferent(zk1,zk2,isLHB){
+    return getZoneRow(zk1)!==getZoneRow(zk2)||
+      getZoneCol(zk1,isLHB)!==getZoneCol(zk2,isLHB);
+  }
+
+  // ── PITCH HISTORY ANALYSIS ──
+  const prevPitches=seq.filter(s=>s.outcome&&s.pk);
+  const lastPitch=prevPitches[prevPitches.length-1]||null;
+  const last2=prevPitches.slice(-2);
+  const last3=prevPitches.slice(-3);
+
+  // Exact pitch frequency
+  const pitchFreq={};
+  prevPitches.forEach(s=>{
+    pitchFreq[s.pk]=(pitchFreq[s.pk]||0)+1;
+  });
+
+  // Category frequency
+  const catFreq={fastball:0,breaking:0,offspeed:0};
+  prevPitches.forEach(s=>{
+    const cat=getPitchCategory(s.pk);
+    if(catFreq[cat]!==undefined) catFreq[cat]++;
+  });
+
+  // Speed tier analysis — within 5mph = same tier
+  const speeds=prevPitches.map(s=>s.spd||0).filter(Boolean);
+  const lastSpeed=lastPitch?lastPitch.spd||0:0;
+  const recentSpeeds=prevPitches.slice(-3).map(s=>s.spd||0)
+    .filter(Boolean);
+  const speedTierLocked=recentSpeeds.length>=2&&
+    recentSpeeds.every(s=>Math.abs(s-recentSpeeds[0])<5);
+  const avgRecentSpeed=recentSpeeds.length?
+    recentSpeeds.reduce((a,b)=>a+b,0)/recentSpeeds.length:0;
+
+  // ── VELOCITY PATTERN DETECTION ──
+  const fastballPitches=prevPitches.filter(s=>
+    FASTBALL_FAMILY.includes(s.pk)&&s.spd>0
+  );
+  const avgFastballSpeed=fastballPitches.length?
+    fastballPitches.reduce((a,b)=>a+b.spd,0)/
+    fastballPitches.length:0;
+  const fastballPatternEstablished=fastballPitches.length>=2;
+  // Contrast threshold — 10% below avg fastball
+  // Works at all age groups: youth(6mph), HS(8mph), pro(9mph+)
+  const contrastThreshold=avgFastballSpeed*0.10;
+  const contrastPitches=arsenal.filter(pk=>{
+    // Skip fastball family — velocity too similar
+    if(FASTBALL_FAMILY.includes(pk)) return false;
+    if(!avgFastballSpeed) return false;
+    // If already thrown use actual average speed
+    const thrown=prevPitches.filter(s=>s.pk===pk&&s.spd>0);
+    if(thrown.length){
+      const avgSpd=thrown.reduce((a,b)=>a+b.spd,0)/thrown.length;
+      return avgFastballSpeed-avgSpd>=contrastThreshold;
+    }
+    // Not yet thrown — use PITCH_VELOCITY_PCT to estimate
+    const pct=typeof PITCH_VELOCITY_PCT!=='undefined'?
+      PITCH_VELOCITY_PCT[pk]||0.85:0.85;
+    const estimatedSpd=avgFastballSpeed*pct;
+    return avgFastballSpeed-estimatedSpd>=contrastThreshold;
+  });
+  const bestContrastPitch=contrastPitches.length?
+    contrastPitches[0]:null;
+
+  // ── DROP PITCH DETECTION ──
+  // Pitches with same arm action as fastball but drop
+  const DROP_PITCHES=['SP','FK','SK','2FB'];
+  const dropPitches=arsenal.filter(pk=>
+    DROP_PITCHES.includes(pk)
+  );
+  const bestDropPitch=dropPitches.length?dropPitches[0]:null;
+
+  // ── AGE GROUP AWARENESS ──
+  const ageGroup=profile?profile.ageGroup||'rec12':'rec12';
+  const isYouthOrHS=ageGroup==='youth'||ageGroup==='hs';
+
+  // Hanging changeup warning
+  function getChangeupWarning(isPrimary){
+    const hasChangeup=arsenal.some(pk=>
+      OFFSPEED_FAMILY.includes(pk)
+    );
+    if(!hasChangeup) return '';
+    if(isYouthOrHS||isPrimary){
+      return '⚠ Location is critical — a changeup that hangs '+
+        'middle of the zone will get hit hard. '+
+        'Locate it down and away.';
+    }
+    return '';
+  }
+
+  const velocityReset=prevPitches.some(s=>
+    avgFastballSpeed>0&&
+    (avgFastballSpeed-s.spd)>=contrastThreshold&&
+    !FASTBALL_FAMILY.includes(s.pk)
+  );
+  const velocityPatternActive=fastballPatternEstablished&&
+    !velocityReset;
+  const overRelianceDetected=Object.keys(pitchFreq).some(
+    pk=>pitchFreq[pk]>=3
+  );
+  const contrastOverridesTunnel=velocityPatternActive&&
+    overRelianceDetected&&bestContrastPitch!==null;
+
+  // Tunnel established detection
+  const tunnelEstablished=prevPitches.some(s=>
+    s.tunnelData&&s.tunnelData.hasTunnel
+  );
+  const backFootAvailable=false;
+  const backFootPitch=null;
+
+  // Location pattern — full at-bat
+  const zones=prevPitches.map(s=>s.zk).filter(Boolean);
+  const lastZone=lastPitch?lastPitch.zk:null;
+  const last3Zones=zones.slice(-3);
+  const last2Zones=zones.slice(-2);
+
+  // Exact zone match — mirrors batting algorithm penalty thresholds
+  const exactLast2Same=last2Zones.length===2&&
+    last2Zones[0]===last2Zones[1];
+  const exactLast3Same=last3Zones.length===3&&
+    last3Zones.every(z=>z===last3Zones[0]);
+
+  // Quadrant match — broader pattern detection
+  const quadrantLast2Same=last2.length===2&&
+    getZoneQuadrant(last2[0].zk,isLHB)===
+    getZoneQuadrant(last2[1].zk,isLHB);
+  const quadrantLast3Same=last3Zones.length===3&&
+    last3Zones.every(z=>
+      getZoneQuadrant(z,isLHB)===
+      getZoneQuadrant(last3Zones[0],isLHB));
+
+  // Warning levels
+  const locationWarningYellow=exactLast2Same||quadrantLast2Same;
+  const locationWarningRed=exactLast3Same||quadrantLast3Same;
+  const locationFixation=locationWarningRed;
+  const last2SameLocation=locationWarningYellow&&!locationWarningRed;
+
+  // ── RUBBER POSITION ──
+  const rubberPos=typeof rubber!=='undefined'?rubber:0.5;
+  const rubberSide=rubberPos<0.35?'1B side':
+    rubberPos>0.65?'3B side':'center';
+  const suggestRubberMove=locationWarningYellow||
+    locationWarningRed;
+  let rubberHint='';
+  if(suggestRubberMove){
+    // isLHB already accounts for catcher POV swap
+    const pitcherHand2=typeof hand!=='undefined'?hand:'R';
+    const openSide=(pitcherHand2==='R'&&isLHB)||
+      (pitcherHand2==='L'&&!isLHB)?'3B side':'1B side';
+    const currentSideLabel=rubberPos<0.35?'1B side':
+      rubberPos>0.65?'3B side':'center';
+    const alreadyOnOpenSide=
+      (openSide==='3B side'&&rubberPos<0.35)||
+      (openSide==='1B side'&&rubberPos>0.65);
+    if(alreadyOnOpenSide){
+      rubberHint='You\'re on the '+currentSideLabel+
+        ' — moving to center or '+
+        (openSide==='3B side'?'1B side':'3B side')+
+        ' shifts your arm path angle. The batter has to recalibrate'+
+        ' their read from a new release point — use this to set up'+
+        ' a backdoor breaking ball or a pitch that backs into the zone.';
+    } else {
+      rubberHint='Move to the '+openSide+
+        ' of the rubber — your arm path comes from a new angle the'+
+        ' batter hasn\'t tracked yet. This creates a new tunnel,'+
+        ' opens the backdoor for a breaking ball that starts outside'+
+        ' and backs into the zone, and extends the strike zone in a'+
+        ' direction the batter has not seen from you today.';
+    }
+  }
+
+  // Eye line — has batter been forced to move eyes recently?
+  const eyeLineMoved=last2.length===2&&
+    zonesAreDifferent(last2[0].zk,last2[1].zk,isLHB);
+
+  // ── AXIS PATTERN DETECTION ──
+  // Track last 4 pitches for dominant attack axis
+  const last4=prevPitches.slice(-4);
+  const last4Zones=last4.map(s=>s.zk).filter(Boolean);
+
+  // Row axis (up/mid/down)
+  const rowFreq={up:0,mid:0,down:0};
+  last4Zones.forEach(z=>rowFreq[getZoneRow(z)]++);
+  const dominantRow=Object.keys(rowFreq).reduce((a,b)=>
+    rowFreq[a]>=rowFreq[b]?a:b,'mid');
+  const rowDominant=rowFreq[dominantRow]>=3;
+
+  // Column axis (left/mid/right mapped to inside/outside/middle)
+  const colFreq={inside:0,middle:0,outside:0};
+  last4Zones.forEach(z=>colFreq[getZoneCol(z,isLHB)]++);
+  const dominantCol=Object.keys(colFreq).reduce((a,b)=>
+    colFreq[a]>=colFreq[b]?a:b,'middle');
+  const colDominant=colFreq[dominantCol]>=3;
+
+  // Axis switch suggestion
+  let axisSwitchHint='';
+  let axisSwitchZones='';
+  if(rowDominant&&colDominant){
+    // Both axes dominant — pitcher is very predictable
+    axisSwitchHint='⚠ Pattern locked — you\'ve been attacking '+
+      dominantCol+' '+dominantRow+' repeatedly.';
+    axisSwitchZones='Move to opposite quadrant — try '+
+      (dominantRow==='up'?'down':'up')+' and '+
+      (dominantCol==='outside'?'inside':'outside')+'.';
+  } else if(rowDominant){
+    // Up/down dominant — suggest left/right
+    axisSwitchHint='You\'ve been working the '+dominantRow+
+      ' of the zone — move the ball laterally.';
+    axisSwitchZones='Target '+(dominantCol==='outside'?
+      'inside':'outside')+' at '+dominantRow+
+      ' — change the horizontal eye line.';
+  } else if(colDominant){
+    // Left/right dominant — suggest up/down
+    axisSwitchHint='You\'ve been working '+dominantCol+
+      ' — move the ball up or down.';
+    axisSwitchZones='Target '+(dominantRow==='up'?
+      'low':'high')+' and '+dominantCol+
+      ' — change the vertical eye line.';
+  }
+
+  // ── CROSS-CATEGORY TUNNEL FOR STRAIGHT BACK ──
+  // Finds closest-speed pitch in different category
+  function getCrossCategoryTunnel(lastPk,lastSpd){
+    const lastCatLocal=getPitchCategory(lastPk);
+    // Find pitches in different category from arsenal
+    const crossCat=arsenal.filter(pk=>
+      getPitchCategory(pk)!==lastCatLocal
+    );
+    if(!crossCat.length) return null;
+    // Sort by closest speed to last pitch
+    return crossCat.sort((a,b)=>{
+      const aThrown=prevPitches.filter(s=>s.pk===a&&s.spd>0);
+      const bThrown=prevPitches.filter(s=>s.pk===b&&s.spd>0);
+      const aSpd=aThrown.length?
+        aThrown.reduce((x,y)=>x+y.spd,0)/aThrown.length:
+        (typeof PITCH_VELOCITY_PCT!=='undefined'?
+          (PITCH_VELOCITY_PCT[a]||0.85)*(lastSpd||60):lastSpd*0.85);
+      const bSpd=bThrown.length?
+        bThrown.reduce((x,y)=>x+y.spd,0)/bThrown.length:
+        (typeof PITCH_VELOCITY_PCT!=='undefined'?
+          (PITCH_VELOCITY_PCT[b]||0.85)*(lastSpd||60):lastSpd*0.85);
+      return Math.abs(aSpd-(lastSpd||60))-
+        Math.abs(bSpd-(lastSpd||60));
+    })[0];
+  }
+
+  // Consecutive foul type detection
+  const last2Fouls=prevPitches.slice(-2).filter(s=>s.foulType);
+  const consecutiveSameFoul=last2Fouls.length===2&&
+    last2Fouls[0].foulType===last2Fouls[1].foulType;
+  const lastFoulType=lastPitch?lastPitch.foulType:null;
+
+  // Consecutive same pitch type foul
+  const last2SameCatFoul=last2Fouls.length===2&&
+    getPitchCategory(last2Fouls[0].pk)===
+    getPitchCategory(last2Fouls[1].pk);
+
+  // Check swing
+  const lastCheckSwing=prevPitches.slice().reverse().find(
+    s=>s.checkSwing&&s.checkSwing.zone
+  )||null;
+
+  // Tunnel detection
+  const lastTunneled=last2.length===2&&
+    last2[0].tunnelData&&last2[1].tunnelData&&
+    last2[0].tunnelData.hasTunnel&&last2[1].tunnelData.hasTunnel;
+
+  // ── ARSENAL-BASED SUGGESTIONS ──
+  function getContrastCategory(lastCat,foulType){
+    if(foulType==='LATE') return 'fastball';
+    if(foulType==='PULLED'){
+      return lastCat==='fastball'?'offspeed':'breaking';
+    }
+    if(foulType==='STRAIGHT_BACK'){
+      if(lastCat==='fastball') return 'breaking';
+      if(lastCat==='breaking') return 'fastball';
+      return 'fastball';
+    }
+    if(lastCat==='fastball') return 'breaking';
+    if(lastCat==='breaking') return 'offspeed';
+    return 'fastball';
+  }
+
+  function suggestPitch(priority,lastCat,foulType){
+    const contrastCat=getContrastCategory(lastCat,foulType);
+    if(contrastOverridesTunnel&&bestContrastPitch){
+      if(priority==='tunnel'){
+        return {pk:bestContrastPitch,
+          name:getPitchName(bestContrastPitch),
+          reason:'fastball pattern established — '+
+            'this creates a sharp speed contrast that '+
+            'disrupts the batter\'s timing'};
+      }
+    }
+    // Block same-family tunnel when FOUL PULLED on fastball
+    const blockFastballTunnel=
+      lastFoulType==='PULLED'&&
+      getPitchCategory(lastPitch?.pk||'')==='fastball'&&
+      priority==='tunnel';
+    // 1. Tunnel — same category, different pitch
+    // Block same-family if FOUL PULLED on fastball
+    const tunnelOptions=blockFastballTunnel?[]:
+      arsenal.filter(pk=>
+        getPitchCategory(pk)===lastCat&&pk!==lastPitch?.pk
+      );
+    const contrastOptions=arsenal.filter(pk=>
+      getPitchCategory(pk)===contrastCat&&pk!==lastPitch?.pk
+    );
+    const locationOptions=arsenal.filter(pk=>pk!==lastPitch?.pk);
+    const samePitchOptions=lastPitch?[lastPitch.pk]:[];
+    const unusedOptions=arsenal.filter(pk=>!pitchFreq[pk]);
+
+    if(priority==='tunnel'&&tunnelOptions.length){
+      const pk=tunnelOptions[0];
+      return {pk,name:getPitchName(pk),
+        reason:'tunnels off your last pitch'};
+    }
+    if(contrastOptions.length){
+      const pk=contrastOptions[0];
+      return {pk,name:getPitchName(pk),
+        reason:foulType==='LATE'?
+          'same arm action, different speed — disrupts their timing read':
+          foulType==='PULLED'?
+          'batter was out in front — sitting on that velocity':
+          'contrasts with your last pitch'};
+    }
+    if(locationOptions.length){
+      const pk=locationOptions[0];
+      return {pk,name:getPitchName(pk),
+        reason:'forces batter to move their eyes'};
+    }
+    if(samePitchOptions.length){
+      const pk=samePitchOptions[0];
+      return {pk,name:getPitchName(pk),
+        reason:'same pitch different location — batter won\'t expect it'};
+    }
+    if(unusedOptions.length){
+      const pk=unusedOptions[0];
+      return {pk,name:getPitchName(pk),
+        reason:'batter hasn\'t seen this pitch yet'};
+    }
+    return null;
+  }
+
+  // ── PATTERN FLAGS ──
+  // Track warning level for color coding
+  let warningLevel='none'; // none, yellow, red
+  let patternWarning='';
+  if(locationWarningRed&&lastZone){
+    const row=getZoneRow(lastZone);
+    const col=getZoneCol(lastZone,isLHB);
+    patternWarning='⚠ 3+ pitches to the '+col+' '+row+
+      ' — batter contact probability is elevated. Move the ball.';
+    warningLevel='red';
+  } else if(locationWarningYellow&&lastZone){
+    const row=getZoneRow(lastZone);
+    const col=getZoneCol(lastZone,isLHB);
+    patternWarning='2 consecutive pitches '+col+' '+row+
+      ' — consider moving the ball.';
+    warningLevel='yellow';
+  }
+
+  if(speedTierLocked&&avgRecentSpeed>0){
+    // Direction-aware: if recent cluster is fast pitches, go slower.
+    // If recent cluster is slow/breaking pitches, go faster.
+    const _clusterIsFast=avgFastballSpeed>0&&
+      avgRecentSpeed>=(avgFastballSpeed-contrastThreshold);
+    const _speedAdvice=_clusterIsFast?
+      'Vary your speed — add a breaking ball or offspeed pitch to disrupt timing.':
+      'Go faster — establish your fastball. Batter is sitting on slower stuff.';
+    const speedWarn='⚡ Batter has timed your velocity — '+
+      recentSpeeds.length+' pitches in the '+
+      Math.round(avgRecentSpeed-2)+'-'+
+      Math.round(avgRecentSpeed+2)+'mph range. '+_speedAdvice;
+    patternWarning=patternWarning?
+      patternWarning+' '+speedWarn:speedWarn;
+    if(warningLevel==='none') warningLevel='yellow';
+  }
+
+  Object.keys(pitchFreq).forEach(pk=>{
+    if(pitchFreq[pk]>=3){
+      const overuseWarn='⚠ '+pitchFreq[pk]+'x '+
+        getPitchName(pk)+' this at-bat — batter has adjusted.';
+      patternWarning=patternWarning?
+        patternWarning+' '+overuseWarn:overuseWarn;
+      warningLevel='red';
+    }
+  });
+
+  let foulAdjustment='';
+  if(consecutiveSameFoul&&last2SameCatFoul&&lastFoulType){
+    const lastCat=getPitchCategory(lastPitch?.pk||'');
+    if(lastFoulType==='PULLED'){
+      foulAdjustment='Batter has been out in front of two consecutive '+
+        getPitchName(lastPitch?.pk||'')+
+        's — they\'ve locked in on that speed. ';
+      const suggestion=suggestPitch('contrast',lastCat,'PULLED');
+      if(suggestion) foulAdjustment+=
+        'Try your '+suggestion.name+' — '+suggestion.reason+'.';
+    } else if(lastFoulType==='LATE'){
+      foulAdjustment='Batter is late on two consecutive '+
+        getPitchName(lastPitch?.pk||'')+
+        's — they\'re sitting on something slower. ';
+      const suggestion=suggestPitch('contrast',lastCat,'LATE');
+      if(suggestion) foulAdjustment+=
+        'Try your '+suggestion.name+' — '+suggestion.reason+'.';
+    } else if(lastFoulType==='STRAIGHT_BACK'){
+      foulAdjustment='Batter has squared up two consecutive pitches — '+
+        'change both pitch type AND location. ';
+      const suggestion=suggestPitch('contrast',lastCat,'STRAIGHT_BACK');
+      if(suggestion) foulAdjustment+=
+        'Try your '+suggestion.name+' — '+suggestion.reason+'.';
+    }
+  } else if(lastFoulType&&lastPitch){
+    const lastCat=getPitchCategory(lastPitch.pk||'');
+    const suggestion=suggestPitch('tunnel',lastCat,lastFoulType);
+    if(lastFoulType==='PULLED'){
+      const lastCatCheck=getPitchCategory(lastPitch.pk);
+      if(lastCatCheck==='offspeed'||lastCatCheck==='breaking'){
+        foulAdjustment='Batter pulled your '+
+          getPitchName(lastPitch.pk)+
+          ' — they were sitting fastball and adjusted late. '+
+          'The '+getPitchName(lastPitch.pk)+
+          ' is working — change the location. ';
+        if(suggestion) foulAdjustment+=
+          'Try your '+suggestion.name+
+          ' at a different location — same arm action, '+
+          'different result.';
+      } else {
+        // Pulled fastball = batter was ahead of velocity
+        foulAdjustment='Batter was out in front of your '+
+          getPitchName(lastPitch.pk)+' — sitting on fastball speed. ';
+
+        // Check if previous pitch was low/middle — suggest up
+        const prevRow=lastZone?getZoneRow(lastZone):'mid';
+        const canGoUp=prevRow==='down'||prevRow==='mid';
+
+        if(bestDropPitch){
+          // Drop pitch — same arm action, movement varies
+          const moveDesc=bestDropPitch==='2FB'?
+            get2FBMovementDesc():'drops late';
+          foulAdjustment+='Your '+getPitchName(bestDropPitch)+
+            ' has the same arm action but '+moveDesc+
+            ' — batter will be out in front again. ';
+        } else if(canGoUp){
+          // Fastball up — change vertical axis
+          foulAdjustment+='Consider going up — fastball up '+
+            'changes the eye line. Batter was sitting low/middle, '+
+            'high fastball will be above their timing window. ';
+        }
+
+        // Cross-category option
+        const crossPk=getCrossCategoryTunnel(
+          lastPitch.pk,lastPitch.spd||0);
+        if(crossPk){
+          foulAdjustment+='Your '+getPitchName(crossPk)+
+            ' through the same tunnel — same arm action, '+
+            'different movement.';
+          // Add changeup warning if applicable
+          if(OFFSPEED_FAMILY.includes(crossPk)){
+            const warn=getChangeupWarning(false);
+            if(warn) foulAdjustment+=' '+warn;
+          }
+        }
+      }
+    } else if(lastFoulType==='LATE'){
+      foulAdjustment='Batter was late on your '+
+        getPitchName(lastPitch.pk)+' — not ready for that speed. ';
+      if(suggestion) foulAdjustment+=
+        'Consider your '+suggestion.name+'.';
+    } else if(lastFoulType==='STRAIGHT_BACK'){
+      // Find closest-speed cross-category pitch
+      const crossPk=getCrossCategoryTunnel(
+        lastPitch.pk,lastPitch.spd||0);
+      const crossName=crossPk?getPitchName(crossPk):null;
+      // Check if same quadrant as previous pitch
+      const sameQuadrant=last2.length===2&&
+        getZoneQuadrant(last2[0].zk,isLHB)===
+        getZoneQuadrant(last2[1].zk,isLHB);
+      // Pitcher ahead counts for chase option
+      const pitcherAhead=(balls===0&&strikes===2)||
+        (balls===1&&strikes===2)||
+        (balls===2&&strikes===2);
+
+      foulAdjustment='Batter squared up your '+
+        getPitchName(lastPitch.pk)+' — they\'re locked in. ';
+
+      if(sameQuadrant&&crossName){
+        foulAdjustment+='Use the same tunnel but throw your '+
+          crossName+' — same arm action, different movement. ';
+        if(pitcherAhead){
+          foulAdjustment+='Or throw your '+
+            getPitchName(lastPitch.pk)+
+            ' out of the zone — low in the dirt or high — '+
+            'same arm action, batter will chase thinking it\'s '+
+            'coming into the zone.';
+        }
+      } else if(crossName){
+        foulAdjustment+='Move to a different quadrant with your '+
+          crossName+' — change both location AND movement.';
+      } else {
+        foulAdjustment+='No cross-category pitch available — '+
+          'move to a completely different location.';
+        if(pitcherAhead){
+          foulAdjustment+=' Consider throwing out of the zone — '+
+            'low in the dirt or high — to reset the batter\'s eye line.';
+        }
+      }
+    }
+  }
+
+  let checkSwingHint='';
+  if(lastCheckSwing){
+    const cs=lastCheckSwing.checkSwing;
+    // Find index of the check swing pitch in seq
+    const _csIdx=seq.findIndex(s=>
+      s.pk===lastCheckSwing.pk&&
+      s.zk===(cs.zone||'')&&
+      s.checkSwing&&s.checkSwing.zone);
+    // Check if any pitch AFTER the check swing already targeted that zone
+    const _alreadyRevisited=_csIdx>=0&&
+      seq.slice(_csIdx+1).some(s=>s.zk===(cs.zone||''));
+    if(!_alreadyRevisited){
+      checkSwingHint='Batter showed interest in the '+
+        (cs.zone||'')+' zone on your '+
+        getPitchName(lastCheckSwing.pk||'')+
+        ' — tunnel your next pitch through there.';
+    }
+  }
+
+  const basesLoaded=runners.first&&runners.second&&runners.third;
+  const runnerOn3rd=runners.third;
+  const runnerOn1st=runners.first&&!runners.second&&!runners.third;
+  const dpSituation=runnerOn1st&&outs<2;
+  let situationHint='';
+  if(basesLoaded&&outs<2){
+    situationHint='Bases loaded — throw low for force out, '+
+      'high inside to jam for infield pop fly.';
+  } else if(dpSituation){
+    situationHint='Runner on 1st, '+outs+' out'+
+      (outs===1?'':'s')+' — throw low to induce grounder for double play.';
+  } else if(runnerOn3rd&&outs<2){
+    situationHint=isLHB
+      ?'Runner on 3rd — throw outside to force opposite-field grounder. '+
+        'Avoid inside pitches that pull toward 3B line.'
+      :'Runner on 3rd — throw outside to force opposite-field grounder. '+
+        'Avoid inside pitches that pull toward 3B line.';
+  }
+
+  function buildHint(baseHint){
+    const parts=[baseHint.trim()];
+    if(foulAdjustment) parts.push(foulAdjustment.trim());
+    if(checkSwingHint&&!foulAdjustment)
+      parts.push(checkSwingHint.trim());
+    if(patternWarning) parts.push(patternWarning.trim());
+    if(axisSwitchHint&&!patternWarning)
+      parts.push(axisSwitchHint.trim());
+    if(axisSwitchZones&&!patternWarning)
+      parts.push(axisSwitchZones.trim());
+    if(situationHint) parts.push(situationHint.trim());
+    return parts
+      .filter(p=>p&&p!=='—'&&p!=='— ')
+      .map(p=>p.trim())
+      .filter(Boolean)
+      .join(' ')
+      .trim();
+  }
+
+  function ah(h,addition){
+    // appendHint helper — ensures proper spacing
+    if(!addition) return h;
+    const trimH=h.trim();
+    const trimA=addition.trim();
+    if(!trimH) return trimA;
+    const separator=trimH.endsWith('.')||
+      trimH.endsWith('!')||trimH.endsWith('?')?' ':' ';
+    return trimH+separator+trimA;
+  }
+
+  // ── MIDDLE ANCHOR DETECTION ──
+  // Calculates the geometric midpoint between pitched zones
+  // and finds the nearest named zone key to that midpoint.
+  // Uses internal zone keys throughout (catcher's POV convention).
+  // Confidence: 2 pitches = candidate, 3 = strong, 4+ = confirmed.
+  function getMiddleAnchor(){
+    // Only use strike zone and edge keys — no chase zones
+    const ANCHOR_ZONE_KEYS=[
+      'TL','TM','TR','ML','MM','MR','BL','BM','BR',
+      'TL-CRN','TR-CRN','BL-CRN','BR-CRN',
+      'TOP-EDG','BOT-EDG','LFT-EDG','RGT-EDG'
+    ];
+    // Get thrown zone keys from seq, filter to anchor-eligible zones only
+    const thrownZones=seq
+      .map(s=>s.zk)
+      .filter(zk=>zk&&ANCHOR_ZONE_KEYS.includes(zk));
+    // Scenario D: pitcher throws MM on pitch 1 — treat as intentional anchor
+    // MM established early gives maximum tunneling options in all directions
+    if(thrownZones.length===1&&thrownZones[0]==='MM'){
+      const anchorPitchD=arsenal.find(pk=>pk!==seq[0].pk)||null;
+      return {
+        zone:'MM',
+        confidence:'candidate',
+        mmRisk:'moderate',
+        anchorThrown:true,
+        anchorPitch:anchorPitchD?
+          {pk:anchorPitchD,name:getPitchName(anchorPitchD)}:null,
+        pitchCount:1,
+        scenarioD:true
+      };
+    }
+    if(thrownZones.length<2) return null;
+    // Resolve ZPOS coordinates — ZPOS uses config constants so
+    // evaluate them at runtime using the already-available globals
+    function getPos(zk){
+      const p=ZPOS[zk];
+      if(!p) return null;
+      // ZPOS values reference X_L/X_M/X_R/Y_TOP/Y_MID/Y_BOT
+      // which are already evaluated as numbers in zones.js scope —
+      // but since ZPOS is defined in zones.js and loaded before app.js,
+      // p.x and p.y are already resolved numbers at this point
+      return {x:p.x, y:p.y};
+    }
+    // Calculate centroid of all thrown zone positions
+    let sumX=0, sumY=0, count=0;
+    thrownZones.forEach(zk=>{
+      const pos=getPos(zk);
+      if(pos){sumX+=pos.x; sumY+=pos.y; count++;}
+    });
+    if(!count) return null;
+    const centroidX=sumX/count;
+    const centroidY=sumY/count;
+    // Find nearest anchor-eligible zone key to the centroid
+    let nearestZk=null;
+    let nearestDist=Infinity;
+    ANCHOR_ZONE_KEYS.forEach(zk=>{
+      const pos=getPos(zk);
+      if(!pos) return;
+      const dist=Math.sqrt(
+        Math.pow(pos.x-centroidX,2)+
+        Math.pow(pos.y-centroidY,2)
+      );
+      if(dist<nearestDist){
+        nearestDist=dist;
+        nearestZk=zk;
+      }
+    });
+    if(!nearestZk) return null;
+    // Confidence level based on number of pitches
+    const confidence=thrownZones.length>=4?'confirmed':
+      thrownZones.length===3?'strong':'candidate';
+    // MM risk assessment — uses batter type and velocity
+    const _batterType=typeof batter!=='undefined'?batter:'RHB';
+    const _lastSpd=lastPitch?lastPitch.spd||0:0;
+    const _ageMaxSpd=avgFastballSpeed||50;
+    const _isHighVelo=_lastSpd>=_ageMaxSpd*0.90;
+    const _isPullSwinger=typeof window.__batterProfile!=='undefined'&&
+      window.__batterProfile==='PULL';
+    const mmRisk=nearestZk==='MM'?
+      (_isPullSwinger?'high':_isHighVelo?'low':'moderate'):
+      'none';
+    // Determine if anchor has already been thrown to directly
+    const anchorThrown=thrownZones.includes(nearestZk);
+    // Best pitch to attack anchor from arsenal
+    // Prefers pitch whose movement group completes the pattern
+    const _thrownCats=seq.map(s=>getPitchCategory(s.pk)).filter(Boolean);
+    const _unusedCats=['fastball','breaking','offspeed'].filter(
+      c=>!_thrownCats.includes(c));
+    const anchorPitch=arsenal.find(pk=>{
+      const cat=getPitchCategory(pk);
+      return _unusedCats.includes(cat);
+    })||arsenal.find(pk=>pk!==lastPitch?.pk)||null;
+    return {
+      zone:nearestZk,
+      confidence,
+      mmRisk,
+      anchorThrown,
+      anchorPitch:anchorPitch?
+        {pk:anchorPitch,name:getPitchName(anchorPitch)}:null,
+      pitchCount:thrownZones.length
+    };
+  }
+  // Call anchor detection — available to SRE hint and zone diagram
+  // Allow Scenario D (MM on pitch 1) with seq.length>=1
+  // All other anchor detection still requires seq.length>=2
+  const anchorResult=seq.length>=1?getMiddleAnchor():null;
+  // ── END MIDDLE ANCHOR DETECTION ──
+
+  function buildOptions(lastCat,foulType,highLeverage){
+    const primary=[];
+    const secondary=[];
+
+    // ── THREE-CELL RANKED OUTCOME LAYOUT ──
+    // Fires when pitcher has 2 strikes AND a foul just occurred.
+    // Replaces normal option flow with three ranked outcome cells:
+    // 1. Strikeout  2. Ground out  3. Pop fly / Jam
+    if(strikes>=2 && lastFoulType && lastPitch){
+      const _ar=arsenal||[];
+      const _FB=['4FB','2FB','CT','SK','SP'];
+      const _BR=['SL','CB','KC','SWP','FK','SLV','SCR','KN'];
+      const _OS=['CH','EPH'];
+
+      // Helper: find best pitch from arsenal matching keys, fallback to next best
+      function bestFromArsenal(preferredKeys, fallbackKeys){
+        const pref=preferredKeys.filter(pk=>_ar.includes(pk));
+        if(pref.length) return pref[0];
+        const fall=fallbackKeys.filter(pk=>_ar.includes(pk));
+        if(fall.length) return fall[0];
+        return null;
+      }
+
+      // ── CELL 1: STRIKEOUT PATH ──
+      // Best pitch and location to generate swing-and-miss or called strike
+      // Logic varies by foul type
+      let soLabel='Strikeout — ';
+      let soDesc='';
+      let soPk=null;
+      if(lastFoulType==='PULLED'){
+        // Batter out front — splitter/changeup in dirt, same arm action
+        soPk=bestFromArsenal(['SP','CH','FK'],['SL','CB','2FB']);
+        const soName=soPk?getPitchName(soPk):'offspeed pitch';
+        soLabel+=(soPk?soName:'offspeed pitch');
+        soDesc='Batter was out front — sitting on fastball speed. '+
+          'Your '+(soPk?soName:'offspeed pitch')+' has the same arm action but'+
+          (soPk&&_OS.includes(soPk)?' arrives slower —':' drops late —')+
+          ' throw it low in the dirt. Batter will commit early and miss.'+
+          ' Location: low in the dirt, arm side.';
+      } else if(lastFoulType==='LATE'){
+        // Batter late — fastball up or hard breaking ball
+        soPk=bestFromArsenal(['4FB','CT'],['2FB','SK','SL']);
+        const soName=soPk?getPitchName(soPk):'fastball';
+        soLabel+=(soPk?soName:'fastball');
+        soDesc='Batter is late — can\'t catch up to velocity. '+
+          'Your '+(soPk?soName:'fastball')+
+          (soPk&&_BR.includes(soPk)?
+            ' with hard late break — throw low corner. Batter will be frozen.':
+            ' up in the zone — batter\'s late swing will go under it.')+
+          ' Location: '+(soPk&&_BR.includes(soPk)?
+            'low corner, glove side.':'up, arm side corner.');
+      } else {
+        // STRAIGHT BACK — batter squared it up, chase out of zone
+        soPk=bestFromArsenal(['SL','CB','SP','CH'],['FK','KC','SWP']);
+        const soName=soPk?getPitchName(soPk):'breaking ball';
+        soLabel+=(soPk?soName:'breaking ball');
+        soDesc='Batter squared up your last pitch — they\'re locked in. '+
+          'Throw your '+(soPk?soName:'breaking ball')+
+          ' out of the zone through the same tunnel — '+
+          'same arm action, batter will chase thinking it\'s coming in.'+
+          ' Location: low in the dirt OR high out of zone.';
+      }
+      if(soPk){
+        primary.push({label:soLabel, desc:soDesc});
+      }
+
+      // ── CELL 2: GROUND OUT PATH ──
+      // Best low-movement pitch to induce weak top-spin contact
+      // Pitch must stay low — batter cannot get under it
+      let goPk=bestFromArsenal(['SK','2FB','SP','FK'],['4FB','CH','CB']);
+      const goName=goPk?getPitchName(goPk):'low pitch';
+      // Best location: bottom of zone, vary side based on foul type
+      const goSide=lastFoulType==='PULLED'?
+        (isLHB?'outside corner, bottom third':'inside corner, bottom third'):
+        lastFoulType==='LATE'?
+        (isLHB?'inside corner, bottom third':'outside corner, bottom third'):
+        'bottom third of zone';
+      primary.push({
+        label:'Ground out — '+(goPk?goName:'low pitch'),
+        desc:'Keep the ball low — batter cannot get under it and will'+
+          ' hit the top of the ball, forcing weak top-spin contact down.'+
+          ' Your '+(goPk?goName:'low pitch')+
+          (goPk&&['SK','2FB'].includes(goPk)?
+            ' sinks and tails late — batter\'s swing will be on top of it.':
+            goPk&&goPk==='SP'?
+            ' drops straight down — batter will roll it over.':
+            ' kept low limits exit angle.') +
+          ' Location: '+goSide+'.'
+      });
+
+      // ── CELL 3: POP FLY / JAM PATH ──
+      // Highest risk — if batter gets barrel, elevated exit angle = power
+      // Best pitch: cutter or 4FB up and in, hard slider on hands
+      let jamPk=bestFromArsenal(['CT','4FB','SL'],['2FB','CB','KC']);
+      const jamName=jamPk?getPitchName(jamPk):'fastball';
+      // Location: up and in, inside corner
+      const jamSide=isLHB?'inside corner, up':'inside corner, up';
+      primary.push({
+        label:'⚠ Pop fly / Jam — '+(jamPk?jamName:'fastball'),
+        desc:'⚠ Highest risk — if batter gets the barrel, elevated exit'+
+          ' angle means extra base hit. Use only if you have strong'+
+          ' command of this location. Your '+(jamPk?jamName:'fastball')+
+          (jamPk&&jamPk==='CT'?
+            ' cuts in on the hands — batter gets handle, not barrel.':
+            jamPk&&_BR.includes(jamPk)?
+            ' breaks hard in on the hands — batter jammed.':
+            ' up and in — batter\'s hands get stuck, weak pop up.')+
+          ' Location: '+jamSide+', off the plate if command allows.'
+      });
+
+      // Secondary: location context only — no extra modules
+      if(lastZone){
+        const col=getZoneCol(lastZone,isLHB);
+        const row=getZoneRow(lastZone);
+        const moveDir=col==='outside'?'inside':
+          col==='inside'?'outside':
+          row==='up'?'down':'up';
+        secondary.push({
+          label:'Location context',
+          desc:'Last pitch was '+col+' '+row+
+            '. Consider moving '+moveDir+
+            ' to change the batter\'s eye line.'
+        });
+      }
+      if(rubberHint){
+        secondary.push({label:'⚡ Move on the rubber', desc:rubberHint});
+      }
+      window.__lastSecondaryOptions=secondary.slice(0,2);
+      return {primary:primary.slice(0,3), secondary:secondary.slice(0,2)};
+    }
+    // ── END THREE-CELL RANKED OUTCOME LAYOUT ──
+
+    if(velocityPatternActive&&bestContrastPitch&&
+      (strikes>=2||highLeverage)){
+      const speedDesc2=getSpeedDirectionDesc(bestContrastPitch);
+      primary.push({
+        label:'Tunnel + Speed Contrast — '+
+          getPitchName(bestContrastPitch),
+        desc:'Fastball pattern established — '+
+          getPitchName(bestContrastPitch)+' '+speedDesc2+
+          ' through the same tunnel, creating doubt. '+
+          'Batter can\'t commit to fastball OR '+
+          getPitchName(bestContrastPitch)+'.'
+      });
+    } else {
+      const tunnelPitch=suggestPitch('tunnel',lastCat,foulType);
+      if(tunnelPitch){
+        const contrastCheck=suggestPitch('contrast',lastCat,foulType);
+        if(contrastCheck&&contrastCheck.pk===tunnelPitch.pk){
+          const speedDesc=getSpeedDirectionDesc(tunnelPitch.pk);
+          const _alreadyHasMovement=speedDesc.includes('opposite direction')||
+            speedDesc.includes('different movement');
+          primary.push({
+            label:'Tunnel + Speed Contrast — '+tunnelPitch.name,
+            desc:(tunnelEstablished?
+              'Tunnel is established — ':
+              'Same flight path as last pitch — ')+
+              tunnelPitch.name+' '+speedDesc+
+              (_alreadyHasMovement?'. ':' and breaks differently. ')+
+              'Most deceptive option — disrupts both '+
+              'timing and location reads.'
+          });
+        } else {
+          const moveText=tunnelPitch.pk==='2FB'?
+            get2FBMovementDesc():'different break';
+          primary.push({
+            label:'Tunnel — '+tunnelPitch.name,
+            desc:tunnelEstablished?
+              'Tunnel is established — '+tunnelPitch.name+
+              ' through same flight path, '+moveText:
+              'Match early flight path of your last pitch — '+
+              tunnelPitch.pk==='2FB'?moveText:
+              'let this one break differently'
+          });
+        }
+      }
+    }
+
+    // CHASE option for FOUL STRAIGHT BACK when pitcher ahead
+    const pitcherAheadCount=(balls===0&&strikes===2)||
+      (balls===1&&strikes===2)||
+      (balls===2&&strikes===2);
+    if(lastFoul==='STRAIGHT_BACK'&&pitcherAheadCount&&lastPitch){
+      primary.push({
+        label:'Chase — '+getPitchName(lastPitch.pk),
+        desc:'Same arm action as your '+getPitchName(lastPitch.pk)+
+          ' — throw low in the dirt OR high out of the zone. '+
+          'Batter is locked in on that pitch and will chase '+
+          'thinking it\'s coming into the zone.'
+      });
+    }
+
+    // Add changeup warning to primary options that
+    // include offspeed pitches
+    primary.forEach(opt=>{
+      if(opt.label.toLowerCase().includes('changeup')||
+        opt.label.toLowerCase().includes('change')){
+        const warn=getChangeupWarning(true);
+        if(warn&&!opt.desc.includes('hangs'))
+          opt.desc+=' '+warn;
+      }
+    });
+
+    if(backFootAvailable&&strikes>=2){
+      const bfDesc=tunnelEstablished?
+        'Tunnel established — '+getPitchName(backFootPitch)+
+        ' starts like your tunnel pitch but breaks toward '+
+        (isLHB?'the batter\'s hands':'the batter\'s hands')+
+        '. Batter is protecting outside — this will freeze them.':
+        getPitchName(backFootPitch)+
+        ' breaks toward the batter\'s back foot — '+
+        'unexpected movement with two strikes.';
+      primary.push({
+        label:'Back-foot — '+getPitchName(backFootPitch),
+        desc:bfDesc
+      });
+    } else {
+      const contrastPitch=suggestPitch('contrast',lastCat,foulType);
+      const mergedTunnelContrast=primary[0]&&
+        primary[0].label.startsWith('Tunnel + Speed Contrast');
+      if(contrastPitch&&!mergedTunnelContrast&&
+        (!primary[0]||contrastPitch.pk!==bestContrastPitch)){
+        primary.push({
+          label:'Contrast — '+contrastPitch.name,
+          desc:contrastPitch.reason+
+            (eyeLineMoved?'':
+            ' — make the batter adjust their timing and eyes')
+        });
+      }
+    }
+
+    if(!eyeLineMoved){
+      const row=lastZone?getZoneRow(lastZone):'mid';
+      const col=lastZone?getZoneCol(lastZone,isLHB):'middle';
+      const moveDir=col==='outside'?'inside':
+        col==='inside'?'outside':
+        row==='up'?'down':'up';
+      const locLabel=(locationWarningRed?'⚠ ':
+        locationWarningYellow?'⚡ ':'')+
+        'Location shift';
+      secondary.push({
+        label:locLabel,
+        desc:'Move the ball '+moveDir+
+          ' — batter\'s eyes have been '+col+' '+row+
+          (locationWarningRed?
+          ' — contact probability elevated':'')
+      });
+    }
+
+    // Add changeup warning to secondary options
+    // for youth/HS age groups only
+    if(isYouthOrHS){
+      secondary.forEach(opt=>{
+        if(opt.label.toLowerCase().includes('changeup')||
+          opt.label.toLowerCase().includes('change')){
+          const warn=getChangeupWarning(false);
+          if(warn&&!opt.desc.includes('hangs'))
+            opt.desc+=' '+warn;
+        }
+      });
+    }
+
+    if(rubberHint){
+      secondary.push({
+        label:'⚡ Move on the rubber',
+        desc:rubberHint
+      });
+    }
+
+    // Axis switch suggestion
+    if(axisSwitchZones){
+      secondary.push({
+        label:'⚡ Switch attack axis',
+        desc:axisSwitchZones
+      });
+    }
+
+    if(lastPitch){
+      secondary.push({
+        label:'Same pitch, new location',
+        desc:'Same '+getPitchName(lastPitch.pk)+
+          ' but opposite location — change the feel'
+      });
+    }
+
+    if(basesLoaded&&outs<2){
+      secondary.push({
+        label:'Jam — high and inside',
+        desc:'Force infield pop fly — best outcome with bases loaded'
+      });
+    }
+    if(dpSituation){
+      secondary.push({
+        label:'Ground ball',
+        desc:'Low pitch — induce grounder for double play'
+      });
+    }
+
+    if(highLeverage){
+      window.__lastSecondaryOptions=secondary.slice(0,3);
+      return {
+        primary:primary.slice(0,2),
+        secondary:secondary.slice(0,3)
+      };
+    }
+    window.__lastSecondaryOptions=[];
+    return {
+      primary:[...primary,...secondary].slice(0,4),
+      secondary:[]
+    };
+  }
+
+  const lastCat=lastPitch?getPitchCategory(lastPitch.pk):'fastball';
+  const lastFoul=lastPitch?lastPitch.foulType:null;
+
+  let primary='SETUP';
+  let secondary=[];
+  let hint='';
+  let options=[];
+
+  if(balls===0&&strikes===0){
+    primary='SETUP';
+    const firstSuggestion=arsenal.length?
+      suggestPitch('contrast','fastball',null):null;
+    hint='First pitch — establish the zone. First pitch strike '+
+      'changes the entire at-bat.';
+    if(firstSuggestion) hint=ah(hint,'Your '+firstSuggestion.name+
+      ' is a strong first pitch — get ahead early.');
+    options=[
+      {label:'Strike first',
+        desc:'Highest-probability strike location — '+
+          'set the tone for the at-bat'},
+      {label:'Paint a corner',
+        desc:'Edge pitch early — if it\'s called a strike '+
+          'you\'ve expanded the zone for the rest of the at-bat'}
+    ];
+
+  } else if(balls===0&&strikes===1){
+    primary=lastTunneled?'TUNNEL':'SETUP';
+    hint=buildHint('Ahead 0-1 — ');
+    if(lastTunneled){
+      hint=ah(hint,'Tunnel is working.');
+      const tp=suggestPitch('tunnel',lastCat,lastFoul);
+      if(tp) hint=ah(hint,'Your '+tp.name+
+        ' tunnels well off your last pitch.');
+    } else {
+      hint=ah(hint,'Build on pitch 1.');
+      const cp=suggestPitch('contrast',lastCat,lastFoul);
+      if(cp) hint=ah(hint,'Your '+cp.name+
+        ' contrasts well — '+cp.reason+'.');
+    }
+    const highLeverage=strikes>=2;
+    const optResult=buildOptions(lastCat,lastFoul,highLeverage);
+    options=optResult.primary||optResult;
+    const secondaryOptions=optResult.secondary||[];
+
+  } else if(balls===0&&strikes===2){
+    primary='PUTAWAY';
+    secondary=['CHASE'];
+    hint=buildHint('0-2 — you have full control. ');
+    if(!foulAdjustment&&!checkSwingHint){
+      const pp=suggestPitch('tunnel',lastCat,lastFoul);
+      if(pp) hint=ah(hint,'Your '+pp.name+
+        ' is a strong putaway pitch here — '+pp.reason+'.');
+      hint=ah(hint,'Expand the zone — batter must protect.');
+    }
+    const highLeverage=strikes>=2;
+    const optResult=buildOptions(lastCat,lastFoul,highLeverage);
+    options=optResult.primary||optResult;
+    const secondaryOptions=optResult.secondary||[];
+
+  } else if(balls===1&&strikes===0){
+    primary='SETUP';
+    hint=buildHint('1-0 — need a strike. ');
+    if(lastPitch){
+      const cp=suggestPitch('contrast',lastCat,lastFoul);
+      hint=ah(hint,'Batter just saw your '+
+        getPitchName(lastPitch.pk)+' for a ball —'+
+        (cp?' your '+cp.name+' will look different '+
+        'coming out of the same arm slot.':
+        ' mix it up.'));
+    }
+    const highLeverage=strikes>=2;
+    const optResult=buildOptions(lastCat,lastFoul,highLeverage);
+    options=optResult.primary||optResult;
+    const secondaryOptions=optResult.secondary||[];
+
+  } else if(balls===1&&strikes===1){
+    primary='TUNNEL';
+    hint=buildHint('Even count — ');
+    if(lastTunneled){
+      hint=ah(hint,'Tunnel is established.');
+      const tp=suggestPitch('tunnel',lastCat,lastFoul);
+      if(tp) hint=ah(hint,'Your '+tp.name+
+        ' can extend this tunnel — '+tp.reason+'.');
+    } else {
+      hint=ah(hint,'Set up a tunnel now.');
+      const tp=suggestPitch('tunnel',lastCat,lastFoul);
+      if(tp) hint=ah(hint,'Your '+tp.name+' off your last '+
+        getPitchName(lastPitch?.pk||'')+
+        ' creates a deceptive tunnel.');
+    }
+    if(speedTierLocked&&!patternWarning.includes('Batter has timed your velocity')){
+      const cp=suggestPitch('contrast',lastCat,lastFoul);
+      if(cp) hint=ah(hint,'Speed is locked — your '+cp.name+
+        ' will disrupt the batter\'s timing.');
+    }
+    const highLeverage=strikes>=2;
+    const optResult=buildOptions(lastCat,lastFoul,highLeverage);
+    options=optResult.primary||optResult;
+    const secondaryOptions=optResult.secondary||[];
+
+  } else if(balls===1&&strikes===2){
+    primary='PUTAWAY';
+    secondary=['CHASE'];
+    hint=buildHint('1-2 — ahead in count. ');
+    const pp=suggestPitch('tunnel',lastCat,lastFoul);
+    if(pp&&!foulAdjustment) hint=ah(hint,'Your '+pp.name+
+      ' is your best option here — '+pp.reason+'.');
+    const highLeverage=strikes>=2;
+    const optResult=buildOptions(lastCat,lastFoul,highLeverage);
+    options=optResult.primary||optResult;
+    const secondaryOptions=optResult.secondary||[];
+
+  } else if(balls===2&&strikes===0){
+    primary='SETUP';
+    hint=buildHint('2-0 — must throw a strike. ');
+    hint=ah(hint,'Batter is sitting fastball.');
+    const cp=suggestPitch('contrast',lastCat,lastFoul);
+    if(cp&&getPitchCategory(cp.pk)!=='fastball'){
+      hint=ah(hint,'Your '+cp.name+' for a strike at 2-0 — '+
+        'batter will not expect offspeed here.');
+    } else {
+      hint=ah(hint,'Locate your fastball on the edge — '+
+        'give the umpire a chance to expand the zone.');
+    }
+    options=[
+      {label:'Safe strike',
+        desc:'Fastball strike zone — highest probability, '+
+          'locate on the edge not down the middle'},
+      {label:'Surprise offspeed',
+        desc:'Batter sitting fastball at 2-0 — '+
+          'offspeed strike catches them off guard'},
+      {label:'Courage',
+        desc:'Edge pitch — if called a strike you\'ve '+
+          'expanded the zone with a 2-1 count'}
+    ];
+
+  } else if(balls===2&&strikes===1){
+    primary='TUNNEL';
+    hint=buildHint('2-1 — key count. ');
+    if(lastTunneled){
+      hint=ah(hint,'Tunnel is working — use it to set up your putaway pitch.');
+      const tp=suggestPitch('tunnel',lastCat,lastFoul);
+      if(tp) hint=ah(hint,'Your '+tp.name+
+        ' extends this tunnel perfectly.');
+    } else {
+      hint=ah(hint,'Build a tunnel now.');
+      const tp=suggestPitch('tunnel',lastCat,lastFoul);
+      if(tp) hint=ah(hint,'Your '+tp.name+' off your last '+
+        getPitchName(lastPitch?.pk||'')+
+        ' sets up your strikeout pitch.');
+    }
+    const highLeverage=strikes>=2;
+    const optResult=buildOptions(lastCat,lastFoul,highLeverage);
+    options=optResult.primary||optResult;
+    const secondaryOptions=optResult.secondary||[];
+
+  } else if(balls===2&&strikes===2){
+    primary='PUTAWAY';
+    hint=buildHint('2-2 — even but pitcher has edge. ');
+    const pp=suggestPitch('tunnel',lastCat,lastFoul);
+    if(pp&&!foulAdjustment) hint=ah(hint,'Your '+pp.name+
+      ' — '+pp.reason+'. Batter must protect the plate.');
+    const highLeverage=strikes>=2;
+    const optResult=buildOptions(lastCat,lastFoul,highLeverage);
+    options=optResult.primary||optResult;
+    const secondaryOptions=optResult.secondary||[];
+
+  } else if(balls===3&&strikes===0){
+    primary='SETUP';
+    hint=buildHint('3-0 — must throw a strike. Zone is at its smallest. ');
+    let checkSwingUsed=false;
+    if(lastCheckSwing&&checkSwingHint){hint=ah(hint,checkSwingHint);checkSwingUsed=true;}
+    else hint=ah(hint,'Batter likely taking.');
+    const sp=suggestPitch('contrast',lastCat,null);
+    options=[
+      {label:'Safe — highest strike probability',
+        desc:'Locate your fastball middle of the zone — '+
+          'do not give in down the middle, hit your spot'},
+      {label:'Tunnel — disguised strike',
+        desc:sp?'Your '+sp.name+' from same arm slot — '+
+          'batter won\'t expect it at 3-0':
+          'Use previous pitch corridor to disguise this strike'},
+      {label:'Courage — paint the corner',
+        desc:'Batter may be taking all the way — '+
+          'edge pitch could expand zone if called'}
+    ];
+
+  } else if(balls===3&&strikes===1){
+    primary='SETUP';
+    hint=buildHint('3-1 — batter has advantage but you have information. ');
+    if(lastCheckSwing&&checkSwingHint&&!checkSwingUsed){hint=ah(hint,checkSwingHint);checkSwingUsed=true;}
+
+    // Find quality strike pitch — exclude over-relied pitches
+    const overReliedPitches=Object.keys(pitchFreq)
+      .filter(pk=>pitchFreq[pk]>=3);
+    const freshArsenal=arsenal.filter(pk=>
+      !overReliedPitches.includes(pk)
+    );
+    // Try fresh arsenal first, fall back to full arsenal
+    const qpFresh=freshArsenal.length?
+      suggestPitch('tunnel',lastCat,lastFoul):null;
+    const qp=qpFresh||suggestPitch('tunnel',lastCat,lastFoul);
+
+    // Build quality strike desc
+    const qpDesc=qp?
+      (overReliedPitches.includes(qp.pk)?
+        'Your '+qp.name+' — locate it on the edge, not down the middle':
+        'Your '+qp.name+' — batter hasn\'t seen this much. '+
+          'Locate it on the edge for a strike'):
+      'Locate your freshest pitch on the edge for a strike';
+
+    if(qp) hint=ah(hint,'Locate your '+qp.name+
+      ' for a quality strike — '+
+      (overReliedPitches.length?
+        'batter has seen too much '+
+        getPitchName(overReliedPitches[0])+
+        ' — mix it up.':
+        qp.reason+'.'));
+
+    options=[
+      {label:'Quality strike',desc:qpDesc},
+      {label:'Tunnel',
+        desc:'Use your previous strikes to tunnel — '+
+          'same corridor, different break'},
+      {label:'Courage',
+        desc:'Edge pitch — at 3-1 batter may chase '+
+          'if it looks like a strike out of the hand'}
+    ];
+
+  } else if(balls===3&&strikes===2){
+    primary='PUTAWAY';
+    let fullHint='FULL COUNT — ';
+    const prevBalls=prevPitches.filter(
+      s=>s.outcome==='BALL'||s.outcome==='CALLED BALL'||
+        s.outcome==='CHECK SWING (BALL)'
+    ).length;
+    if(prevBalls>=3){
+      fullHint+='You were behind — pendulum has swung. '+
+        'Batter may be anxious and aggressive. ';
+    } else {
+      fullHint+='You fought back to even — batter has momentum. ';
+    }
+    fullHint=buildHint(fullHint);
+    const fp=suggestPitch('tunnel',lastCat,lastFoul);
+    if(fp&&!foulAdjustment) fullHint=ah(fullHint,'Your '+fp.name+
+      ' — '+fp.reason+'. Make your best pitch.');
+    hint=fullHint;
+    const highLeverage=strikes>=2;
+    const optResult=buildOptions(lastCat,lastFoul,highLeverage);
+    options=optResult.primary||optResult;
+    const secondaryOptions=optResult.secondary||[];
+  }
+
+  return {primary,secondary,hint,options,
+    secondaryOptions:window.__lastSecondaryOptions||[],
+    warningLevel,
+    anchor:anchorResult||null};
+}
+
+function showSREHint(){
+  if(!sreEnabled) return;
+  // Remove any existing hint button
+  const existing=document.getElementById('srehintbtn');
+  if(existing) existing.remove();
+
+  // Build game state
+  const gameState={
+    outs:typeof outCount!=='undefined'?outCount:0,
+    runners:typeof runners!=='undefined'?runners:
+      {first:false,second:false,third:false},
+    runsAllowed:typeof totalScore!=='undefined'?totalScore:0
+  };
+
+  // Use live count — reflects current state after pitch
+  const liveBalls=typeof ballCount!=='undefined'?ballCount:0;
+  const liveStrikes=typeof strikeCount!=='undefined'?strikeCount:0;
+  const ct=liveBalls+'-'+liveStrikes;
+  const lastEntry=seq[seq.length-1];
+  const zk=lastEntry?lastEntry.zk:'MM';
+  const bat=typeof batter!=='undefined'?batter:'RHB';
+
+  const result=getAutoRole(ct,seq,zk,bat,gameState);
+
+  // Create tap-to-reveal button
+  const btn=document.createElement('button');
+  btn.id='srehintbtn';
+  btn.textContent='🧠 COACHING HINT';
+  btn.style.cssText='position:fixed;bottom:80px;left:50%;'+
+    'transform:translateX(-50%);background:#1e3a8a;'+
+    'border:none;border-radius:8px;'+
+    'padding:10px 24px;font-family:\'DM Mono\',monospace;'+
+    'font-size:11px;color:#ffffff;letter-spacing:1px;'+
+    'cursor:pointer;z-index:500;font-weight:600;'+
+    'box-shadow:0 2px 12px rgba(0,0,0,0.4);';
+  btn.onclick=()=>showSREModal(result,btn);
+  document.body.appendChild(btn);
+
+  // Auto-remove after 15 seconds if not tapped
+  setTimeout(()=>{
+    if(document.getElementById('srehintbtn')) btn.remove();
+  },15000);
+}
+
+function showSREModal(result,btn){
+  if(btn) btn.remove();
+  // Remove existing modal
+  const existing=document.getElementById('sremodal');
+  if(existing) existing.remove();
+
+  const modal=document.createElement('div');
+  modal.id='sremodal';
+  modal.style.cssText='position:fixed;top:50%;left:50%;'+
+    'transform:translate(-50%,-50%);background:#ffffff !important;'+
+    'border:2px solid #1e3a8a;border-radius:12px;'+
+    'padding:20px 24px;font-family:\'DM Mono\',monospace;'+
+    'z-index:9999;max-width:380px;width:90%;'+
+    'box-shadow:0 4px 24px rgba(0,0,0,0.4);'+
+    'color:#111111;';
+
+  // Count-based header color
+  const liveBalls2=typeof ballCount!=='undefined'?ballCount:0;
+  const liveStrikes2=typeof strikeCount!=='undefined'?strikeCount:0;
+  const headerCol=result.warningLevel==='red'?'#dc2626':
+    result.warningLevel==='yellow'?'#d97706':
+    liveBalls2>liveStrikes2?'#b45309': // hitter count — amber
+    liveStrikes2>liveBalls2?'#15803d': // pitcher count — green
+    '#1e3a8a'; // even count — blue
+
+  let html='<div style="font-size:8px;color:#666;'+
+    'letter-spacing:1px;margin-bottom:6px;">SMART ROLE ENGINE</div>';
+  html+='<div style="font-size:14px;font-weight:700;color:'+headerCol+';'+
+    'letter-spacing:2px;margin-bottom:8px;">'+result.primary+'</div>';
+  // Arsenal completeness warning — once per profile, shown in modal header
+  // only when the gap is actively relevant to the current suggestion
+  (function(){
+    const _p=typeof getProfile==='function'?getProfile():null;
+    if(!_p) return;
+    if(_p.arsenalWarningShown) return;
+    const _ar=_p.arsenal||[];
+    const _FB=['4FB','2FB','CT','SK','SP'];
+    const _BR=['SL','CB','KC','SWP','FK','SLV','SCR','KN'];
+    const _OS=['CH','EPH'];
+    const hasFB=_ar.some(pk=>_FB.includes(pk));
+    const hasBR=_ar.some(pk=>_BR.includes(pk));
+    const hasOS=_ar.some(pk=>_OS.includes(pk));
+    // Determine which category is missing and whether it's relevant now
+    const missingCats=[];
+    if(!hasFB) missingCats.push({cat:'fastball',label:'fastball',reason:'without one you have no speed anchor for tunneling'});
+    if(!hasBR) missingCats.push({cat:'breaking',label:'breaking ball',reason:'adds movement contrast and a second tunnel path'});
+    if(!hasOS) missingCats.push({cat:'offspeed',label:'offspeed pitch',reason:'creates speed differential to disrupt timing'});
+    if(!missingCats.length) return;
+    // Only fire if the missing category would have been relevant to this hint
+    const hintText=(result.hint||'').toLowerCase();
+    const optLabels=(result.options||[]).map(o=>(o.label+' '+(o.body||'')).toLowerCase()).join(' ');
+    const relevant=missingCats.some(m=>{
+      if(m.cat==='fastball') return hintText.includes('fastball')||optLabels.includes('fastball');
+      if(m.cat==='breaking') return hintText.includes('break')||hintText.includes('slider')||hintText.includes('curve')||optLabels.includes('break')||optLabels.includes('slider')||optLabels.includes('curve');
+      if(m.cat==='offspeed') return hintText.includes('offspeed')||hintText.includes('changeup')||hintText.includes('speed contrast')||optLabels.includes('offspeed')||optLabels.includes('changeup')||optLabels.includes('speed contrast');
+      return false;
+    });
+    if(!relevant) return;
+    // Build warning line — first missing category that's relevant
+    const shown=missingCats.find(m=>{
+      if(m.cat==='fastball') return hintText.includes('fastball')||optLabels.includes('fastball');
+      if(m.cat==='breaking') return hintText.includes('break')||hintText.includes('slider')||hintText.includes('curve')||optLabels.includes('break')||optLabels.includes('slider')||optLabels.includes('curve');
+      if(m.cat==='offspeed') return hintText.includes('offspeed')||hintText.includes('changeup')||hintText.includes('speed contrast')||optLabels.includes('offspeed')||optLabels.includes('changeup')||optLabels.includes('speed contrast');
+      return false;
+    });
+    if(!shown) return;
+    html+='<div style="font-size:9px;color:#b45309;background:#fffbeb;'+
+      'border:1px solid #d97706;border-radius:6px;padding:6px 10px;'+
+      'margin-bottom:8px;letter-spacing:0.5px;line-height:1.5;">'+
+      '⚠ Arsenal gap — no '+shown.label+' in profile. '+shown.reason+'.'+
+      '</div>';
+    // Mark as shown permanently on this profile
+    _p.arsenalWarningShown=true;
+    if(typeof saveProfile==='function') saveProfile(_p);
+  })();
+
+  // Secondary roles
+  if(result.secondary&&result.secondary.length){
+    html+='<div style="font-size:9px;color:#666;'+
+      'margin-bottom:8px;">+ '+result.secondary.join(' + ')+'</div>';
+  }
+
+  // Hint text
+  html+='<div style="font-size:10px;color:#222;'+
+    'line-height:1.6;margin-bottom:12px;border-top:0.5px solid '+
+    '#ddd;padding-top:10px;">'+result.hint+'</div>';
+  // Middle anchor hint — shows when anchor detected with enough confidence
+  if(result.anchor&&result.anchor.zone){
+    const _a=result.anchor;
+    const _zDisplay={'TR':'TL','TL':'TR','MR':'ML','ML':'MR',
+      'BR':'BL','BL':'BR','TM':'TM','MM':'MM','BM':'BM',
+      'TL-CRN':'TL-CRN','TR-CRN':'TR-CRN','BL-CRN':'BL-CRN',
+      'BR-CRN':'BR-CRN','TOP-EDG':'TOP-EDG','BOT-EDG':'BOT-EDG',
+      'LFT-EDG':'LFT-EDG','RGT-EDG':'RGT-EDG'};
+    const _displayZone=_zDisplay[_a.zone]||_a.zone;
+    const _confLabel=_a.confidence==='confirmed'?'✓ Anchor confirmed':
+      _a.confidence==='strong'?'◎ Anchor strong':
+      '◌ Anchor candidate';
+    const _mmWarning=_a.mmRisk==='high'?
+      ' ⚠ Pull hitter — high contact risk at MM.':
+      _a.mmRisk==='moderate'?
+      ' Use a fastball or backdoor breaking ball through MM.':
+      '';
+    const _pitchSuggestion=_a.anchorPitch?
+      ' Best pitch: '+_a.anchorPitch.name+'.':'';
+    const _anchorColor=_a.mmRisk==='high'?'#dc2626':
+      _a.mmRisk==='moderate'?'#d97706':'#06b6d4';
+    html+='<div style="font-size:9px;color:'+_anchorColor+';'+
+      'background:rgba(6,182,212,0.08);'+
+      'border:1px solid '+_anchorColor+';border-radius:6px;'+
+      'padding:6px 10px;margin-bottom:8px;'+
+      'letter-spacing:0.5px;line-height:1.5;">'+
+      _confLabel+' — '+_displayZone+
+      (_a.anchorThrown?' (established)':' (implied)')+
+      '.'+_pitchSuggestion+_mmWarning+
+      '</div>';
+  }
+
+  // Primary options — always visible
+  if(result.options&&result.options.length){
+    result.options.forEach(opt=>{
+      const isWarning=opt.label.includes('⚠')||
+        opt.label.includes('⚡')||
+        opt.label.toLowerCase().includes('location')||
+        opt.label.toLowerCase().includes('move');
+      const isTunnel=opt.label.toLowerCase().includes('tunnel');
+      const isContrast=opt.label.toLowerCase().includes('contrast')||
+        opt.label.toLowerCase().includes('back-foot');
+      const isSpeed=opt.label.toLowerCase().includes('speed');
+      const cellBorder=isWarning?'#dc2626':
+        isTunnel||isSpeed?'#15803d':
+        isContrast?'#1e3a8a':'#ccc';
+      const cellBg=isWarning?'#fef2f2':
+        isTunnel||isSpeed?'#f0fdf4':
+        isContrast?'#eff6ff':'#f8f9fa';
+      const labelCol=isWarning?'#dc2626':
+        isTunnel||isSpeed?'#15803d':
+        isContrast?'#1e3a8a':'#333';
+      html+='<div style="margin-bottom:6px;padding:6px 10px;'+
+        'border-radius:6px;border:1px solid '+cellBorder+
+        ';background:'+cellBg+';">'+
+        '<div style="font-size:9px;color:'+labelCol+
+        ';letter-spacing:1px;font-weight:600;">'+opt.label+'</div>'+
+        '<div style="font-size:9px;color:#444;'+
+        'margin-top:2px;">'+opt.desc+'</div></div>';
+    });
+  }
+
+  // Secondary options — behind show more
+  if(result.secondaryOptions&&result.secondaryOptions.length){
+    html+='<div id="sreoptions" style="display:none;">';
+    result.secondaryOptions.forEach(opt=>{
+      const isWarning=opt.label.includes('⚠')||
+        opt.label.includes('⚡')||
+        opt.label.toLowerCase().includes('location')||
+        opt.label.toLowerCase().includes('move');
+      const isTunnel=opt.label.toLowerCase().includes('tunnel');
+      const isContrast=opt.label.toLowerCase().includes('contrast')||
+        opt.label.toLowerCase().includes('back-foot');
+      const isSpeed=opt.label.toLowerCase().includes('speed');
+      const cellBorder=isWarning?'#dc2626':
+        isTunnel||isSpeed?'#15803d':
+        isContrast?'#1e3a8a':'#ccc';
+      const cellBg=isWarning?'#fef2f2':
+        isTunnel||isSpeed?'#f0fdf4':
+        isContrast?'#eff6ff':'#f8f9fa';
+      const labelCol=isWarning?'#dc2626':
+        isTunnel||isSpeed?'#15803d':
+        isContrast?'#1e3a8a':'#333';
+      html+='<div style="margin-bottom:6px;padding:6px 10px;'+
+        'border-radius:6px;border:1px solid '+cellBorder+
+        ';background:'+cellBg+';">'+
+        '<div style="font-size:9px;color:'+labelCol+
+        ';letter-spacing:1px;font-weight:600;">'+opt.label+'</div>'+
+        '<div style="font-size:9px;color:#444;'+
+        'margin-top:2px;">'+opt.desc+'</div></div>';
+    });
+    html+='</div>';
+    html+='<button onclick="'+
+      'document.getElementById(\'sreoptions\').style.display=\'block\';'+
+      'this.style.display=\'none\';" '+
+      'style="width:100%;padding:6px;border-radius:6px;'+
+      'border:0.5px solid #1e3a8a;background:transparent;'+
+      'color:#1e3a8a;font-family:\'DM Mono\',monospace;'+
+      'font-size:9px;letter-spacing:1px;cursor:pointer;'+
+      'margin-bottom:8px;">SHOW MORE OPTIONS ('+
+      (result.secondaryOptions?result.secondaryOptions.length:0)+
+      ')</button>';
+  }
+
+  // Close button
+  html+='<button onclick="document.getElementById(\'sremodal\').remove()" '+
+    'style="width:100%;padding:7px;border-radius:6px;'+
+    'border:none;background:#1e3a8a;'+
+    'color:#ffffff;font-family:\'DM Mono\',monospace;'+
+    'font-size:9px;letter-spacing:1px;cursor:pointer;">DISMISS</button>';
+
+  modal.innerHTML=html;
+  document.body.appendChild(modal);
+}
+
+function dismissFeatureBanner(){
+  const b=document.getElementById('featurebanner');
+  if(b) b.style.display='none';
+  localStorage.setItem('pitchseq-banner-seen','1');
+}
+
+function dismissSimBanner(){
+  const b=document.getElementById('simbanner');
+  if(b) b.style.display='none';
+  localStorage.setItem('pitchseq-simbanner-seen','1');
+}
+
+function showSimBannerIfNeeded(){
+  const seen=localStorage.getItem('pitchseq-simbanner-seen');
+  const sreOn=localStorage.getItem('pitchseq-sre');
+  // Only show if SRE is not already enabled
+  if(!seen&&sreOn!=='1'){
+    setTimeout(()=>{
+      const b=document.getElementById('simbanner');
+      if(b) b.style.display='block';
+    },1000);
+  }
+}
+
+function showFeatureBannerIfNeeded(){
+  const seen=localStorage.getItem('pitchseq-banner-seen');
+  if(!seen){
+    // Delay to ensure settings modal and overlays are dismissed
+    setTimeout(()=>{
+      const b=document.getElementById('featurebanner');
+      if(b) b.style.display='block';
+    },2500);
+  }
+}
+function handleSpeedInput(value){document.getElementById('sval').textContent=value+' mph';refreshGhost();}
+function openPrintView(){window.open('print.html','_blank');}
+function setView(v){
+  currentView=v;
+  document.getElementById('vcatcher').classList.toggle('active',v==='catcher');
+  document.getElementById('vside').classList.toggle('active',v==='side');
+  document.getElementById('vorbit').classList.toggle('active',v==='orbit');
+  document.getElementById('c').style.display=v==='catcher'?'block':'none';
+  document.getElementById('sideview').style.display=v==='side'?'block':'none';
+  document.getElementById('orbitview').style.display=v==='orbit'?'block':'none';
+  if(v==='orbit'){
+    orbitEnterFullscreen();
+    initOrbitView();
+  } else {
+    orbitExitFullscreen();
+  }
+  if(v==='side') drawSideView();
+}
+function toggleExtendAtBat(){
+  extendedAtBat=!extendedAtBat;
+  const btn=document.getElementById('extendbtn');
+  if(btn){
+    btn.textContent=extendedAtBat?'EXTENDED (12)':'EXTEND AT BAT';
+    btn.classList.toggle('active',extendedAtBat);
+  }
+  updateSeqUI();
+}
+
+function buildArsenalGrid(){
+  const grid=document.getElementById('arsenalgrid');
+  if(!grid)return;
+  grid.innerHTML='';
+  ALL_PITCHES_LIST.forEach(p=>{
+    const btn=document.createElement('button');
+    btn.className='arsenalbtn'+(profSelectedPitches.includes(p.key)?' sel':'');
+    btn.dataset.key=p.key;
+    btn.innerHTML=`<span style="width:8px;height:8px;border-radius:50%;background:${p.color};flex-shrink:0;display:inline-block;"></span>${p.name}`;
+    btn.onclick=()=>toggleArsenalPitch(p.key);
+    grid.appendChild(btn);
+  });
+  updateArsenalCount();
+}
+
+function toggleArsenalPitch(key){
+  if(profSelectedPitches.includes(key)){
+    if(profSelectedPitches.length<=2){
+      document.getElementById('profileerror').textContent='Minimum 2 pitches required';
+      return;
+    }
+    profSelectedPitches=profSelectedPitches.filter(k=>k!==key);
+  } else {
+    if(profSelectedPitches.length>=5){
+      document.getElementById('profileerror').textContent='Maximum 5 pitches allowed';
+      return;
+    }
+    profSelectedPitches.push(key);
+  }
+  document.getElementById('profileerror').textContent='';
+  buildArsenalGrid();
+}
+
+function updateArsenalCount(){
+  const el=document.getElementById('arsenalcount');
+  if(el) el.textContent=`(${profSelectedPitches.length} selected — min 2, max 5)`;
+}
+
+function profSetHand(h){
+  profHand=h;
+  document.getElementById('prof-rhp').classList.toggle('active',h==='R');
+  document.getElementById('prof-lhp').classList.toggle('active',h==='L');
+}
+
+function profAgeChanged(){
+  const ageGroup=document.getElementById('prof-age').value;
+  const defaultVel=AGE_GROUP_MAX_VELOCITY[ageGroup]||80;
+  const slider=document.getElementById('prof-maxvel-slider');
+  const input=document.getElementById('prof-maxvel');
+  if(slider) slider.value=defaultVel;
+  if(input) input.value=defaultVel;
+}
+
+// ── Splash Screen ──
+function initSplash(){
+  const splash=document.getElementById('splashoverlay');
+  if(!splash) return;
+
+  // If profile already exists skip splash entirely
+  const existingProfile=getProfile();
+  const existingMode=getAppMode();
+  if(existingProfile||existingMode){
+    splash.classList.add('hidden');
+    if(existingMode==='team') initTeamMode();
+    return;
+  }
+
+  // Play splash animation
+  playSplashAnimation();
+}
+
+function playSplashAnimation(){
+  const s1=document.getElementById('splash-s1');
+  const s2=document.getElementById('splash-s2');
+  const s3=document.getElementById('splash-s3');
+
+  // Step 1: tagline fades in
+  setTimeout(()=>{s1.classList.add('visible');},200);
+  // Step 1: tagline fades out
+  setTimeout(()=>{s1.classList.remove('visible');},2200);
+  // Step 2: logo fades in
+  setTimeout(()=>{s2.classList.add('visible');},3000);
+  // Step 2: logo fades out
+  setTimeout(()=>{s2.classList.remove('visible');},5000);
+  // Step 3: app icon + mode selection fades in
+  setTimeout(()=>{
+    s3.classList.add('visible');
+    const signinBtn=document.getElementById('splash-signin-btn');
+    if(signinBtn) signinBtn.style.display='block';
+  },5800);
+}
+
+function skipSplash(){
+  const s3=document.getElementById('splash-s3');
+  const s1=document.getElementById('splash-s1');
+  const s2=document.getElementById('splash-s2');
+  if(s1) s1.classList.remove('visible');
+  if(s2) s2.classList.remove('visible');
+  if(s3) s3.classList.add('visible');
+  // Show sign in button when on step 3
+  const signinBtn=document.getElementById('splash-signin-btn');
+  if(signinBtn) signinBtn.style.display='block';
+  // If already has a profile, skip to canvas entirely
+  const profile=typeof getProfile==='function'?getProfile():null;
+  if(profile){
+    document.getElementById('splashoverlay').classList.add('hidden');
+    if(signinBtn) signinBtn.style.display='none';
+  }
+}
+function openSplashSignIn(){
+  const overlay=document.getElementById('authoverlay');
+  if(overlay){
+    // Bring auth overlay above splash screen
+    overlay.style.zIndex='3000';
+    overlay.style.display='flex';
+    // Reset auth form state
+    const errEl=document.getElementById('autherror');
+    if(errEl) errEl.style.display='none';
+    const emailEl=document.getElementById('auth-email');
+    if(emailEl) emailEl.value='';
+    const pwEl=document.getElementById('auth-password');
+    if(pwEl) pwEl.value='';
+    const titleEl=document.getElementById('authtitle');
+    if(titleEl) titleEl.textContent='SIGN IN';
+    const submitBtn=document.getElementById('auth-submit-btn');
+    if(submitBtn) submitBtn.textContent='SIGN IN';
+  }
+  window._splashAuthOverride=true;
+}
+function chooseSplashMode(mode){
+  setAppMode(mode);
+  const signinBtn=document.getElementById('splash-signin-btn');
+  if(signinBtn) signinBtn.style.display='none';
+  document.getElementById('splashoverlay').classList.add('hidden');
+  if(mode==='team'){
+    initTeamMode();
+    openProfileOverlay(true);
+  } else {
+    openProfileOverlay(false);
+  }
+}
+
+// ── Team Mode ──
+function initTeamMode(){
+  const pill=document.getElementById('activepitcherpill');
+  const pillPanel=document.getElementById('activepitcherpill-panel');
+  const rosterSection=document.getElementById('rosterSection');
+  const editProfileBtn=document.getElementById('editProfileBtn');
+  if(pill) pill.classList.add('visible');
+  if(pillPanel) pillPanel.style.display='block';
+  if(rosterSection) rosterSection.classList.add('visible');
+  if(editProfileBtn) editProfileBtn.style.display='none';
+  updateActivePitcherPill();
+}
+
+function updateActivePitcherPill(){
+  const pill=document.getElementById('activepitcherpill');
+  const pillPanel=document.getElementById('activepitcherpill-panel');
+  if(!pill) return;
+  const pitcher=getActivePitcher();
+  if(pitcher){
+    const text='⚾ '+pitcher.name.toUpperCase();
+    pill.textContent=text;
+    if(pillPanel) pillPanel.textContent=text+' ▾';
+  }
+}
+
+function openRosterFromPill(){
+  openSettingsModal();
+  renderRosterList();
+}
+
+function renderRosterList(){
+  const list=document.getElementById('rosterList');
+  const addBtn=document.getElementById('rosterAddBtn');
+  if(!list) return;
+  const roster=getRoster();
+  const activeId=getActivePitcherId();
+  list.innerHTML='';
+
+  if(!roster.length){
+    list.innerHTML='<div style="font-family:DM Mono,monospace;font-size:9px;'
+      +'color:var(--text-muted);padding:8px 0;">No pitchers added yet.</div>';
+  }
+
+  roster.forEach(pitcher=>{
+    const isPulled=typeof pulledPitchers!=='undefined'&&pulledPitchers.includes(pitcher.id);
+    const item=document.createElement('div');
+    item.className='roster-item'+(pitcher.id===activeId?' active':'')+(isPulled?' pulled':'');
+    if(isPulled) item.style.cssText='opacity:0.4;pointer-events:none;';
+
+    // Info section — clickable to switch
+    const info=document.createElement('div');
+    info.style.cssText='flex:1;cursor:pointer;';
+    info.onclick=()=>switchToPitcher(pitcher.id);
+
+    const name=document.createElement('div');
+    name.className='roster-item-name';
+    name.textContent=pitcher.name;
+
+    const meta=document.createElement('div');
+    meta.className='roster-item-meta';
+    const hand=pitcher.hand==='R'?'RHP':'LHP';
+    const age=pitcher.ageGroup||'';
+    const mv=pitcher.maxVelocity;
+    meta.textContent=hand+(age?' · '+age:'')+(mv?' · '+mv+' mph max':'')+(isPulled?' · PULLED':'');
+
+    info.appendChild(name);
+    info.appendChild(meta);
+
+    // Button group
+    const btnGroup=document.createElement('div');
+    btnGroup.style.cssText='display:flex;gap:4px;align-items:center;';
+
+    // Edit button
+    const edit=document.createElement('button');
+    edit.style.cssText='background:transparent;border:0.5px solid var(--border-panel);'
+      +'color:var(--text-muted);cursor:pointer;font-size:10px;padding:2px 6px;'
+      +'border-radius:4px;transition:all 0.15s;font-family:DM Mono,monospace;';
+    edit.textContent='✏';
+    edit.title='Edit pitcher';
+    edit.onclick=(e)=>{
+      e.stopPropagation();
+      editRosterPitcher(pitcher.id);
+    };
+    edit.onmouseover=()=>{edit.style.borderColor='#7ec8e3';edit.style.color='#7ec8e3';};
+    edit.onmouseout=()=>{edit.style.borderColor='var(--border-panel)';edit.style.color='var(--text-muted)';};
+
+    // Delete button
+    const del=document.createElement('button');
+    del.className='roster-item-delete';
+    del.textContent='✕';
+    del.title='Remove pitcher';
+    del.onclick=(e)=>{
+      e.stopPropagation();
+      deletePitcherConfirm(pitcher.id,pitcher.name);
+    };
+
+    btnGroup.appendChild(edit);
+    btnGroup.appendChild(del);
+    item.appendChild(info);
+    item.appendChild(btnGroup);
+    list.appendChild(item);
+  });
+
+  if(addBtn) addBtn.disabled=roster.length>=10;
+}
+
+function switchToPitcher(id){
+  const current=getActivePitcherId();
+  if(current===id){
+    closeSettingsModal();
+    return;
+  }
+  if(seq&&seq.length>0){
+    if(!confirm('Switch pitcher? The current sequence will be cleared.')) return;
+    clearAll();
+  }
+  setActivePitcherId(id);
+  const pitcher=getRoster().find(p=>p.id===id);
+  if(pitcher){
+    saveProfile(pitcher);
+    applyProfile(pitcher);
+  }
+  updateActivePitcherPill();
+  renderRosterList();
+  refreshPlanDropdown('');
+  closeSettingsModal();
+}
+
+function deletePitcherConfirm(id,name){
+  if(!confirm('Remove '+name+' from roster? Their saved plans will remain but will be unassigned.')) return;
+  deletePitcherFromRoster(id);
+  renderRosterList();
+  updateActivePitcherPill();
+}
+
+function editRosterPitcher(id){
+  const roster=getRoster();
+  const pitcher=roster.find(p=>p.id===id);
+  if(!pitcher) return;
+
+  // Set this pitcher as active so profile overlay loads their data
+  setActivePitcherId(id);
+  saveProfile(pitcher);
+  applyProfile(pitcher);
+
+  closeSettingsModal();
+
+  // Open profile overlay in edit mode
+  // Small delay to let settings modal close first
+  setTimeout(()=>{
+    openProfileOverlay(true);
+    // Pre-fill max velocity
+    const maxVelSlider=document.getElementById('prof-maxvel-slider');
+    const maxVelInput=document.getElementById('prof-maxvel');
+    const maxVel=pitcher.maxVelocity||
+      AGE_GROUP_MAX_VELOCITY[pitcher.ageGroup||'hs']||80;
+    if(maxVelSlider) maxVelSlider.value=maxVel;
+    if(maxVelInput) maxVelInput.value=maxVel;
+  },200);
+}
+
+function openAddPitcherFromSettings(){
+  closeSettingsModal();
+  openProfileOverlay(true);
+}
+
+function saveAndAddAnotherPitcher(){
+  const name=(document.getElementById('prof-name').value||'').trim();
+  if(!name){
+    document.getElementById('profileerror').textContent='Please enter a pitcher name';
+    return;
+  }
+  if(profSelectedPitches.length<2){
+    document.getElementById('profileerror').textContent='Please select at least 2 pitches';
+    return;
+  }
+  if(profSelectedPitches.length>5){
+    document.getElementById('profileerror').textContent='Please select no more than 5 pitches';
+    return;
+  }
+  const ageGroup=document.getElementById('prof-age').value;
+  const maxVelInput=document.getElementById('prof-maxvel');
+  const maxVelocity=maxVelInput&&maxVelInput.value?
+    parseInt(maxVelInput.value,10):
+    (AGE_GROUP_MAX_VELOCITY[ageGroup]||80);
+  const profile={name,hand:profHand,ageGroup,arsenal:profSelectedPitches,maxVelocity};
+  const roster=getRoster();
+  if(roster.length>=10){
+    document.getElementById('profileerror').textContent='Roster is full (10 pitchers maximum)';
+    return;
+  }
+  const newId=addPitcherToRoster(profile);
+  if(!getActivePitcherId()) setActivePitcherId(newId);
+  saveProfile(profile);
+  applyProfile(profile);
+
+  // Reset form for next pitcher
+  document.getElementById('prof-name').value='';
+  profHand='R';
+  profSetHand('R');
+  profSelectedPitches=['4FB','CH'];
+  document.getElementById('prof-age').value='rec12';
+  const mvIn=document.getElementById('prof-maxvel');
+  const mvSl=document.getElementById('prof-maxvel-slider');
+  const yv=AGE_GROUP_MAX_VELOCITY['youth']||60;
+  if(mvIn) mvIn.value=yv;
+  if(mvSl) mvSl.value=yv;
+  document.getElementById('profileerror').textContent='';
+  buildArsenalGrid();
+  document.getElementById('profilesubtitle').textContent='Add another pitcher to your roster';
+}
+
+function openProfileOverlay(isTeamMode){
+  const profile=getProfile();
+  const overlay=document.getElementById('profileoverlay');
+  const addAnotherBtn=document.getElementById('profaddanotherbtn');
+  const cancelBtn=document.getElementById('profcancelbtn');
+  const mode=isTeamMode!=null?isTeamMode:(getAppMode()==='team');
+
+  document.getElementById('profileerror').textContent='';
+
+  if(addAnotherBtn) addAnotherBtn.style.display=mode?'block':'none';
+  if(cancelBtn) cancelBtn.style.display=profile?'block':'none';
+
+  if(profile){
+    document.getElementById('prof-name').value=profile.name||'';
+    profHand=profile.hand||'R';
+    profSetHand(profHand);
+    document.getElementById('prof-age').value=profile.ageGroup||'rec12';
+    const maxVelInput=document.getElementById('prof-maxvel');
+    if(maxVelInput){
+      maxVelInput.value=profile.maxVelocity||AGE_GROUP_MAX_VELOCITY[profile.ageGroup||'rec12']||80;
+    }
+    const maxVelSlider=document.getElementById('prof-maxvel-slider');
+    if(maxVelSlider) maxVelSlider.value=maxVelInput?maxVelInput.value:AGE_GROUP_MAX_VELOCITY[profile.ageGroup||'rec12']||80;
+    profSelectedPitches=[...(profile.arsenal||['4FB','CH'])];
+    document.getElementById('profilesubtitle').textContent=mode?'Manage your roster':'Update your profile';
+    document.getElementById('profsavebtn').textContent='SAVE PROFILE';
+    document.getElementById('profileeditlbl').style.display='block';
+  } else {
+    profHand='R';
+    profSetHand('R');
+    profSelectedPitches=['4FB','CH'];
+    document.getElementById('prof-name').value='';
+    document.getElementById('prof-age').value='rec12';
+    const maxVelInputNew=document.getElementById('prof-maxvel');
+    if(maxVelInputNew){
+      maxVelInputNew.value=AGE_GROUP_MAX_VELOCITY['rec12']||60;
+    }
+    const maxVelSliderNew=document.getElementById('prof-maxvel-slider');
+    if(maxVelSliderNew) maxVelSliderNew.value=AGE_GROUP_MAX_VELOCITY['youth']||60;
+    document.getElementById('profilesubtitle').textContent=mode?'Add your first pitcher':'Set up your profile to get started';
+    document.getElementById('profsavebtn').textContent=mode?'SAVE PITCHER':'START PITCHING';
+    document.getElementById('profileeditlbl').style.display='none';
+  }
+  buildArsenalGrid();
+  overlay.classList.add('visible');
+}
+
+function closeProfileOverlay(){
+  document.getElementById('profileoverlay').classList.remove('visible');
+}
+
+function saveProfileAndStart(){
+  const name=(document.getElementById('prof-name').value||'').trim();
+  if(!name){
+    document.getElementById('profileerror').textContent='Please enter a pitcher name';
+    return;
+  }
+  if(profSelectedPitches.length<2){
+    document.getElementById('profileerror').textContent='Please select at least 2 pitches';
+    return;
+  }
+  if(profSelectedPitches.length>5){
+    document.getElementById('profileerror').textContent='Please select no more than 5 pitches';
+    return;
+  }
+  const mode=getAppMode();
+  if(mode==='team'){
+    const activeId=getActivePitcherId();
+    const ageGroup=document.getElementById('prof-age').value;
+    const maxVelInput=document.getElementById('prof-maxvel');
+    const maxVelocity=maxVelInput&&maxVelInput.value?
+      parseInt(maxVelInput.value,10):
+      (AGE_GROUP_MAX_VELOCITY[ageGroup]||80);
+    const profile={name,hand:profHand,ageGroup,arsenal:profSelectedPitches,maxVelocity};
+    if(activeId){
+      updatePitcherInRoster(activeId,profile);
+    } else {
+      const newId=addPitcherToRoster(profile);
+      setActivePitcherId(newId);
+    }
+    saveProfile(profile);
+    applyProfile(profile);
+    updateActivePitcherPill();
+    closeProfileOverlay();
+    refreshPlanDropdown('');
+    // Reopen settings to show updated roster
+    setTimeout(()=>openSettingsModal(),200);
+    return;
+  }
+  const ageGroup=document.getElementById('prof-age').value;
+  const maxVelInput=document.getElementById('prof-maxvel');
+  const maxVelocity=maxVelInput&&maxVelInput.value?
+    parseInt(maxVelInput.value,10):
+    (AGE_GROUP_MAX_VELOCITY[ageGroup]||80);
+  const profile={name,hand:profHand,ageGroup,arsenal:profSelectedPitches,maxVelocity};
+  saveProfile(profile);
+  // Sync to Firestore if signed in
+  if(typeof fbSaveProfile==='function'&&typeof fbCurrentUser==='function'&&fbCurrentUser()){
+    fbSaveProfile(profile).catch(function(e){console.warn('Firestore profile sync failed:',e);});
+  }
+  applyProfile(profile);
+  closeProfileOverlay();
+  refreshPlanDropdown('');
+}
+
+function applyProfile(profile){
+  if(!profile)return;
+  setHand(profile.hand||'R');
+  ALL_PITCHES_LIST.forEach(p=>{
+    const btn=document.getElementById('p'+p.key);
+    if(btn) btn.style.display=profile.arsenal.includes(p.key)?'flex':'none';
+  });
+  if(!profile.arsenal.includes(pitch)&&profile.arsenal.length){
+    selPitch(profile.arsenal[0]);
+  } else if(typeof applyPitchVelocity==='function'&&pitch&&profile.arsenal.includes(pitch)){
+    applyPitchVelocity(pitch);
+  }
+  const gear=document.getElementById('gearbtn');
+  if(gear) gear.title=profile.name+' — Edit Profile';
+}
+
+function initProfile(){
+  const profile=getProfile();
+  if(!profile){
+    openProfileOverlay();
+  } else {
+    applyProfile(profile);
+  }
+}
+
+function buildBatterSilhouette(add,isRHB){
+  const xOff=isRHB?-0.52:0.52;
+  const zOff=0.15;
+  const groundY=-0.273;
+
+  // World Y coordinates — geometry placed at exact world positions
+  // Exact values from app code
+  const FEET_Y=groundY;         // -0.273 — ground plane
+  const KNEE_Y=ZLO;             // 0.75  — bottom of zone
+  const HIP_Y=ZLO+0.08;         // 0.83
+  const BELT_Y=ZLO+0.13;        // 0.88
+  const CHEST_Y=(ZLO+ZHI)/2;    // 1.06  — mid zone
+  const SHOULDER_Y=ZHI;         // 1.37  — top of zone
+  const NECK_Y=ZHI+0.08;        // 1.45
+  const HEAD_Y=ZHI+0.16;        // 1.53
+  const HELMET_Y=ZHI+0.20;      // 1.57
+
+  const OP=0.42;
+  const OP_BAT=0.72;
+
+  function mat(col,op){
+    return new THREE.MeshBasicMaterial({
+      color:col,transparent:true,opacity:op||OP,
+      side:THREE.DoubleSide
+    });
+  }
+
+  // Group to hold all batter parts
+  const group=new THREE.Group();
+
+  // ── SHOES ──
+  [-0.05,0.05].forEach(ox=>{
+    const shoe=new THREE.Mesh(
+      new THREE.BoxGeometry(0.07,0.05,0.16),mat(0x0a0a0a)
+    );
+    shoe.position.set(ox,FEET_Y,0.05);
+    group.add(shoe);
+  });
+
+  // ── LOWER LEGS — from feet to knees ──
+  const lowerLegH=KNEE_Y-FEET_Y-0.05;  // ~0.963
+  [-0.05,0.05].forEach(ox=>{
+    const leg=new THREE.Mesh(
+      new THREE.CylinderGeometry(0.038,0.034,lowerLegH,8),mat(0x0d0d1a)
+    );
+    leg.position.set(ox,FEET_Y+lowerLegH/2+0.025,0.05);
+    group.add(leg);
+  });
+
+  // ── KNEES ──
+  [-0.05,0.05].forEach(ox=>{
+    const knee=new THREE.Mesh(
+      new THREE.SphereGeometry(0.044,8,8),mat(0x0d0d1a)
+    );
+    knee.position.set(ox,KNEE_Y,0.05);
+    group.add(knee);
+  });
+
+  // ── UPPER LEGS — from knees to hips ──
+  const upperLegH=HIP_Y-KNEE_Y-0.04;  // ~0.14
+  [-0.05,0.05].forEach(ox=>{
+    const thigh=new THREE.Mesh(
+      new THREE.CylinderGeometry(0.050,0.042,upperLegH,8),mat(0x0d0d1a)
+    );
+    thigh.position.set(ox,KNEE_Y+upperLegH/2+0.02,0.05);
+    group.add(thigh);
+  });
+
+  // ── HIPS ──
+  const hips=new THREE.Mesh(
+    new THREE.CylinderGeometry(0.095,0.088,0.14,8),mat(0x0d0d1a)
+  );
+  hips.position.set(0,HIP_Y,0.05);
+  group.add(hips);
+
+  // ── BELT ──
+  const belt=new THREE.Mesh(
+    new THREE.CylinderGeometry(0.097,0.097,0.04,8),mat(0x222244,0.50)
+  );
+  belt.position.set(0,BELT_Y,0.05);
+  group.add(belt);
+
+  // ── TORSO — from belt to shoulders ──
+  const torsoH=SHOULDER_Y-BELT_Y;  // ~0.38
+  const torso=new THREE.Mesh(
+    new THREE.CylinderGeometry(0.082,0.092,torsoH,8),mat(0x1e3a8a)
+  );
+  torso.position.set(0,BELT_Y+torsoH/2,0.05);
+  group.add(torso);
+
+  // ── SHOULDERS ──
+  [-0.10,0.10].forEach(ox=>{
+    const shoulder=new THREE.Mesh(
+      new THREE.SphereGeometry(0.058,8,8),mat(0x1e3a8a)
+    );
+    shoulder.position.set(ox,SHOULDER_Y,0.05);
+    group.add(shoulder);
+  });
+
+  // ── NECK ──
+  const neck=new THREE.Mesh(
+    new THREE.CylinderGeometry(0.030,0.036,0.09,8),mat(0x2a2a3a)
+  );
+  neck.position.set(0,NECK_Y,0.05);
+  group.add(neck);
+
+  // ── HELMET — navy blue dome with forward visor ──
+  // Main dome
+  const helmetDome=new THREE.Mesh(
+    new THREE.SphereGeometry(0.082,12,10),mat(0x1e3a8a,0.75)
+  );
+  helmetDome.position.set(0,HELMET_Y,0.05);
+  helmetDome.scale.set(1,1.05,1);
+  group.add(helmetDome);
+
+  const visorMat=new THREE.MeshBasicMaterial({
+    color:0x152d6e,transparent:true,opacity:0.95,
+    side:THREE.DoubleSide
+  });
+  // Half-disc visor — horizontal, faces plate direction (+Z)
+  // thetaStart=-PI/2, thetaLength=PI gives front-facing half disc
+  const visor=new THREE.Mesh(
+    new THREE.CylinderGeometry(
+      0.09,  // outer radius
+      0.09,  // inner radius (same = flat disc)
+      0.008, // height — very thin
+      12,    // segments
+      1,     // height segments
+      false, // open ended
+      -Math.PI/2, // thetaStart — faces +Z
+      Math.PI     // thetaLength — half circle only
+    ),visorMat
+  );
+  // Position at helmet front boundary, forehead level
+  visor.position.set(0,HELMET_Y+0.02,0.12);
+  group.add(visor);
+
+  // Jaw/chin hint — skin tone facing plate side
+  const jaw=new THREE.Mesh(
+    new THREE.SphereGeometry(0.032,8,6),
+    mat(0x8B5E3C,0.55)
+  );
+  jaw.position.set(0,HELMET_Y-0.06,0.055);
+  jaw.scale.set(0.8,0.7,0.6);
+  group.add(jaw);
+
+  // ── BACK ARM ──
+  const backArm=new THREE.Mesh(
+    new THREE.CylinderGeometry(0.026,0.022,0.22,8),mat(0x1e3a8a)
+  );
+  backArm.position.set(isRHB?0.09:-0.09,SHOULDER_Y-0.06,0.05);
+  backArm.rotation.z=isRHB?-0.50:0.50;
+  group.add(backArm);
+
+  // ── FRONT ARM ──
+  const frontArm=new THREE.Mesh(
+    new THREE.CylinderGeometry(0.024,0.020,0.20,8),mat(0x1e3a8a)
+  );
+  frontArm.position.set(isRHB?-0.09:0.09,SHOULDER_Y-0.06,0.05);
+  frontArm.rotation.z=isRHB?0.50:-0.50;
+  group.add(frontArm);
+
+  // ── BAT — extends off canvas top corner
+  // Only handle and lower shaft visible — barrel off screen ──
+  const batGroup=new THREE.Group();
+
+  // Knob — dark, at bottom
+  const knob=new THREE.Mesh(
+    new THREE.SphereGeometry(0.018,8,8),mat(0x1a1a1a,OP_BAT)
+  );
+  knob.position.set(0,-0.17,0);
+  batGroup.add(knob);
+
+  // Handle — wood color, thicker at bottom
+  const batHandle=new THREE.Mesh(
+    new THREE.CylinderGeometry(0.013,0.016,0.16,10),
+    mat(0x6b3a1f,OP_BAT)
+  );
+  batHandle.position.set(0,-0.07,0);
+  batGroup.add(batHandle);
+
+  // Long shaft — tapers from handle width to thin at top
+  // This section exits the canvas frame
+  const batShaft=new THREE.Mesh(
+    new THREE.CylinderGeometry(0.002,0.013,1.60,10),
+    mat(0x6b3a1f,OP_BAT)
+  );
+  batShaft.position.set(0,0.65,0);
+  batGroup.add(batShaft);
+
+  // After group.rotation.y=PI/2:
+  // local -X becomes world toward catcher (behind shoulder)
+  // local -Z becomes world toward plate
+  batGroup.position.set(
+    isRHB?0.18:-0.18,
+    SHOULDER_Y+0.02,
+    0.12
+  );
+  batGroup.rotation.z=isRHB?-Math.PI/4.5:Math.PI/4.5;
+  batGroup.rotation.x=-Math.PI/12;
+  group.add(batGroup);
+
+  // ── GROUP ROTATION AND POSITION ──
+  // No scale — geometry already at correct world Y coordinates
+  group.rotation.y=isRHB?Math.PI/2:-Math.PI/2;
+  // group.position.y=0 since geometry is already in world space
+  group.position.set(xOff*1.1,0,0.15);
+
+  add(group);
+
+  // Batter's box outline
+  const boxW=0.48,boxD=0.78,boxY=groundY+0.01;
+  const bxPts=[
+    new THREE.Vector3(xOff-boxW/2,boxY,zOff-boxD*0.42),
+    new THREE.Vector3(xOff+boxW/2,boxY,zOff-boxD*0.42),
+    new THREE.Vector3(xOff+boxW/2,boxY,zOff+boxD*0.58),
+    new THREE.Vector3(xOff-boxW/2,boxY,zOff+boxD*0.58),
+    new THREE.Vector3(xOff-boxW/2,boxY,zOff-boxD*0.42),
+  ];
+  add(new THREE.Line(
+    new THREE.BufferGeometry().setFromPoints(bxPts),
+    new THREE.LineBasicMaterial({
+      color:0xaabbcc,opacity:0.22,transparent:true
+    })
+  ));
+}
+
+function buildStatic(){
+  statics.forEach(o=>scene.remove(o));statics=[];
+  const add=o=>{scene.add(o);statics.push(o);return o;};
+  const ground=new THREE.Mesh(new THREE.PlaneGeometry(20,28),new THREE.MeshBasicMaterial({color:0x13281b}));
+  ground.rotation.x=-Math.PI/2;ground.position.set(0,0.40,9);add(ground);
+  const dirt=new THREE.Mesh(new THREE.CircleGeometry(2.8,32),new THREE.MeshBasicMaterial({color:0x13281b}));
+  dirt.rotation.x=-Math.PI/2;dirt.position.set(0,0.42,17.5);add(dirt);
+  const rub=new THREE.Mesh(new THREE.BoxGeometry(0.61,0.05,0.15),new THREE.MeshBasicMaterial({color:0xffffff}));
+  rub.position.set(0,0.45,17.5);add(rub);
+  const rp=getRP();
+  const rdot=new THREE.Mesh(new THREE.SphereGeometry(0.03,10,10),
+    new THREE.MeshBasicMaterial({
+      color:hand==='R'?0xc084fc:0x7ec8e3,
+      transparent:true,opacity:0.3
+    }));
+  rdot.position.set(rp.x,rp.y,rp.z);add(rdot);
+  const plateY=CLO_Y-0.08;
+  const pp=[
+    new THREE.Vector3(-ZW/2, plateY,  0.18),
+    new THREE.Vector3( ZW/2, plateY,  0.18),
+    new THREE.Vector3( ZW/2, plateY,  0.05),
+    new THREE.Vector3(     0, plateY, -0.15),
+    new THREE.Vector3(-ZW/2, plateY,  0.05),
+    new THREE.Vector3(-ZW/2, plateY,  0.18),
+  ];
+  add(new THREE.Line(new THREE.BufferGeometry().setFromPoints(pp),new THREE.LineBasicMaterial({color:0xffffff,opacity:0.85,transparent:true})));
+  add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-ZW/2,ZLO,0),new THREE.Vector3(ZW/2,ZLO,0),new THREE.Vector3(ZW/2,ZLO,0),new THREE.Vector3(ZW/2,ZHI,0),new THREE.Vector3(ZW/2,ZHI,0),new THREE.Vector3(-ZW/2,ZHI,0),new THREE.Vector3(-ZW/2,ZHI,0),new THREE.Vector3(-ZW/2,ZLO,0)]),new THREE.LineBasicMaterial({color:0xffffff,linewidth:2})));
+  add(new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(-ZW/6,ZLO,0),new THREE.Vector3(-ZW/6,ZHI,0),new THREE.Vector3(ZW/6,ZLO,0),new THREE.Vector3(ZW/6,ZHI,0),new THREE.Vector3(-ZW/2,ZLO+ZH/3,0),new THREE.Vector3(ZW/2,ZLO+ZH/3,0),new THREE.Vector3(-ZW/2,ZLO+ZH*2/3,0),new THREE.Vector3(ZW/2,ZLO+ZH*2/3,0)]),new THREE.LineBasicMaterial({color:0x4a7aaa,opacity:0.4,transparent:true})));
+  [[-ZW/2,ZLO],[ZW/2,ZLO],[-ZW/2,ZHI],[ZW/2,ZHI]].forEach(([cx,cy])=>{const m=new THREE.Mesh(new THREE.SphereGeometry(0.022,6,6),new THREE.MeshBasicMaterial({color:0xffdd77}));m.position.set(cx,cy,0.01);add(m);});
+  if(mrOGVisible){
+    if(batter==='RHB') buildBatterSilhouette(add,true);
+    if(batter==='LHB') buildBatterSilhouette(add,false);
+  }
+  add(new THREE.AmbientLight(0xffffff,0.9));
+  // Show feature discovery banner on first visit
+  showFeatureBannerIfNeeded();
+}
+
+function clearTunnels(){tunnelObjs.forEach(o=>scene.remove(o));tunnelObjs=[];}
+function drawTunnelPair(pA,pB){
+  const n=Math.min(pA.length,pB.length),s0=Math.floor(n*TUNNEL_START),s1=Math.floor(n*TUNNEL_END);
+  let inT=false,seg=[];
+  for(let i=s0;i<s1;i++){
+    const d=pA[i].distanceTo(pB[i]),m=new THREE.Vector3().addVectors(pA[i],pB[i]).multiplyScalar(0.5);
+    if(d<=TUNNEL_THRESH){if(!inT){inT=true;seg=[];}seg.push(m.clone());}
+    else{if(inT&&seg.length>=3)buildTube(seg);inT=false;seg=[];}
+  }
+  if(inT&&seg.length>=3)buildTube(seg);
+}
+function buildTube(pts){
+  const c=[pts[0]];for(let i=1;i<pts.length;i++)if(pts[i].distanceTo(pts[i-1])>0.001)c.push(pts[i]);
+  if(c.length<3)return;
+  const path=new THREE.CatmullRomCurve3(c);
+  try{const m=new THREE.Mesh(new THREE.TubeGeometry(path,c.length*2,TUBE_R*1.6,8,false),new THREE.MeshBasicMaterial({color:0xeab308,transparent:true,opacity:0.08,side:THREE.DoubleSide,depthWrite:false}));scene.add(m);tunnelObjs.push(m);}catch(e){}
+  try{const m=new THREE.Mesh(new THREE.TubeGeometry(path,c.length*2,TUBE_R,8,false),new THREE.MeshBasicMaterial({color:0xfde047,transparent:true,opacity:0.22,side:THREE.DoubleSide,depthWrite:false}));scene.add(m);tunnelObjs.push(m);}catch(e){}
+  const ep=c[c.length-1];
+  try{const ring=new THREE.Mesh(new THREE.TorusGeometry(TUBE_R*1.4,0.004,8,24),new THREE.MeshBasicMaterial({color:0xeab308,transparent:true,opacity:0.85}));ring.position.copy(ep);if(c.length>=2){const dir=new THREE.Vector3().subVectors(ep,c[c.length-2]).normalize();ring.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),dir);}scene.add(ring);tunnelObjs.push(ring);}catch(e){}
+}
+function buildTunnels(){
+  clearTunnels();if(!tunnelOn||seq.length<2)return;
+  for(let a=0;a<seq.length-1;a++)for(let b=a+1;b<seq.length;b++)drawTunnelPair(seq[a].pts3d,seq[b].pts3d);
+}
+
+function bdTarget(tp,h,bdMode){
+  // Determine pitcher handedness
+  const _isLHP=typeof hand!=='undefined'&&hand==='L';
+  if(bdMode==='backdoor'){
+    // RHP: lands LFT-EDG
+    // LHP: lands RGT-EDG
+    const _edgePos=_isLHP?
+      ZPOS['RGT-EDG']||{x:-(ZW/2+0.0375),y:Y_MID}:
+      ZPOS['LFT-EDG']||{x:(ZW/2+0.0375),y:Y_MID};
+    return {x:_edgePos.x,y:tp.y};
+  }
+  if(bdMode==='backfoot'){
+    // RHP: lands BR-CRN (low right side)
+    // LHP: lands BL-CRN (low left side)
+    const _cornerPos=_isLHP?
+      ZPOS['BL-CRN']||{x:(ZW/2-0.0375),y:ZLO-0.0375}:
+      ZPOS['BR-CRN']||{x:-(ZW/2-0.0375),y:ZLO-0.0375};
+    return {x:_cornerPos.x,y:_cornerPos.y};
+  }
+  // Legacy bd=true behavior — outside edge
+  return {x:h*BD_BORDER,y:tp.y};
+}
+function makeCurve(pk,zk,bd){
+  const rp=getRP(bd);
+  const tp=ZPOS[zk]||{x:0,y:Y_MID};
+  const h=hand==='R'?1:-1;
+  const landing=bd?bdTarget(tp,h,bd):tp;
+  let endX=landing.x;
+  let endY=landing.y;
+  if(pk==='KN'){
+    endX=landing.x+(Math.random()-0.5)*0.52;
+    endY=Math.max(MIN_Y,landing.y+(Math.random()-0.5)*0.48);
+  }
+  const t=new THREE.Vector3(endX,endY,0.12);
+  const P=PITCHES[pk];
+  const[c1,c2]=bd&&P.bd&&bd!=='backdoor'&&bd!=='backfoot'?
+    P.bd(rp,t,h):P.ctrl(rp,t,h);
+  return new THREE.CubicBezierCurve3(rp.clone(),c1,c2,t.clone());
+}
+
+function line3D(pts,col,op,lw){const g=new THREE.BufferGeometry().setFromPoints(pts);const l=new THREE.Line(g,new THREE.LineBasicMaterial({color:col,opacity:op,transparent:op<1,linewidth:lw||2}));scene.add(l);return l;}
+function dashedLine(pts,col){const lines=[];for(let i=0;i<pts.length-2;i+=4){const g=new THREE.BufferGeometry().setFromPoints([pts[i],pts[Math.min(i+2,pts.length-1)]]);const l=new THREE.Line(g,new THREE.LineBasicMaterial({color:col,opacity:0.28,transparent:true}));scene.add(l);lines.push(l);}return lines;}
+function removeObj(o){if(!o)return;Array.isArray(o)?o.forEach(x=>scene.remove(x)):scene.remove(o);}
+// Backdoor/back-foot qualifying pitches
+const BD_QUALIFYING=['SL','CB','SWP','SCR','KC','SLV'];
+const BF_QUALIFYING=['SL','SWP','SCR','KC','SLV'];
+function getBdMode(){
+  const bBtn=document.getElementById('ckbd-backdoor');
+  const fBtn=document.getElementById('ckbd-backfoot');
+  if(bBtn&&bBtn.classList.contains('bd-active')) return 'backdoor';
+  if(fBtn&&fBtn.classList.contains('bd-active')) return 'backfoot';
+  return false;
+}
+function toggleBdMode(mode){
+  const bBtn=document.getElementById('ckbd-backdoor');
+  const fBtn=document.getElementById('ckbd-backfoot');
+  if(!bBtn||!fBtn) return;
+  const currentMode=getBdMode();
+  // Toggle off if already active
+  if(currentMode===mode){
+    bBtn.classList.remove('bd-active');
+    fBtn.classList.remove('bd-active');
+    updateBdButtonStyles();
+    refreshGhost();
+    return;
+  }
+  bBtn.classList.remove('bd-active');
+  fBtn.classList.remove('bd-active');
+  // Check arsenal and handedness before activating
+  const profile=typeof getProfile==='function'?getProfile():null;
+  const ar=profile&&profile.arsenal?profile.arsenal:[];
+  const pitcherHand=typeof hand!=='undefined'?hand:'R';
+  const batterHand=typeof batter!=='undefined'?batter:'RHB';
+  // Catcher's POV swap — RHB button = internal LHB
+  const isLHBInternal=batterHand==='RHB';
+  const sameSide=(pitcherHand==='R'&&!isLHBInternal)||
+    (pitcherHand==='L'&&isLHBInternal);
+  if(mode==='backdoor'){
+    const hasQualPitch=ar.some(pk=>BD_QUALIFYING.includes(pk));
+    if(!hasQualPitch){
+      alert('Add a slider, curveball, sweeper, or screwball to your arsenal for backdoor.');
+      return;
+    }
+    bBtn.classList.add('bd-active');
+  } else if(mode==='backfoot'){
+    const hasQualPitch=ar.some(pk=>BF_QUALIFYING.includes(pk));
+    if(!hasQualPitch){
+      alert('Add a slider, sweeper, or screwball to your arsenal for back-foot.');
+      return;
+    }
+    if(sameSide){
+      alert('Back-foot works best opposite-handed (RHP vs LHB or LHP vs RHB).');
+      return;
+    }
+    fBtn.classList.add('bd-active');
+  }
+  updateBdButtonStyles();
+  refreshGhost();
+}
+function updateBdButtonStyles(){
+  const bBtn=document.getElementById('ckbd-backdoor');
+  const fBtn=document.getElementById('ckbd-backfoot');
+  if(!bBtn||!fBtn) return;
+  const activeStyle='border-color:#7ec8e3;color:#7ec8e3;background:#0f2840;';
+  const inactiveStyle='border-color:#3a5a7a;color:#4a7aaa;background:#0a1520;';
+  bBtn.style.cssText=bBtn.style.cssText.replace(
+    /border-color:[^;]+;color:[^;]+;background:[^;]+;/,'');
+  fBtn.style.cssText=fBtn.style.cssText.replace(
+    /border-color:[^;]+;color:[^;]+;background:[^;]+;/,'');
+  if(bBtn.classList.contains('bd-active')){
+    bBtn.style.borderColor='#7ec8e3';
+    bBtn.style.color='#7ec8e3';
+    bBtn.style.background='#0f2840';
+  } else {
+    bBtn.style.borderColor='#3a5a7a';
+    bBtn.style.color='#4a7aaa';
+    bBtn.style.background='#0a1520';
+  }
+  if(fBtn.classList.contains('bd-active')){
+    fBtn.style.borderColor='#7ec8e3';
+    fBtn.style.color='#7ec8e3';
+    fBtn.style.background='#0f2840';
+  } else {
+    fBtn.style.borderColor='#3a5a7a';
+    fBtn.style.color='#4a7aaa';
+    fBtn.style.background='#0a1520';
+  }
+}
+function refreshGhost(){
+  ghostLines.forEach(o=>removeObj(o));
+  ghostLines=[];
+  const bdMode=getBdMode();
+  ghostLines=dashedLine(
+    makeCurve(pitch,zone,bdMode).getPoints(80),
+    PITCHES[pitch].color
+  );
+}
+
+function drawSideView(){
+  const svg=document.getElementById('sidesvg');
+  if(!svg)return;
+  const W=svg.clientWidth||700;
+  const H=svg.clientHeight||560;
+  svg.innerHTML='';
+
+  const PAD_L=80;
+  const PAD_R=60;
+  const PAD_T=40;
+  const PAD_B=60;
+  const DRAW_W=W-PAD_L-PAD_R;
+  const DRAW_H=H-PAD_T-PAD_B;
+
+  const WORLD_Z_MIN=0;
+  const WORLD_Z_MAX=17;
+  const WORLD_Y_MIN=0.40;
+  const WORLD_Y_MAX=1.65;
+
+  function toSVG(wz,wy){
+    const sx=PAD_L+((WORLD_Z_MAX-wz)/(WORLD_Z_MAX-WORLD_Z_MIN))*DRAW_W;
+    const sy=PAD_T+((WORLD_Y_MAX-wy)/(WORLD_Y_MAX-WORLD_Y_MIN))*DRAW_H;
+    return {x:sx,y:sy};
+  }
+
+  function el(tag,attrs){
+    const e=document.createElementNS('http://www.w3.org/2000/svg',tag);
+    Object.entries(attrs).forEach(([k,v])=>e.setAttribute(k,v));
+    return e;
+  }
+  function txt(content,attrs){
+    const e=el('text',attrs);
+    e.textContent=content;
+    return e;
+  }
+
+  svg.appendChild(el('rect',{x:0,y:0,width:W,height:H,fill:'#0a0e1a'}));
+
+  const zoneTop=toSVG(0,1.37);
+  const zoneBtm=toSVG(0,0.75);
+  const groundY=toSVG(0,0.40).y;
+  const highY=toSVG(0,1.55).y;
+
+  svg.appendChild(el('rect',{x:PAD_L,y:zoneBtm.y,width:DRAW_W,height:groundY-zoneBtm.y,fill:'#1a0e06',opacity:0.4}));
+  svg.appendChild(el('rect',{x:PAD_L,y:zoneTop.y,width:DRAW_W,height:zoneBtm.y-zoneTop.y,fill:'#0f2035',opacity:0.5}));
+  svg.appendChild(el('rect',{x:PAD_L,y:highY,width:DRAW_W,height:zoneTop.y-highY,fill:'#091828',opacity:0.3}));
+
+  const zoneMid1=toSVG(0,0.75+0.207);
+  const zoneMid2=toSVG(0,0.75+0.414);
+  [zoneMid1.y,zoneMid2.y].forEach(y=>{
+    const l=el('line',{x1:PAD_L,y1:y,x2:W-PAD_R,y2:y,stroke:'#2a4a6a','stroke-width':'0.5','stroke-dasharray':'3 3'});
+    svg.appendChild(l);
+  });
+
+  [zoneTop.y,zoneBtm.y].forEach(y=>{
+    svg.appendChild(el('line',{x1:PAD_L,y1:y,x2:W-PAD_R,y2:y,stroke:'#4a7aaa','stroke-width':'0.5'}));
+  });
+
+  svg.appendChild(el('line',{x1:PAD_L,y1:groundY,x2:W-PAD_R,y2:groundY,stroke:'#2a3a2a','stroke-width':'1'}));
+
+  [
+    {label:'HIGH',y:(highY+zoneTop.y)/2},
+    {label:'ZONE',y:(zoneTop.y+zoneBtm.y)/2},
+    {label:'LOW',y:(zoneBtm.y+groundY)/2},
+  ].forEach(({label,y})=>{
+    const t=txt(label,{x:PAD_L-8,y,fill:'#3a5a7a','font-size':'9','font-family':'DM Mono,monospace','text-anchor':'end','dominant-baseline':'central'});
+    svg.appendChild(t);
+  });
+
+  const zBarX=W-PAD_R+8;
+  svg.appendChild(el('rect',{x:zBarX,y:zoneTop.y,width:18,height:zoneBtm.y-zoneTop.y,fill:'#0f2840',stroke:'#7ec8e3','stroke-width':'1.5'}));
+  [zoneMid1.y,zoneMid2.y].forEach(y=>{
+    svg.appendChild(el('line',{x1:zBarX,y1:y,x2:zBarX+18,y2:y,stroke:'#4a7aaa','stroke-width':'0.5'}));
+  });
+
+  const moundX=toSVG(17,0.40).x;
+  const moundY=groundY;
+  const mound=el('ellipse',{cx:moundX,cy:moundY,rx:18,ry:6,fill:'#1a0e06',stroke:'#2a1a06','stroke-width':'0.5'});
+  svg.appendChild(mound);
+  svg.appendChild(txt('60\'6"',{x:moundX,y:moundY+18,fill:'#2a3a4a','font-size':'8','font-family':'DM Mono,monospace','text-anchor':'middle'}));
+
+  const plateX=toSVG(0,0.40).x;
+  svg.appendChild(txt('PLATE',{x:plateX,y:moundY+18,fill:'#2a3a4a','font-size':'8','font-family':'DM Mono,monospace','text-anchor':'middle'}));
+
+  [17,12,6,0].forEach(d=>{
+    const px=toSVG(d,0.40).x;
+    svg.appendChild(el('line',{x1:px,y1:groundY,x2:px,y2:groundY+6,stroke:'#2a3a4a','stroke-width':'0.5'}));
+  });
+
+  if(!seq.length){
+    svg.appendChild(txt('No pitches thrown — throw pitches in catcher view first',{x:W/2,y:H/2,fill:'#3a5a7a','font-size':'11','font-family':'DM Mono,monospace','text-anchor':'middle'}));
+    return;
+  }
+
+  for(let a=0;a<seq.length-1;a++){
+    for(let b=a+1;b<seq.length;b++){
+      const ptsA=seq[a].pts3d;
+      const ptsB=seq[b].pts3d;
+      const n=Math.min(ptsA.length,ptsB.length);
+      const s0=Math.floor(n*0.15);
+      const s1=Math.floor(n*0.72);
+      let tunnelPts=[];
+      for(let i=s0;i<s1;i++){
+        const dist=ptsA[i].distanceTo(ptsB[i]);
+        if(dist<=0.22){
+          const mx=(ptsA[i].x+ptsB[i].x)/2;
+          const my=(ptsA[i].y+ptsB[i].y)/2;
+          const mz=(ptsA[i].z+ptsB[i].z)/2;
+          tunnelPts.push({x:mx,y:my,z:mz});
+        }else if(tunnelPts.length>3){
+          break;
+        }
+      }
+      if(tunnelPts.length>=3){
+        const svgPts=tunnelPts.map(p=>toSVG(p.z,p.y));
+        const pathD='M'+svgPts.map(p=>p.x+','+p.y).join(' L');
+        svg.appendChild(el('path',{d:pathD,fill:'none',stroke:'#eab308','stroke-width':'12',opacity:'0.08','stroke-linecap':'round'}));
+        svg.appendChild(el('path',{d:pathD,fill:'none',stroke:'#fde047','stroke-width':'4',opacity:'0.18','stroke-linecap':'round'}));
+        const ep=svgPts[svgPts.length-1];
+        svg.appendChild(el('circle',{cx:ep.x,cy:ep.y,r:'8',fill:'none',stroke:'#eab308','stroke-width':'1.5',opacity:'0.85'}));
+        svg.appendChild(txt('DECISION',{x:ep.x,y:ep.y-14,fill:'#eab308','font-size':'7','font-family':'DM Mono,monospace','text-anchor':'middle'}));
+      }
+    }
+  }
+
+  seq.forEach((s,i)=>{
+    const col='#'+PITCHES[s.pk].color.toString(16).padStart(6,'0');
+    const pts=s.pts3d;
+    if(!pts||!pts.length) return;
+    const svgPts=pts.map(p=>toSVG(p.z,p.y));
+    const pathD='M'+svgPts[0].x+','+svgPts[0].y+svgPts.slice(1).map(p=>' L'+p.x+','+p.y).join('');
+    svg.appendChild(el('path',{d:pathD,fill:'none',stroke:col,'stroke-width':'2',opacity:'0.85','stroke-linecap':'round'}));
+    const lp=svgPts[svgPts.length-1];
+    svg.appendChild(el('circle',{cx:lp.x,cy:lp.y,r:'8',fill:col}));
+    svg.appendChild(txt(String(i+1),{x:lp.x,y:lp.y,fill:'white','font-size':'8','font-family':'DM Mono,monospace','text-anchor':'middle','dominant-baseline':'central','font-weight':'bold'}));
+  });
+
+  if(seq.length){
+    const rp=toSVG(seq[0].pts3d[0].z,seq[0].pts3d[0].y);
+    svg.appendChild(el('circle',{cx:rp.x,cy:rp.y,r:'5',fill:'#c084fc'}));
+    svg.appendChild(txt('REL',{x:rp.x-10,y:rp.y,fill:'#c084fc','font-size':'8','font-family':'DM Mono,monospace','text-anchor':'end','dominant-baseline':'central'}));
+  }
+
+  const legY=H-PAD_B+20;
+  let legX=PAD_L;
+  seq.forEach((s,i)=>{
+    const col='#'+PITCHES[s.pk].color.toString(16).padStart(6,'0');
+    svg.appendChild(el('circle',{cx:legX+6,cy:legY,r:'5',fill:col}));
+    svg.appendChild(txt(`${i+1}. ${PITCHES[s.pk].name} ${s.spd}mph`,{x:legX+14,y:legY,fill:'#8aabb8','font-size':'9','font-family':'DM Mono,monospace','dominant-baseline':'central'}));
+    legX+=Math.min(160,DRAW_W/seq.length);
+  });
+}
+
+let sideReplayTimer=null;
+function replaySideView(){
+  if(!seq.length) return;
+  if(sideReplayTimer){clearInterval(sideReplayTimer);sideReplayTimer=null;}
+
+  const svg=document.getElementById('sidesvg');
+  if(!svg) return;
+  const W=svg.clientWidth||700;
+  const H=svg.clientHeight||560;
+
+  // Layout constants — must match drawSideView exactly
+  const PAD_L=80;
+  const PAD_R=60;
+  const PAD_T=40;
+  const PAD_B=60;
+  const DRAW_W=W-PAD_L-PAD_R;
+  const DRAW_H=H-PAD_T-PAD_B;
+  const WORLD_Z_MIN=0;
+  const WORLD_Z_MAX=17;
+  const WORLD_Y_MIN=0.40;
+  const WORLD_Y_MAX=1.65;
+
+  function toSVG(wz,wy){
+    const sx=PAD_L+((WORLD_Z_MAX-wz)/(WORLD_Z_MAX-WORLD_Z_MIN))*DRAW_W;
+    const sy=PAD_T+((WORLD_Y_MAX-wy)/(WORLD_Y_MAX-WORLD_Y_MIN))*DRAW_H;
+    return {x:sx,y:sy};
+  }
+  function el(tag,attrs){
+    const e=document.createElementNS('http://www.w3.org/2000/svg',tag);
+    Object.entries(attrs).forEach(([k,v])=>e.setAttribute(k,v));
+    return e;
+  }
+  function txt(content,attrs){
+    const e=el('text',attrs);e.textContent=content;return e;
+  }
+
+  // Start with a clean base — draw everything EXCEPT pitch arcs and tunnels
+  // Redraw the static background elements only
+  drawSideView();
+
+  // Remove all pitch arcs, landing dots, tunnel corridors and decision points
+  // from the static draw so we can rebuild them incrementally
+  // We do this by removing elements with specific attributes we will re-add
+  // Actually — clear the svg and redraw base only
+  svg.innerHTML='';
+
+  // Redraw background, zones, zone bar, mound, plate, labels — no pitches, no tunnels
+  svg.appendChild(el('rect',{x:0,y:0,width:W,height:H,fill:'#0a0e1a'}));
+
+  const groundY=toSVG(0,0.40).y;
+  const zoneTop=toSVG(0,1.37);
+  const zoneBtm=toSVG(0,0.75);
+  const highY=toSVG(0,1.55).y;
+  const zoneMid1=toSVG(0,0.75+0.207);
+  const zoneMid2=toSVG(0,0.75+0.414);
+
+  // Zone bands
+  svg.appendChild(el('rect',{x:PAD_L,y:zoneBtm.y,width:DRAW_W,
+    height:groundY-zoneBtm.y,fill:'#1a0e06',opacity:0.4}));
+  svg.appendChild(el('rect',{x:PAD_L,y:zoneTop.y,width:DRAW_W,
+    height:zoneBtm.y-zoneTop.y,fill:'#0f2035',opacity:0.5}));
+  svg.appendChild(el('rect',{x:PAD_L,y:highY,width:DRAW_W,
+    height:zoneTop.y-highY,fill:'#091828',opacity:0.3}));
+
+  // Zone dividers
+  [zoneMid1.y,zoneMid2.y].forEach(y=>{
+    svg.appendChild(el('line',{x1:PAD_L,y1:y,x2:W-PAD_R,y2:y,
+      stroke:'#2a4a6a','stroke-width':'0.5','stroke-dasharray':'3 3'}));
+  });
+  [zoneTop.y,zoneBtm.y].forEach(y=>{
+    svg.appendChild(el('line',{x1:PAD_L,y1:y,x2:W-PAD_R,y2:y,
+      stroke:'#4a7aaa','stroke-width':'0.5'}));
+  });
+
+  // Ground line
+  svg.appendChild(el('line',{x1:PAD_L,y1:groundY,x2:W-PAD_R,y2:groundY,
+    stroke:'#2a3a2a','stroke-width':'1'}));
+
+  // Zone labels
+  [{label:'HIGH',y:(highY+zoneTop.y)/2},
+   {label:'ZONE',y:(zoneTop.y+zoneBtm.y)/2},
+   {label:'LOW', y:(zoneBtm.y+groundY)/2}].forEach(({label,y})=>{
+    svg.appendChild(txt(label,{x:PAD_L-8,y,fill:'#3a5a7a','font-size':'9',
+      'font-family':'DM Mono,monospace','text-anchor':'end','dominant-baseline':'central'}));
+  });
+
+  // Strike zone bar
+  const zBarX=W-PAD_R+8;
+  svg.appendChild(el('rect',{x:zBarX,y:zoneTop.y,width:18,
+    height:zoneBtm.y-zoneTop.y,fill:'#0f2840',stroke:'#7ec8e3','stroke-width':'1.5'}));
+  [zoneMid1.y,zoneMid2.y].forEach(y=>{
+    svg.appendChild(el('line',{x1:zBarX,y1:y,x2:zBarX+18,y2:y,
+      stroke:'#4a7aaa','stroke-width':'0.5'}));
+  });
+
+  // Mound and plate
+  const moundX=toSVG(17,0.40).x;
+  svg.appendChild(el('ellipse',{cx:moundX,cy:groundY,rx:18,ry:6,
+    fill:'#1a0e06',stroke:'#2a1a06','stroke-width':'0.5'}));
+  svg.appendChild(txt('60\'6"',{x:moundX,y:groundY+18,fill:'#2a3a4a','font-size':'8',
+    'font-family':'DM Mono,monospace','text-anchor':'middle'}));
+  svg.appendChild(txt('PLATE',{x:toSVG(0,0.40).x,y:groundY+18,fill:'#2a3a4a',
+    'font-size':'8','font-family':'DM Mono,monospace','text-anchor':'middle'}));
+
+  // Release point dot
+  if(seq.length){
+    const rp=toSVG(seq[0].pts3d[0].z,seq[0].pts3d[0].y);
+    svg.appendChild(el('circle',{cx:rp.x,cy:rp.y,r:'5',fill:'#c084fc'}));
+    svg.appendChild(txt('REL',{x:rp.x-10,y:rp.y,fill:'#c084fc','font-size':'8',
+      'font-family':'DM Mono,monospace','text-anchor':'end','dominant-baseline':'central'}));
+  }
+
+  // Legend at bottom
+  const legY=H-PAD_B+20;
+  let legX=PAD_L;
+  seq.forEach((s,i)=>{
+    const col='#'+PITCHES[s.pk].color.toString(16).padStart(6,'0');
+    svg.appendChild(el('circle',{cx:legX+6,cy:legY,r:'5',fill:col}));
+    svg.appendChild(txt(`${i+1}. ${PITCHES[s.pk].name} ${s.spd}mph`,{
+      x:legX+14,y:legY,fill:'#8aabb8','font-size':'9',
+      'font-family':'DM Mono,monospace','dominant-baseline':'central'}));
+    legX+=Math.min(160,DRAW_W/seq.length);
+  });
+
+  // Helper to check if two pitch sequences tunnel at a given index pair
+  function getTunnelPath(ptsA, ptsB){
+    const n=Math.min(ptsA.length,ptsB.length);
+    const s0=Math.floor(n*0.15);
+    const s1=Math.floor(n*0.72);
+    let tunnelPts=[];
+    for(let i=s0;i<s1;i++){
+      const dist=ptsA[i].distanceTo(ptsB[i]);
+      if(dist<=0.22){
+        const mx=(ptsA[i].x+ptsB[i].x)/2;
+        const my=(ptsA[i].y+ptsB[i].y)/2;
+        const mz=(ptsA[i].z+ptsB[i].z)/2;
+        tunnelPts.push({x:mx,y:my,z:mz});
+      } else if(tunnelPts.length>3){
+        break;
+      }
+    }
+    return tunnelPts.length>=3?tunnelPts:null;
+  }
+
+  // Helper to draw a single pitch arc and landing dot
+  function drawPitchArc(s, i){
+    const col='#'+PITCHES[s.pk].color.toString(16).padStart(6,'0');
+    const pts=s.pts3d;
+    if(!pts||!pts.length) return;
+    const svgPts=pts.map(p=>toSVG(p.z,p.y));
+    const pathD='M'+svgPts[0].x+','+svgPts[0].y+
+      svgPts.slice(1).map(p=>' L'+p.x+','+p.y).join('');
+    svg.appendChild(el('path',{d:pathD,fill:'none',stroke:col,
+      'stroke-width':'2',opacity:'0.85','stroke-linecap':'round'}));
+    const lp=svgPts[svgPts.length-1];
+    svg.appendChild(el('circle',{cx:lp.x,cy:lp.y,r:'8',fill:col}));
+    svg.appendChild(txt(String(i+1),{x:lp.x,y:lp.y,fill:'white','font-size':'8',
+      'font-family':'DM Mono,monospace','text-anchor':'middle',
+      'dominant-baseline':'central','font-weight':'bold'}));
+  }
+
+  // Helper to draw tunnel corridor between two pitches
+  function drawTunnelCorridor(tunnelPts){
+    const svgPts=tunnelPts.map(p=>toSVG(p.z,p.y));
+    const pathD='M'+svgPts.map(p=>p.x+','+p.y).join(' L');
+    // Wide gold glow
+    svg.appendChild(el('path',{d:pathD,fill:'none',stroke:'#eab308',
+      'stroke-width':'12',opacity:'0.08','stroke-linecap':'round'}));
+    // Inner gold line
+    svg.appendChild(el('path',{d:pathD,fill:'none',stroke:'#fde047',
+      'stroke-width':'4',opacity:'0.18','stroke-linecap':'round'}));
+    // Decision point ring at end
+    const ep=svgPts[svgPts.length-1];
+    svg.appendChild(el('circle',{cx:ep.x,cy:ep.y,r:'8',fill:'none',
+      stroke:'#eab308','stroke-width':'1.5',opacity:'0.85'}));
+    svg.appendChild(txt('DECISION',{x:ep.x,y:ep.y-14,fill:'#eab308',
+      'font-size':'7','font-family':'DM Mono,monospace','text-anchor':'middle'}));
+  }
+
+  // INCREMENTAL REPLAY — show pitches one at a time, accumulating
+  // After each pitch check if it tunnels with any previous pitch
+  // If yes draw the tunnel corridor immediately
+  const drawnPitches=[];
+  let replayIndex=0;
+
+  sideReplayTimer=setInterval(()=>{
+    if(replayIndex>=seq.length){
+      clearInterval(sideReplayTimer);
+      sideReplayTimer=null;
+      return;
+    }
+
+    const s=seq[replayIndex];
+    // Draw this pitch arc
+    drawPitchArc(s,replayIndex);
+
+    // Check if this pitch tunnels with any previously drawn pitch
+    drawnPitches.forEach(prev=>{
+      const tunnelPts=getTunnelPath(prev.pts3d,s.pts3d);
+      if(tunnelPts){
+        // Draw tunnel corridor immediately alongside this pitch
+        drawTunnelCorridor(tunnelPts);
+      }
+    });
+
+    // Add this pitch to the drawn list
+    drawnPitches.push(s);
+    replayIndex++;
+  },900);
+}
+
+function makeOutcomeSprite(outcome){
+  const palette=simSpritePalette(outcome);
+  const tc=document.createElement('canvas');
+  const cw=232,ch=54;
+  tc.width=cw;tc.height=ch;
+  const tx=tc.getContext('2d');
+  tx.fillStyle=palette.bg;
+  tx.strokeStyle=palette.bd;
+  tx.lineWidth=2;
+  const r=8,x=4,y=4,w=cw-8,h=ch-8;
+  tx.beginPath();tx.moveTo(x+r,y);tx.lineTo(x+w-r,y);tx.quadraticCurveTo(x+w,y,x+w,y+r);tx.lineTo(x+w,y+h-r);tx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);tx.lineTo(x+r,y+h);tx.quadraticCurveTo(x,y+h,x,y+h-r);tx.lineTo(x,y+r);tx.quadraticCurveTo(x,y,x+r,y);tx.closePath();
+  tx.fill();tx.stroke();
+  tx.fillStyle=palette.fg;
+  tx.textAlign='center';tx.textBaseline='middle';
+  let fontPx=14;
+  if(outcome.length>16) fontPx=12;
+  if(outcome.length>22) fontPx=10;
+  tx.font='bold '+fontPx+'px DM Mono, monospace';
+  tx.fillText(outcome,cw/2,ch/2);
+  const spr=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(tc),transparent:true,opacity:0.95}));
+  spr.scale.set(0.2,0.048,1);
+  spr.position.set(0,0.075,0);
+  return spr;
+}
+function addLanding(pos,color,mph,outcome){
+  const g=new THREE.Group();
+  g.add(new THREE.Mesh(new THREE.SphereGeometry(ORB_R,12,12),new THREE.MeshBasicMaterial({color,wireframe:true,opacity:0.55,transparent:true})));
+  const tc=document.createElement('canvas');tc.width=64;tc.height=64;const tx=tc.getContext('2d');tx.clearRect(0,0,64,64);tx.fillStyle='#ffffff';tx.textAlign='center';tx.textBaseline='middle';tx.font='bold 18px sans-serif';tx.fillText(String(mph),32,22);tx.font='bold 11px sans-serif';tx.fillText('mph',32,40);
+  const spr=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(tc),transparent:true,opacity:0.92}));spr.scale.set(0.055,0.055,1);g.add(spr);
+  g.position.set(pos.x,pos.y,pos.z);scene.add(g);landObjs.push(g);
+}
+function animBall(pts,color,ms,onDone){
+  const ball=new THREE.Mesh(new THREE.SphereGeometry(0.055,10,10),new THREE.MeshBasicMaterial({color}));scene.add(ball);const t0=performance.now();
+  (function step(){const t=Math.min((performance.now()-t0)/ms,1);ball.position.copy(pts[Math.floor(t*(pts.length-1))]);t<1?requestAnimationFrame(step):(scene.remove(ball),onDone&&onDone());})();
+}
+
+function showOutcomeFlash(outcome){
+  if(!outcome) return;
+  const el=document.getElementById('outcome-flash');
+  if(!el) return;
+
+  if(['SWING & MISS','STRIKEOUT','CALLED STRIKE','STRIKE'].includes(outcome)){
+    el.style.color='#4ade80';
+  } else if(outcome==='CHECK SWING'||
+    outcome==='CHECK SWING (STRIKE)'||
+    outcome==='CHECK SWING (BALL)'){
+    el.style.color='#a78bfa';
+  } else if(['BALL','WALK','CALLED BALL'].includes(outcome)){
+    el.style.color='#f87171';
+  } else if(['FOUL','FOUL (PULLED)','FOUL (LATE)',
+    'FOUL (STRAIGHT BACK)'].includes(outcome)){
+    el.style.color='#fbbf24';
+  } else if(['HOME RUN','TRIPLE','DOUBLE','SINGLE'].includes(outcome)){
+    el.style.color='#f87171';
+  } else if(['GROUND OUT','POP FLY'].includes(outcome)){
+    el.style.color='#4ade80';
+  } else {
+    el.style.color='#ffffff';
+  }
+
+  el.textContent=outcome;
+  el.classList.add('visible');
+  el.style.display='block';
+
+  setTimeout(()=>{
+    el.classList.remove('visible');
+    setTimeout(()=>{
+      el.style.display='none';
+    },150);
+  },2000);
+}
+
+function commitPitch(pts3d,pk,zk,spd,bd,rl,ct,outcome){
+  // Sim mode: no pitch limit — at bat plays out naturally
+  // Planning mode: 6 pitch default, 12 with extension
+  if(simMode){
+    // No limit in sim mode
+  }else{
+    const planLimit=extendedAtBat?12:6;
+    if(seq.length>=planLimit)return;
+  }
+  const col=PITCHES[pk].color;
+  pathObjs.push(line3D(pts3d,col,0.88,3));
+  animBall(pts3d,col,PITCHES[pk].ms,()=>{
+    addLanding(pts3d[pts3d.length-1],col,spd,outcome);
+    showOutcomeFlash(outcome);
+  });
+  // Detect tunnel against all previous pitches and store best tunnel found
+  let tunnelData={detected:false,length:0,prevIndex:-1,prevPk:'',prevSpd:0};
+  if(seq.length>0){
+    const n=pts3d.length;
+    const s0=Math.floor(n*TUNNEL_START);
+    const s1=Math.floor(n*TUNNEL_END);
+    const windowSize=s1-s0;
+    let bestTunnel={detected:false,length:0,prevIndex:-1,prevPk:'',prevSpd:0};
+    for(let si=seq.length-1;si>=Math.max(0,seq.length-3);si--){
+      const prev=seq[si];
+      if(!prev.pts3d||!prev.pts3d.length) continue;
+      let tunnelPoints=0;
+      for(let i=s0;i<s1;i++){
+        const pA=pts3d[i];
+        const pB=prev.pts3d[Math.min(i,prev.pts3d.length-1)];
+        if(pA&&pB&&pA.distanceTo(pB)<=TUNNEL_THRESH) tunnelPoints++;
+      }
+      const tunnelLength=windowSize>0?tunnelPoints/windowSize:0;
+      if(tunnelLength>0.10&&tunnelLength>bestTunnel.length){
+        bestTunnel={
+          detected:true,
+          length:tunnelLength,
+          prevIndex:si,
+          prevPk:prev.pk,
+          prevSpd:prev.spd
+        };
+      }
+    }
+    tunnelData=bestTunnel;
+  }
+  const foulType=(outcome==='FOUL'||
+    outcome==='FOUL (PULLED)'||
+    outcome==='FOUL (LATE)'||
+    outcome==='FOUL (STRAIGHT BACK)')?
+    (window.__lastFoulType||null):null;
+  const checkSwing=(outcome==='CHECK SWING'||
+    outcome==='CHECK SWING (STRIKE)'||
+    outcome==='CHECK SWING (BALL)')?
+    (window.__lastCheckSwing||null):null;
+  window.__lastFoulType=null;
+  window.__lastCheckSwing=null;
+  // Trigger SRE hint if enabled
+  if(sreEnabled) setTimeout(()=>showSREHint(),800);
+  seq.push({pk,zk,spd,bd,role:rl,count:ct,outcome:outcome||'',
+    foulType,checkSwing,
+    inning:typeof inningNumber!=='undefined'?inningNumber:1,
+    batterHand:typeof batter!=='undefined'?batter:'RHB',
+    batterType:typeof secretBatterType!=='undefined'&&secretBatterType?
+      secretBatterType:(typeof batterType!=='undefined'?batterType:'GENERIC'),
+    pts3d:pts3d.map(v=>v.clone()),tunnelData});
+  if(typeof applyAnchorHighlight==='function') applyAnchorHighlight();
+  updateSeqUI();buildTunnels();
+  // Save at-bat to orbit history when at-bat ends
+  const AT_BAT_ENDINGS=['STRIKEOUT','WALK','SINGLE','DOUBLE',
+    'TRIPLE','HOME RUN','GROUND OUT','POP FLY'];
+  if(outcome&&AT_BAT_ENDINGS.includes(outcome)){
+    orbitSaveAtBat();
+  }
+  if(currentView==='side') drawSideView();
+  saveSimState();
+}
+
+function throwPitch(){
+  if(!simMode){
+    const planLimit=extendedAtBat?12:6;
+    if(seq.length>=planLimit)return;
+  }
+  if(simMode) cancelSimScheduledClear();
+  const spd=parseInt(document.getElementById('spd').value,10),bd=typeof getBdMode==='function'?getBdMode():false;
+  const ctBefore=pitchCount;
+  const strikesAtStart=strikeCount;
+  let outcome='';
+  if(simMode){
+    simInningLogPending=false;
+    pitchesInAtBat++;
+    const pitchNm=PITCHES[pitch].name;
+    if(isEdgeOrCornerZone(zone)){
+      outcome=getEdgeZoneOutcome(zone,strikeCount,role,bd,ctBefore,strikesAtStart);
+      handleSimOutcome(pitchNm,outcome);
+    }else{
+      let raw=simulateOutcome(zone,role,bd,ctBefore);
+      raw=getContactSubOutcome(raw);
+      outcome=applySimCountOutcome(raw,strikesAtStart);
+      const prominent=outcome==='WALK'||outcome==='STRIKEOUT';
+      const showLbl=(batterType!=='RANDOM')||batterRevealed;
+      addSimLogEntry((showLbl?'['+getBatterSimLogLabel()+'] ':'')+pitchNm+' → '+outcome,outcome,prominent);
+      if(typeof incrementPitchCount==='function') incrementPitchCount();
+      if(typeof onSimPitchRecorded==='function') onSimPitchRecorded(zone,pitch,outcome);
+    }
+    if(batterType==='RANDOM'&&!batterRevealed){
+      const revealByPitch=pitchesInAtBat>=4;
+      const revealByContact=['FOUL','FOUL (PULLED)',
+        'FOUL (LATE)','FOUL (STRAIGHT BACK)',
+        'CHECK SWING','CHECK SWING (STRIKE)',
+        'CHECK SWING (BALL)','GROUND OUT','POP FLY',
+        'SINGLE','DOUBLE','TRIPLE','HOME RUN']
+        .includes(outcome);
+      const revealByEnd=['WALK','STRIKEOUT'].includes(outcome);
+      if(revealByPitch||revealByContact||revealByEnd){
+        batterRevealed=true;
+        addSimLogEntry('BATTER REVEALED: '+getBatterSimLogLabel(),'BATTER REVEALED',true);
+      }
+    }
+    if(simInningLogPending){simInningLogPending=false;pushSimInningOver();}
+    if(outcome==='FOUL (PULLED)') window.__lastFoulType='PULLED';
+    else if(outcome==='FOUL (LATE)') window.__lastFoulType='LATE';
+    else if(outcome==='FOUL (STRAIGHT BACK)') window.__lastFoulType='STRAIGHT_BACK';
+  }
+  commitPitch(makeCurve(pitch,zone,bd).getPoints(90).map(v=>v.clone()),pitch,zone,spd,bd,role,ctBefore,outcome);
+
+  // Courage pitch and danger zone log — runs after every pitch
+  if(simMode){
+    const clm=window.__lastCountLocMod;
+    // debug removed
+    if(clm){
+      if(clm.isCourage){
+        if(['SWING & MISS','STRIKEOUT','CALLED STRIKE','FOUL',
+          'FOUL (PULLED)','FOUL (LATE)','FOUL (STRAIGHT BACK)'].includes(outcome)){
+          addSimLogEntry('COURAGE PITCH — unexpected location paid off',outcome,false);
+        } else if(outcome==='WALK'){
+          addSimLogEntry('COURAGE PITCH — brave call, work on command',outcome,false);
+        }
+      }
+      if(clm.isDanger&&['SINGLE','DOUBLE','TRIPLE','HOME RUN','GROUND OUT','POP FLY'].includes(outcome)){
+        addSimLogEntry('DANGER ZONE — batter was sitting on that location',outcome,false);
+      }
+      window.__lastCountLocMod=null;
+    }
+  }
+}
+
+function replaySeq(){
+  if(!seq.length)return;
+  pathObjs.forEach(o=>removeObj(o));pathObjs=[];landObjs.forEach(o=>scene.remove(o));landObjs=[];clearTunnels();
+  let i=0;
+  function next(){if(i>=seq.length){buildTunnels();return;}const s=seq[i++];const pts=s.pts3d.map(v=>new THREE.Vector3(v.x,v.y,v.z));pathObjs.push(line3D(pts,PITCHES[s.pk].color,0.88,3));animBall(pts,PITCHES[s.pk].color,PITCHES[s.pk].ms,()=>{addLanding(pts[pts.length-1],PITCHES[s.pk].color,s.spd,s.outcome);setTimeout(next,350);});}
+  next();
+}
+function rebuildPaths(){
+  pathObjs.forEach(o=>removeObj(o));pathObjs=[];landObjs.forEach(o=>scene.remove(o));landObjs=[];
+  seq.forEach(s=>{const pts=s.pts3d.map(v=>new THREE.Vector3(v.x,v.y,v.z));pathObjs.push(line3D(pts,PITCHES[s.pk].color,0.88,3));addLanding(pts[pts.length-1],PITCHES[s.pk].color,s.spd,s.outcome);});
+  buildTunnels();
+}
+function clearAll(){
+  cancelSimScheduledClear();
+  extendedAtBat=false;
+  const btn=document.getElementById('extendbtn');
+  if(btn){
+    btn.textContent='EXTEND AT BAT';
+    btn.classList.remove('active');
+  }
+  seq=[];simLog=[];outCount=0;inningNumber=1;simHalfTop=true;
+  simInningBreak=false;simInningLogPending=false;pitchesInAtBat=0;batterRevealed=false;secretBatterType='';
+  hideSimAdvanceButton();
+  updateSimStatBar();
+  pathObjs.forEach(o=>removeObj(o));pathObjs=[];landObjs.forEach(o=>scene.remove(o));landObjs=[];clearTunnels();updateSeqUI();updateSimLogUI();
+  if(typeof applyAnchorHighlight==='function') applyAnchorHighlight();
+  zone='MM';
+  setTargetMode('ZONE');
+  if(currentView==='side') drawSideView();
+  clearSimStateSession();
+}
+
+function updateSeqUI(){
+  const el=document.getElementById('seqlist');el.innerHTML='';
+  seq.forEach((s,i)=>{
+    const hex='#'+PITCHES[s.pk].color.toString(16).padStart(6,'0');
+    const d=document.createElement('div');d.className='sitem';
+    if(s.role==='PUTAWAY')d.style.background='rgba(239,68,68,0.06)';
+    const isPitcher=PITCHER_COUNTS.includes(s.count);
+    const isHitter=HITTER_COUNTS.includes(s.count);
+    const r1=document.createElement('div');r1.className='srow1';
+    r1.innerHTML=`<span style="color:${hex};font-size:10px;">&#9679;</span><span style="font-size:9px;color:#c8d8e8;flex:1;">${i+1}. ${PITCHES[s.pk].name}</span><span style="color:#5a8aaa;font-size:8px;">${s.spd} mph</span>`;
+    const r2=document.createElement('div');r2.className='srow2';
+    const ctCls='ctag'+(isPitcher?' pitcher':isHitter?' hitter':'');
+    r2.innerHTML=`<span class="${ctCls}">${s.count}</span><span class="rtag rtag-${s.role}">${s.role}</span>`+(s.bd?'<span class="bdtag">BD</span>':'');
+    d.appendChild(r1);d.appendChild(r2);el.appendChild(d);
+  });
+  document.getElementById('seqn').textContent=seq.length;
+  const limitEl=document.getElementById('seqlimit');
+  if(limitEl){
+    if(simMode) limitEl.textContent='/∞';
+    else limitEl.textContent=extendedAtBat?'/12':'/6';
+  }
+  const ew=document.getElementById('extendwrap');
+  if(ew) ew.style.display=simMode?'none':'block';
+}
+
+let currentNotesOutcome='UNTESTED';
+
+function showOpponentSuggestions(){
+  const opps=getOpponents();
+  renderOpponentSuggestions(opps);
+}
+
+function filterOpponentSuggestions(){
+  const input=document.getElementById('planopp');
+  if(!input)return;
+  const val=input.value.toLowerCase();
+  const opps=getOpponents().filter(o=>o.toLowerCase().includes(val));
+  renderOpponentSuggestions(opps);
+}
+
+function renderOpponentSuggestions(opps){
+  const box=document.getElementById('oppsuggest');
+  if(!box)return;
+  if(!opps.length){box.style.display='none';return;}
+  box.innerHTML='';
+  opps.forEach(o=>{
+    const d=document.createElement('div');
+    d.textContent=o;
+    d.style.cssText='padding:5px 8px;font-size:9px;color:#8aabb8;cursor:pointer;font-family:DM Mono,monospace;';
+    d.onmousedown=()=>{
+      const input=document.getElementById('planopp');
+      if(input) input.value=o;
+      box.style.display='none';
+    };
+    d.onmouseover=()=>{d.style.background='#111e2e';};
+    d.onmouseout=()=>{d.style.background='';};
+    box.appendChild(d);
+  });
+  box.style.display='block';
+}
+
+function hideOpponentSuggestions(){
+  setTimeout(()=>{
+    const box=document.getElementById('oppsuggest');
+    if(box) box.style.display='none';
+  },200);
+}
+
+function filterPlansByOpponent(){
+  refreshPlanDropdown();
+}
+
+function openNotesModal(){
+  const planId=window.loadedPlanId;
+  if(!planId)return;
+  const plan=getSavedPlans().find(p=>p.id===planId);
+  if(!plan)return;
+  document.getElementById('notesplanname').textContent=(plan.name||'')+(plan.opponent?' · '+plan.opponent:'');
+  document.getElementById('notesbaatter').value=plan.batterNotes||'';
+  document.getElementById('notesgame').value=plan.gameNotes||'';
+  currentNotesOutcome=plan.outcome||'UNTESTED';
+  updateOutcomeBtns();
+  document.getElementById('notesoverlay').style.display='flex';
+}
+
+function closeNotesModal(){
+  const overlay=document.getElementById('notesoverlay');
+  if(overlay) overlay.style.display='none';
+}
+
+function setOutcome(o){
+  currentNotesOutcome=o;
+  updateOutcomeBtns();
+}
+
+function updateOutcomeBtns(){
+  document.querySelectorAll('.outcomebtn').forEach(b=>{
+    b.classList.toggle('active',b.dataset.outcome===currentNotesOutcome);
+  });
+}
+
+function saveNotes(){
+  const planId=window.loadedPlanId;
+  if(!planId)return;
+  updatePlanField(planId,{
+    batterNotes:document.getElementById('notesbaatter').value,
+    gameNotes:document.getElementById('notesgame').value,
+    outcome:currentNotesOutcome
+  });
+  closeNotesModal();
+  refreshPlanDropdown(planId);
+}
+
+if(typeof toggleSimMode==='function'){
+  const __origToggleSimMode=toggleSimMode;
+  toggleSimMode=function(){
+    const result=__origToggleSimMode.apply(this,arguments);
+    updateSeqUI();
+    if(typeof updateZoneGlows==='function') updateZoneGlows();
+    // Show SRE reminder first time sim mode is turned on
+    if(typeof simMode!=='undefined'&&simMode){
+      // Set tutorialActive FIRST before any other checks fire
+      if(!localStorage.getItem('pitchseq-tutorial-basic-seen')){
+        tutorialActive=true;
+        window.tutorialActive=true;
+      }
+      // Check if tutorial needs to show
+      if(tutorialActive&&!localStorage.getItem('pitchseq-tutorial-basic-seen')){
+        setTimeout(()=>showTutorialPrompt(),400);
+      } else {
+        if(!tutorialActive) showSimBannerIfNeeded();
+      }
+    }
+    return result;
+  };
+}
+
+// ── ORBIT VIEW ENGINE ──
+let orbitRenderer=null;
+let orbitScene=null;
+let orbitCamera=null;
+let orbitControls=null;
+let orbitAnimFrame=null;
+let orbitPitchIndex=-1;
+let orbitPlaying=false;
+let orbitPlayTimer=null;
+let orbitIsolation=[];
+let orbitTunnelClusters=[];
+let orbitTunnelClusterIndex=0;
+let orbitBallMesh=null;
+let orbitBallAnimTimer=null;
+let orbitPlayMode=false;
+let orbitStaticPaths=[];
+let orbitStaticOrbs=[];
+let orbitStaticTunnels=[];
+let orbitDrawnPitchIndices=[];
+let orbitPlayedIndices=[];
+let orbitSoloMode=false;
+let orbitLastTunnelPair=[-1,-1];
+let orbitSoloPitchIndex=-1;
+let orbitSoloStaticPaths=[];
+let orbitSoloStaticTunnels=[];
+let orbitFrameStepMode=false;
+let orbitFrameStepPts=[];
+let orbitFrameStepIndex=0;
+let orbitFrameStepLine=null;
+let orbitFrameStepPitchIdx=-1;
+let orbitFrameStepTunnelRevealed=false;
+let orbitTouchStartX=0;
+let orbitTouchStartY=0;
+let orbitTouchStartTime=0;
+let orbitAtBatHistory=[];
+let orbitAtBatHistoryIndex=-1;
+const ORBIT_MAX_AT_BATS=5;
+let orbitDisplaySeq=[];
+
+function initOrbitView(){
+  const container=document.getElementById('orbitview');
+  const canvas=document.getElementById('orbitcanvas');
+  if(!container||!canvas) return;
+
+  // Size canvas to container
+  const W=container.clientWidth||760;
+  const H=container.clientHeight||560;
+
+  // Initialize renderer once
+  if(!orbitRenderer){
+    orbitRenderer=new THREE.WebGLRenderer({canvas,antialias:true,alpha:false});
+    orbitRenderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
+    orbitRenderer.setClearColor(0x0a0e1a,1);
+  }
+  orbitRenderer.setSize(W,H);
+
+  // Scene
+  orbitScene=new THREE.Scene();
+  orbitScene.background=new THREE.Color(0x0a0e1a);
+
+  // Camera — start from catcher perspective looking toward mound
+  orbitCamera=new THREE.PerspectiveCamera(52,W/H,0.01,100);
+  orbitCamera.position.set(0,1.06,-1.2);
+  orbitCamera.lookAt(0,1.06,10);
+
+  // OrbitControls
+  orbitControls=new THREE.OrbitControls(orbitCamera,canvas);
+  orbitDisplaySeq=seq;
+  const initTarget=(orbitDisplaySeq&&orbitDisplaySeq.length&&
+    orbitDisplaySeq[0].pts3d&&orbitDisplaySeq[0].pts3d.length)
+    ? orbitDisplaySeq[0].pts3d[0]
+    : {x:0,y:1.5,z:17};
+  orbitControls.target.set(initTarget.x,initTarget.y,initTarget.z);
+  orbitControls.enableDamping=true;
+  orbitControls.dampingFactor=0.18;
+  orbitControls.minDistance=0.5;
+  orbitControls.maxDistance=25;
+  orbitControls.enablePan=true;
+  orbitControls.panSpeed=0.5;
+  orbitControls.rotateSpeed=window.innerWidth<=600?0.35:0.28;
+  orbitControls.zoomSpeed=window.innerWidth<=600?0.35:0.5;
+  orbitControls.screenSpacePanning=true;
+  orbitControls.touches={
+    ONE:THREE.TOUCH.ROTATE,
+    TWO:THREE.TOUCH.DOLLY_PAN
+  };
+  orbitControls.update();
+
+  // Initialize isolation to all pitches visible
+  orbitIsolation=orbitDisplaySeq.map((_,i)=>i);
+  orbitPlayedIndices=[];
+  orbitSoloMode=false;
+  orbitSoloPitchIndex=-1;
+  orbitSoloStaticPaths=[];
+  orbitSoloStaticTunnels=[];
+  orbitFrameStepMode=false;
+  orbitFrameStepPts=[];
+  orbitFrameStepIndex=0;
+  orbitFrameStepLine=null;
+  orbitFrameStepPitchIdx=-1;
+  orbitFrameStepTunnelRevealed=false;
+  orbitAtBatHistoryIndex=-1;
+  orbitUpdateAtBatSelector();
+  orbitPitchIndex=-1;
+
+  // Detect tunnel clusters (before scene so highlights can render)
+  detectOrbitTunnels();
+
+  // Build scene contents
+  buildOrbitScene();
+
+  // Build toolbar
+  buildOrbitToolbar();
+
+  if(window.innerWidth<=600){
+    orbitUpdateMobileHUD();
+    orbitUpdateMobilePlayBtn();
+    orbitUpdateMobileStepBtns();
+  }
+
+  // Start render loop
+  if(orbitAnimFrame) cancelAnimationFrame(orbitAnimFrame);
+  orbitLoop();
+
+  // Handle resize
+  window.addEventListener('resize',onOrbitResize);
+}
+
+function onOrbitResize(){
+  if(currentView!=='orbit') return;
+  const container=document.getElementById('orbitview');
+  if(!container||!orbitRenderer||!orbitCamera) return;
+  const W=container.clientWidth;
+  const H=container.clientHeight;
+  orbitRenderer.setSize(W,H);
+  orbitCamera.aspect=W/H;
+  orbitCamera.updateProjectionMatrix();
+}
+
+function orbitLoop(){
+  orbitAnimFrame=requestAnimationFrame(orbitLoop);
+  if(orbitControls) orbitControls.update();
+  if(orbitRenderer&&orbitScene&&orbitCamera){
+    orbitRenderer.render(orbitScene,orbitCamera);
+  }
+}
+
+function buildOrbitScene(){
+  if(!orbitScene) return;
+  while(orbitScene.children.length>0) orbitScene.remove(orbitScene.children[0]);
+  orbitStaticPaths=[];
+  orbitStaticOrbs=[];
+  orbitStaticTunnels=[];
+  orbitScene.add(new THREE.AmbientLight(0xffffff,0.8));
+  buildOrbitStrikeZone();
+  buildOrbitHomePlate();
+  buildOrbitMound();
+  buildOrbitBatter();
+  if(!orbitPlayMode){
+    buildOrbitPitchPaths();
+    buildOrbitLandingOrbs();
+    buildOrbitTunnelHighlights();
+  }
+}
+
+function buildOrbitStrikeZone(){
+  const mat=new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:0.85});
+  const pts=[
+    new THREE.Vector3(-0.24,1.37,0.12),
+    new THREE.Vector3(0.24,1.37,0.12),
+    new THREE.Vector3(0.24,0.75,0.12),
+    new THREE.Vector3(-0.24,0.75,0.12),
+    new THREE.Vector3(-0.24,1.37,0.12)
+  ];
+  const geo=new THREE.BufferGeometry().setFromPoints(pts);
+  orbitScene.add(new THREE.Line(geo,mat));
+
+  // Zone grid lines
+  const gridMat=new THREE.LineBasicMaterial({color:0xffffff,transparent:true,opacity:0.6});
+  const vLines=[[-0.08,0.75,0.12,-0.08,1.37,0.12],[0.08,0.75,0.12,0.08,1.37,0.12]];
+  const hLines=[[-0.24,0.957,0.12,0.24,0.957,0.12],[-0.24,1.163,0.12,0.24,1.163,0.12]];
+  [...vLines,...hLines].forEach(([x1,y1,z1,x2,y2,z2])=>{
+    const g=new THREE.BufferGeometry().setFromPoints([
+      new THREE.Vector3(x1,y1,z1),new THREE.Vector3(x2,y2,z2)
+    ]);
+    orbitScene.add(new THREE.Line(g,gridMat));
+  });
+}
+
+function buildOrbitHomePlate(){
+  const shape=new THREE.Shape();
+  shape.moveTo(-0.215,0);shape.lineTo(0.215,0);
+  shape.lineTo(0.215,0.12);shape.lineTo(0,0.30);
+  shape.lineTo(-0.215,0.12);shape.closePath();
+  const geo=new THREE.ShapeGeometry(shape);
+  const mat=new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0.85,side:THREE.DoubleSide});
+  const plate=new THREE.Mesh(geo,mat);
+  plate.rotation.x=-Math.PI/2;
+  plate.position.set(0,0.01,0);
+  orbitScene.add(plate);
+}
+
+function buildOrbitMound(){
+  const geo=new THREE.CylinderGeometry(0.4,0.5,0.25,16);
+  const mat=new THREE.MeshBasicMaterial({color:0x3a2a1a,transparent:true,opacity:0.7});
+  const mound=new THREE.Mesh(geo,mat);
+  mound.position.set(0,0.125,17);
+  orbitScene.add(mound);
+
+  // Rubber
+  const rubberGeo=new THREE.BoxGeometry(0.6,0.05,0.15);
+  const rubberMat=new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:0.9});
+  const rubber=new THREE.Mesh(rubberGeo,rubberMat);
+  rubber.position.set(0,0.275,17.1);
+  orbitScene.add(rubber);
+}
+
+function buildOrbitBatter(){
+  // Batter silhouette using simple geometry
+  const batMat=new THREE.MeshBasicMaterial({color:0x1a3a5a,transparent:true,opacity:0.55,side:THREE.DoubleSide});
+
+  // Determine batter side
+  const isLHB=(typeof batter!=='undefined'&&batter==='LHB');
+  const sideX=isLHB?-0.45:0.45;
+
+  // Body
+  const bodyGeo=new THREE.CylinderGeometry(0.12,0.14,0.7,8);
+  const body=new THREE.Mesh(bodyGeo,batMat);
+  body.position.set(sideX,0.75,0.05);
+  orbitScene.add(body);
+
+  // Head
+  const headGeo=new THREE.SphereGeometry(0.12,8,8);
+  const head=new THREE.Mesh(headGeo,batMat);
+  head.position.set(sideX,1.17,0.05);
+  orbitScene.add(head);
+
+  // Helmet brim
+  const brimGeo=new THREE.CylinderGeometry(0.14,0.14,0.04,8);
+  const brim=new THREE.Mesh(brimGeo,batMat);
+  brim.position.set(sideX+(isLHB?-0.06:0.06),1.22,0.05);
+  orbitScene.add(brim);
+
+  // Legs
+  [-0.06,0.06].forEach(ox=>{
+    const legGeo=new THREE.CylinderGeometry(0.06,0.06,0.45,6);
+    const leg=new THREE.Mesh(legGeo,batMat);
+    leg.position.set(sideX+ox,0.225,0.05);
+    orbitScene.add(leg);
+  });
+
+  // Bat
+  const batGeo=new THREE.CylinderGeometry(0.02,0.035,0.85,6);
+  const batMesh=new THREE.Mesh(batGeo,new THREE.MeshBasicMaterial({color:0x8b4513,transparent:true,opacity:0.8}));
+  batMesh.rotation.z=isLHB?Math.PI/6:-Math.PI/6;
+  batMesh.rotation.x=-Math.PI/5;
+  batMesh.position.set(isLHB?sideX-0.15:sideX+0.15,1.35,0.18);
+  orbitScene.add(batMesh);
+}
+
+function buildOrbitPitchPaths(){
+  if(!orbitDisplaySeq.length) return;
+  orbitDisplaySeq.forEach((s,i)=>{
+    if(!orbitIsolation.includes(i)) return;
+    const col=PITCHES[s.pk].color;
+    const pts=s.pts3d.map(v=>new THREE.Vector3(v.x,v.y,v.z));
+    const mat=new THREE.LineBasicMaterial({color:col,transparent:true,opacity:0.85,linewidth:2});
+    const geo=new THREE.BufferGeometry().setFromPoints(pts);
+    orbitScene.add(new THREE.Line(geo,mat));
+  });
+}
+
+function buildOrbitLandingOrbs(){
+  if(!orbitDisplaySeq.length) return;
+  orbitDisplaySeq.forEach((s,i)=>{
+    if(!orbitIsolation.includes(i)) return;
+    const col=PITCHES[s.pk].color;
+    const pts=s.pts3d;
+    if(!pts||!pts.length) return;
+    const last=pts[pts.length-1];
+    const pos=new THREE.Vector3(last.x,last.y,last.z);
+    const geo=new THREE.SphereGeometry(0.055,10,10);
+    const mat=new THREE.MeshBasicMaterial({color:col,wireframe:true,transparent:true,opacity:0.6});
+    const orb=new THREE.Mesh(geo,mat);
+    orb.position.copy(pos);
+    orbitScene.add(orb);
+
+    // Pitch number label
+    const tc=document.createElement('canvas');
+    tc.width=48;tc.height=48;
+    const tx=tc.getContext('2d');
+    tx.fillStyle='#'+col.toString(16).padStart(6,'0');
+    tx.beginPath();tx.arc(24,24,22,0,Math.PI*2);tx.fill();
+    tx.fillStyle='#ffffff';tx.textAlign='center';tx.textBaseline='middle';
+    tx.font='bold 20px sans-serif';tx.fillText(String(i+1),24,24);
+    const spr=new THREE.Sprite(new THREE.SpriteMaterial({
+      map:new THREE.CanvasTexture(tc),transparent:true,opacity:0.95
+    }));
+    spr.scale.set(0.08,0.08,1);
+    spr.position.copy(pos);
+    spr.position.y+=0.08;
+    orbitScene.add(spr);
+  });
+}
+
+function orbitDrawSinglePath(pitchIdx){
+  if(!orbitScene) return;
+  const s=orbitDisplaySeq[pitchIdx];
+  if(!s||!s.pts3d||!s.pts3d.length) return;
+  const col=PITCHES[s.pk].color;
+  const pts=s.pts3d.map(v=>new THREE.Vector3(v.x,v.y,v.z));
+  const mat=new THREE.LineBasicMaterial({color:col,transparent:true,opacity:0.85,linewidth:2});
+  const geo=new THREE.BufferGeometry().setFromPoints(pts);
+  const line=new THREE.Line(geo,mat);
+  orbitScene.add(line);
+  orbitStaticPaths.push(line);
+  const last=pts[pts.length-1];
+  const orbGeo=new THREE.SphereGeometry(0.025,12,12);
+  const orbMat=new THREE.MeshBasicMaterial({color:col,wireframe:true,transparent:true,opacity:0.6});
+  const orb=new THREE.Mesh(orbGeo,orbMat);
+  orb.position.copy(last);
+  orbitScene.add(orb);
+  orbitStaticOrbs.push(orb);
+  const tc=document.createElement('canvas');
+  tc.width=48;tc.height=48;
+  const tx=tc.getContext('2d');
+  tx.fillStyle='#'+col.toString(16).padStart(6,'0');
+  tx.beginPath();tx.arc(24,24,22,0,Math.PI*2);tx.fill();
+  tx.fillStyle='#ffffff';tx.textAlign='center';tx.textBaseline='middle';
+  tx.font='bold 20px sans-serif';tx.fillText(String(pitchIdx+1),24,24);
+  const spr=new THREE.Sprite(new THREE.SpriteMaterial({
+    map:new THREE.CanvasTexture(tc),transparent:true,opacity:0.95
+  }));
+  spr.scale.set(0.08,0.08,1);
+  spr.position.copy(last);
+  spr.position.y+=0.08;
+  orbitScene.add(spr);
+  orbitStaticOrbs.push(spr);
+}
+
+function orbitDrawTunnelBetween(idxA,idxB){
+  if(!orbitScene) return;
+  const ptsA=orbitDisplaySeq[idxA]&&orbitDisplaySeq[idxA].pts3d;
+  const ptsB=orbitDisplaySeq[idxB]&&orbitDisplaySeq[idxB].pts3d;
+  if(!ptsA||!ptsB) return;
+  const n=Math.min(ptsA.length,ptsB.length);
+  const s0=Math.floor(n*0.15);
+  const s1=Math.floor(n*0.72);
+  let tunnelPts=[];
+  for(let i=s0;i<s1;i++){
+    const pA=ptsA[i];
+    const pB=ptsB[Math.min(i,ptsB.length-1)];
+    if(!pA||!pB) continue;
+    if(pA.distanceTo(pB)<=0.2032){
+      tunnelPts.push(new THREE.Vector3(
+        (pA.x+pB.x)/2,(pA.y+pB.y)/2,(pA.z+pB.z)/2
+      ));
+    } else if(tunnelPts.length>3) break;
+  }
+  if(tunnelPts.length<3) return;
+  const curve=new THREE.CatmullRomCurve3(tunnelPts);
+  const glowMat=new THREE.LineBasicMaterial({color:0xeab308,transparent:true,opacity:0.12,linewidth:12});
+  const glowLine=new THREE.Line(new THREE.BufferGeometry().setFromPoints(tunnelPts),glowMat);
+  orbitScene.add(glowLine);
+  orbitStaticTunnels.push(glowLine);
+  const innerMat=new THREE.LineBasicMaterial({color:0xfde047,transparent:true,opacity:0.6,linewidth:4});
+  const innerLine=new THREE.Line(new THREE.BufferGeometry().setFromPoints(tunnelPts),innerMat);
+  orbitScene.add(innerLine);
+  orbitStaticTunnels.push(innerLine);
+  const tubeGeo=new THREE.TubeGeometry(curve,tunnelPts.length*2,0.035,8,false);
+  const tubeMat=new THREE.MeshBasicMaterial({color:0xeab308,transparent:true,opacity:0.18,side:THREE.DoubleSide,depthWrite:false});
+  const tube=new THREE.Mesh(tubeGeo,tubeMat);
+  orbitScene.add(tube);
+  orbitStaticTunnels.push(tube);
+  const wireMat=new THREE.MeshBasicMaterial({color:0xfde047,transparent:true,opacity:0.35,wireframe:true,depthWrite:false});
+  const wire=new THREE.Mesh(new THREE.TubeGeometry(curve,tunnelPts.length*2,0.035,8,false),wireMat);
+  orbitScene.add(wire);
+  orbitStaticTunnels.push(wire);
+  const ep=tunnelPts[tunnelPts.length-1];
+  const ring=new THREE.Mesh(
+    new THREE.TorusGeometry(0.06,0.008,8,24),
+    new THREE.MeshBasicMaterial({color:0xeab308,transparent:true,opacity:0.9})
+  );
+  ring.position.copy(ep);
+  orbitScene.add(ring);
+  orbitStaticTunnels.push(ring);
+  const sphere=new THREE.Mesh(
+    new THREE.SphereGeometry(0.04,10,10),
+    new THREE.MeshBasicMaterial({color:0xfde047,transparent:true,opacity:0.7,wireframe:true})
+  );
+  sphere.position.copy(ep);
+  orbitScene.add(sphere);
+  orbitStaticTunnels.push(sphere);
+  const tc=document.createElement('canvas');
+  tc.width=160;tc.height=40;
+  const tx=tc.getContext('2d');
+  tx.fillStyle='rgba(234,179,8,0.85)';
+  tx.beginPath();
+  if(tx.roundRect) tx.roundRect(2,2,156,36,6);
+  else tx.rect(2,2,156,36);
+  tx.fill();
+  tx.fillStyle='#1a1500';
+  tx.font='bold 14px DM Mono,monospace';
+  tx.textAlign='center';tx.textBaseline='middle';
+  tx.fillText('DECISION POINT',80,20);
+  const spr=new THREE.Sprite(new THREE.SpriteMaterial({
+    map:new THREE.CanvasTexture(tc),transparent:true,opacity:0.95
+  }));
+  spr.scale.set(0.22,0.055,1);
+  spr.position.copy(ep);
+  spr.position.y+=0.12;
+  orbitScene.add(spr);
+  orbitStaticTunnels.push(spr);
+}
+
+function buildOrbitTunnelHighlights(){
+  if(!orbitTunnelClusters||!orbitTunnelClusters.length) return;
+  orbitTunnelClusters.forEach(cluster=>{
+    if(!cluster||!cluster.length) return;
+    const pts=cluster.map(p=>new THREE.Vector3(p.x,p.y,p.z));
+    // Outer glow
+    const glowMat=new THREE.LineBasicMaterial({color:0xeab308,transparent:true,opacity:0.15,linewidth:8});
+    const glowGeo=new THREE.BufferGeometry().setFromPoints(pts);
+    orbitScene.add(new THREE.Line(glowGeo,glowMat));
+    // Inner line
+    const innerMat=new THREE.LineBasicMaterial({color:0xfde047,transparent:true,opacity:0.55,linewidth:3});
+    const innerGeo=new THREE.BufferGeometry().setFromPoints(pts);
+    orbitScene.add(new THREE.Line(innerGeo,innerMat));
+  });
+}
+
+function detectOrbitTunnels(){
+  orbitTunnelClusters=[];
+  if(!orbitDisplaySeq||orbitDisplaySeq.length<2) return;
+  for(let a=0;a<orbitDisplaySeq.length-1;a++){
+    for(let b=a+1;b<orbitDisplaySeq.length;b++){
+      const ptsA=orbitDisplaySeq[a].pts3d;
+      const ptsB=orbitDisplaySeq[b].pts3d;
+      if(!ptsA||!ptsB) continue;
+      const n=Math.min(ptsA.length,ptsB.length);
+      const s0=Math.floor(n*0.15);
+      const s1=Math.floor(n*0.72);
+      let tunnelPts=[];
+      for(let i=s0;i<s1;i++){
+        const pA=ptsA[i];
+        const pB=ptsB[Math.min(i,ptsB.length-1)];
+        if(!pA||!pB) continue;
+        // 8 inch = 0.2032 meters threshold
+        if(pA.distanceTo(pB)<=0.2032){
+          tunnelPts.push({
+            x:(pA.x+pB.x)/2,
+            y:(pA.y+pB.y)/2,
+            z:(pA.z+pB.z)/2
+          });
+        } else if(tunnelPts.length>3){
+          break;
+        }
+      }
+      if(tunnelPts.length>=3) orbitTunnelClusters.push(tunnelPts);
+    }
+  }
+}
+
+function orbitShowKeepPathModal(pitchIdx,onYes,onNo){
+  // Remove any existing modal
+  const existing=document.getElementById('orbitKeepPathModal');
+  if(existing) existing.remove();
+
+  const s=orbitDisplaySeq[pitchIdx];
+  if(!s) return;
+  const col='#'+PITCHES[s.pk].color.toString(16).padStart(6,'0');
+  const pitchName=PITCHES[s.pk].name;
+
+  const overlay=document.createElement('div');
+  overlay.id='orbitKeepPathModal';
+  overlay.style.cssText=
+    'position:absolute;top:0;left:0;width:100%;height:100%;'+
+    'background:rgba(0,0,0,0.72);display:flex;align-items:center;'+
+    'justify-content:center;z-index:999;font-family:DM Mono,monospace;';
+
+  const box=document.createElement('div');
+  box.style.cssText=
+    'background:#0d1520;border:1px solid #1e3a5a;border-radius:8px;'+
+    'padding:24px 28px;max-width:320px;width:90%;text-align:center;'+
+    'box-shadow:0 8px 32px rgba(0,0,0,0.6);';
+
+  const title=document.createElement('div');
+  title.style.cssText='font-size:11px;letter-spacing:2px;color:#3a5a7a;'+
+    'margin-bottom:10px;';
+  title.textContent='GOING BACK';
+
+  const msg=document.createElement('div');
+  msg.style.cssText='font-size:13px;color:#c8d8e8;margin-bottom:20px;'+
+    'line-height:1.5;';
+  msg.innerHTML='Keep <span style="color:'+col+'">pitch '+
+    (pitchIdx+1)+' ('+pitchName+')</span> path visible?';
+
+  const btnRow=document.createElement('div');
+  btnRow.style.cssText='display:flex;gap:10px;justify-content:center;';
+
+  const yesBtn=document.createElement('button');
+  yesBtn.textContent='KEEP';
+  yesBtn.style.cssText=
+    'flex:1;padding:10px;border-radius:5px;border:1px solid #4a9a4a;'+
+    'background:#1a2a1a;color:#4ade80;font-family:DM Mono,monospace;'+
+    'font-size:11px;letter-spacing:1px;cursor:pointer;';
+  yesBtn.onclick=()=>{overlay.remove();onYes();};
+
+  const noBtn=document.createElement('button');
+  noBtn.textContent='REMOVE';
+  noBtn.style.cssText=
+    'flex:1;padding:10px;border-radius:5px;border:1px solid #7a2a2a;'+
+    'background:#1a0a0a;color:#f87171;font-family:DM Mono,monospace;'+
+    'font-size:11px;letter-spacing:1px;cursor:pointer;';
+  noBtn.onclick=()=>{overlay.remove();onNo();};
+
+  btnRow.appendChild(yesBtn);
+  btnRow.appendChild(noBtn);
+  box.appendChild(title);
+  box.appendChild(msg);
+  box.appendChild(btnRow);
+  overlay.appendChild(box);
+
+  const container=document.getElementById('orbitview');
+  if(container) container.appendChild(overlay);
+}
+
+function orbitShowSoloPrompt(pitchIdx){
+  const existing=document.getElementById('orbitSoloModal');
+  if(existing) existing.remove();
+
+  const s=orbitDisplaySeq[pitchIdx];
+  if(!s) return;
+  const col='#'+PITCHES[s.pk].color.toString(16).padStart(6,'0');
+  const pitchName=PITCHES[s.pk].name;
+
+  const overlay=document.createElement('div');
+  overlay.id='orbitSoloModal';
+  overlay.style.cssText=
+    'position:absolute;top:0;left:0;width:100%;height:100%;'+
+    'background:rgba(0,0,0,0.72);display:flex;align-items:center;'+
+    'justify-content:center;z-index:999;font-family:DM Mono,monospace;';
+
+  const box=document.createElement('div');
+  box.style.cssText=
+    'background:#0d1520;border:1px solid #1e3a5a;border-radius:8px;'+
+    'padding:24px 28px;max-width:340px;width:90%;text-align:center;'+
+    'box-shadow:0 8px 32px rgba(0,0,0,0.6);';
+
+  const title=document.createElement('div');
+  title.style.cssText='font-size:11px;letter-spacing:2px;color:#3a5a7a;'+
+    'margin-bottom:10px;';
+  title.textContent='SOLO REPLAY';
+
+  const msg=document.createElement('div');
+  msg.style.cssText='font-size:13px;color:#c8d8e8;margin-bottom:20px;'+
+    'line-height:1.6;';
+  msg.innerHTML='Play <span style="color:'+col+'">pitch '+
+    (pitchIdx+1)+' ('+pitchName+')</span> solo?<br>'+
+    '<span style="font-size:10px;color:#3a5a7a;">All other paths and '+
+    'tunnels will be hidden.</span>';
+
+  const btnRow=document.createElement('div');
+  btnRow.style.cssText='display:flex;gap:10px;justify-content:center;';
+
+  const yesBtn=document.createElement('button');
+  yesBtn.textContent='SOLO PLAY';
+  yesBtn.style.cssText=
+    'flex:1;padding:10px;border-radius:5px;border:1px solid '+col+';'+
+    'background:#0d1520;color:'+col+';font-family:DM Mono,monospace;'+
+    'font-size:11px;letter-spacing:1px;cursor:pointer;';
+  yesBtn.onclick=()=>{overlay.remove();orbitStartSolo(pitchIdx);};
+
+  const noBtn=document.createElement('button');
+  noBtn.textContent='CANCEL';
+  noBtn.style.cssText=
+    'flex:1;padding:10px;border-radius:5px;border:1px solid #2a3a4a;'+
+    'background:#0d1520;color:#3a5a7a;font-family:DM Mono,monospace;'+
+    'font-size:11px;letter-spacing:1px;cursor:pointer;';
+  noBtn.onclick=()=>overlay.remove();
+
+  btnRow.appendChild(yesBtn);
+  btnRow.appendChild(noBtn);
+  box.appendChild(title);
+  box.appendChild(msg);
+  box.appendChild(btnRow);
+  overlay.appendChild(box);
+
+  const container=document.getElementById('orbitview');
+  if(container) container.appendChild(overlay);
+}
+
+function orbitShowSoloCompleteModal(pitchIdx){
+  const existing=document.getElementById('orbitSoloCompleteModal');
+  if(existing) existing.remove();
+
+  const s=orbitDisplaySeq[pitchIdx];
+  if(!s) return;
+  const col='#'+PITCHES[s.pk].color.toString(16).padStart(6,'0');
+  const pitchName=PITCHES[s.pk].name;
+
+  // Find next pitch in visible isolation list
+  const visible=orbitIsolation.slice().sort((a,b)=>a-b);
+  const currentPos=visible.indexOf(pitchIdx);
+  const isLastPitch=currentPos===visible.length-1;
+  // Next pitch — wraps to first if on last pitch
+  const nextIdx=isLastPitch ? visible[0] : visible[currentPos+1];
+  const nextS=orbitDisplaySeq[nextIdx];
+  const nextCol=nextS
+    ? '#'+PITCHES[nextS.pk].color.toString(16).padStart(6,'0')
+    : '#7ec8e3';
+
+  const overlay=document.createElement('div');
+  overlay.id='orbitSoloCompleteModal';
+  overlay.style.cssText=
+    'position:absolute;top:0;left:0;width:100%;height:100%;'+
+    'background:rgba(0,0,0,0.72);display:flex;align-items:center;'+
+    'justify-content:center;z-index:999;font-family:DM Mono,monospace;';
+
+  const box=document.createElement('div');
+  box.style.cssText=
+    'background:#0d1520;border:1px solid #1e3a5a;border-radius:8px;'+
+    'padding:24px 28px;max-width:340px;width:90%;text-align:center;'+
+    'box-shadow:0 8px 32px rgba(0,0,0,0.6);';
+
+  const title=document.createElement('div');
+  title.style.cssText='font-size:11px;letter-spacing:2px;color:#3a5a7a;'+
+    'margin-bottom:10px;';
+  title.textContent='PITCH COMPLETE';
+
+  const msg=document.createElement('div');
+  msg.style.cssText='font-size:12px;color:#c8d8e8;margin-bottom:20px;'+
+    'line-height:1.6;';
+  msg.innerHTML='<span style="color:'+col+'">Pitch '+
+    (pitchIdx+1)+' — '+pitchName+'</span><br>'+
+    '<span style="font-size:10px;color:#3a5a7a;">What would you like '+
+    'to do next?</span>';
+
+  const btnCol=document.createElement('div');
+  btnCol.style.cssText='display:flex;flex-direction:column;gap:8px;';
+
+  // Continue button — always show
+  // If last pitch: "RETURN TO PITCH 1", otherwise "CONTINUE TO PITCH N"
+  const continueBtn=document.createElement('button');
+  if(isLastPitch){
+    continueBtn.textContent='RETURN TO PITCH 1'+
+      (nextS?' ('+PITCHES[nextS.pk].name.toUpperCase()+')':'');
+  } else {
+    continueBtn.textContent='CONTINUE TO PITCH '+(nextIdx+1)+
+      (nextS?' ('+PITCHES[nextS.pk].name.toUpperCase()+')':'');
+  }
+  continueBtn.style.cssText=
+    'width:100%;padding:10px;border-radius:5px;'+
+    'border:1px solid '+nextCol+';background:#0d1520;color:'+nextCol+';'+
+    'font-family:DM Mono,monospace;font-size:10px;'+
+    'letter-spacing:1px;cursor:pointer;';
+  continueBtn.onclick=()=>{
+    overlay.remove();
+    orbitEndSolo(false);
+    orbitPitchIndex=nextIdx;
+    orbitHighlightChapter(nextIdx);
+    orbitFocusReleasePoint(nextIdx);
+  };
+  btnCol.appendChild(continueBtn);
+
+  // Restore Full Sequence — resets orbitPitchIndex to -1 so next
+  // Play press triggers full sequence mode from the beginning
+  const restoreBtn=document.createElement('button');
+  restoreBtn.textContent='RESTORE FULL SEQUENCE';
+  restoreBtn.style.cssText=
+    'width:100%;padding:10px;border-radius:5px;'+
+    'border:1px solid #4a9a4a;background:#1a2a1a;color:#4ade80;'+
+    'font-family:DM Mono,monospace;font-size:11px;'+
+    'letter-spacing:1px;cursor:pointer;';
+  restoreBtn.onclick=()=>{
+    overlay.remove();
+    orbitEndSolo(true);
+    // Reset pitch index so next Play runs full sequence from beginning
+    orbitPitchIndex=-1;
+    orbitHighlightChapter(-1);
+  };
+  btnCol.appendChild(restoreBtn);
+
+  // Done — dismiss modal, stay as-is
+  const doneBtn=document.createElement('button');
+  doneBtn.textContent='DONE';
+  doneBtn.style.cssText=
+    'width:100%;padding:10px;border-radius:5px;'+
+    'border:1px solid #2a3a4a;background:#0d1520;color:#3a5a7a;'+
+    'font-family:DM Mono,monospace;font-size:11px;'+
+    'letter-spacing:1px;cursor:pointer;';
+  doneBtn.onclick=()=>overlay.remove();
+
+  btnCol.appendChild(doneBtn);
+  box.appendChild(title);
+  box.appendChild(msg);
+  box.appendChild(btnCol);
+  overlay.appendChild(box);
+
+  const container=document.getElementById('orbitview');
+  if(container) container.appendChild(overlay);
+}
+
+function orbitStartSolo(pitchIdx){
+  orbitStopPlay();
+  orbitSoloMode=true;
+  orbitSoloPitchIndex=pitchIdx;
+
+  // Save current scene state — store references to all existing
+  // static paths, orbs and tunnels so we can restore them
+  orbitSoloStaticPaths=[...orbitStaticPaths];
+  orbitSoloStaticTunnels=[...orbitStaticTunnels];
+
+  // Hide all existing paths, orbs and tunnels
+  [...orbitStaticPaths,...orbitStaticOrbs,...orbitStaticTunnels]
+    .forEach(o=>{if(o) o.visible=false;});
+
+  // Focus camera on release point
+  orbitPitchIndex=pitchIdx;
+  orbitHighlightChapter(pitchIdx);
+  orbitFocusReleasePoint(pitchIdx);
+
+  // Play the pitch
+  orbitPlaying=true;
+  const btn=document.getElementById('orbitPlayBtn');
+  if(btn){
+    btn.textContent='PAUSE';
+    btn.style.borderColor='#e05a5a';
+    btn.style.color='#e05a5a';
+    btn.style.background='#1a0a0a';
+  }
+
+  const s=orbitDisplaySeq[pitchIdx];
+  if(!s||!s.pts3d||!s.pts3d.length){orbitStopPlay();return;}
+  const pts=s.pts3d.map(v=>new THREE.Vector3(v.x,v.y,v.z));
+  const col=PITCHES[s.pk].color;
+  const totalFrames=pts.length;
+  const ms=(PITCHES[s.pk].ms||1000)*1.5;
+  const msPerFrame=ms/totalFrames;
+
+  // Create ball
+  if(orbitBallMesh){orbitScene.remove(orbitBallMesh);orbitBallMesh=null;}
+  const geo=new THREE.SphereGeometry(0.055,10,10);
+  const mat=new THREE.MeshBasicMaterial({color:col,depthTest:false});
+  orbitBallMesh=new THREE.Mesh(geo,mat);
+  orbitBallMesh.renderOrder=999;
+  orbitScene.add(orbitBallMesh);
+
+  // Track tunnel reveal state
+  let tunnelRevealed=false;
+  const tunnelStartFrac=0.15;
+  const tunnelEndFrac=0.72;
+  const tunnelStartFrame=Math.floor(totalFrames*tunnelStartFrac);
+  const tunnelEndFrame=Math.floor(totalFrames*tunnelEndFrac);
+
+  // Draw path incrementally as ball moves
+  const pathPts=[];
+  let pathLine=null;
+
+  let frameIdx=0;
+  let done=false;
+
+  function soloStep(){
+    if(done) return;
+    if(!orbitPlaying){
+      done=true;
+      orbitStopPlay();
+      return;
+    }
+
+    if(orbitBallMesh) orbitBallMesh.position.copy(pts[frameIdx]);
+
+    // Draw incremental path
+    pathPts.push(pts[frameIdx].clone());
+    if(pathLine) orbitScene.remove(pathLine);
+    if(pathPts.length>=2){
+      const lineGeo=new THREE.BufferGeometry().setFromPoints(pathPts);
+      const lineMat=new THREE.LineBasicMaterial({
+        color:col,transparent:true,opacity:0.85,linewidth:2
+      });
+      pathLine=new THREE.Line(lineGeo,lineMat);
+      orbitScene.add(pathLine);
+    }
+
+    // Reveal tunnel when ball enters tunnel zone
+    if(!tunnelRevealed&&frameIdx>=tunnelStartFrame&&
+      frameIdx<=tunnelEndFrame){
+      // Check if this pitch has a tunnel with any previously played pitch
+      orbitPlayedIndices.forEach(prevIdx=>{
+        if(prevIdx===pitchIdx) return;
+        orbitDrawTunnelBetween(
+          Math.min(prevIdx,pitchIdx),
+          Math.max(prevIdx,pitchIdx)
+        );
+      });
+      tunnelRevealed=true;
+    }
+
+    frameIdx++;
+    if(frameIdx<totalFrames){
+      orbitBallAnimTimer=setTimeout(
+        ()=>requestAnimationFrame(soloStep),msPerFrame
+      );
+    } else {
+      done=true;
+      // Mark as played
+      if(!orbitPlayedIndices.includes(pitchIdx)){
+        orbitPlayedIndices.push(pitchIdx);
+      }
+      // Keep final path line in static paths
+      if(pathLine) orbitStaticPaths.push(pathLine);
+      orbitBallAnimTimer=setTimeout(()=>{
+        orbitStopPlay();
+        orbitShowSoloCompleteModal(pitchIdx);
+      },400);
+    }
+  }
+  requestAnimationFrame(soloStep);
+}
+
+function orbitEndSolo(restoreAll){
+  orbitSoloMode=false;
+  if(restoreAll){
+    // Restore all previously hidden paths, orbs and tunnels
+    [...orbitStaticPaths,...orbitStaticOrbs,...orbitStaticTunnels]
+      .forEach(o=>{if(o) o.visible=true;});
+    // Also restore solo saved objects
+    [...orbitSoloStaticPaths,...orbitSoloStaticTunnels]
+      .forEach(o=>{if(o) o.visible=true;});
+  } else {
+    // Restore only previously played paths and their tunnels
+    // Leave unplayed pitches hidden
+    orbitSoloStaticPaths.forEach(o=>{if(o) o.visible=true;});
+    orbitSoloStaticTunnels.forEach(o=>{if(o) o.visible=true;});
+  }
+  orbitSoloStaticPaths=[];
+  orbitSoloStaticTunnels=[];
+}
+
+function orbitRemovePitchPath(pitchIdx){
+  // Remove static path lines and orbs for this pitch index
+  // We identify them by rebuilding — simpler than tagging every object
+  // Strategy: remove all static paths/orbs, then redraw only the ones
+  // that should remain
+  if(!orbitScene) return;
+  orbitStaticPaths.forEach(o=>orbitScene.remove(o));
+  orbitStaticOrbs.forEach(o=>orbitScene.remove(o));
+  orbitStaticPaths=[];
+  orbitStaticOrbs=[];
+
+  // Remove from played list
+  orbitPlayedIndices=orbitPlayedIndices.filter(i=>i!==pitchIdx);
+
+  // Redraw paths for all remaining played pitches
+  orbitPlayedIndices.forEach(i=>orbitDrawSinglePath(i));
+
+  // Remove the tunnel between pitchIdx and its immediately preceding
+  // played pitch only
+  const preceding=orbitPlayedIndices
+    .filter(i=>i<pitchIdx)
+    .sort((a,b)=>b-a)[0];
+
+  if(preceding!==undefined){
+    // Remove all static tunnels and redraw only the ones that
+    // don't involve the (preceding, pitchIdx) pair
+    orbitStaticTunnels.forEach(o=>orbitScene.remove(o));
+    orbitStaticTunnels=[];
+    // Rebuild tunnels for all remaining played pitch pairs
+    // excluding the pair (preceding, pitchIdx)
+    const played=orbitPlayedIndices.slice().sort((a,b)=>a-b);
+    for(let a=0;a<played.length-1;a++){
+      for(let b=a+1;b<played.length;b++){
+        const idxA=played[a];
+        const idxB=played[b];
+        if(idxA===preceding&&idxB===pitchIdx) continue;
+        if(idxA===pitchIdx) continue;
+        orbitDrawTunnelBetween(idxA,idxB);
+      }
+    }
+  }
+}
+
+function buildOrbitToolbar(){
+  // Isolation checkboxes
+  const row=document.getElementById('orbitIsolationRow');
+  if(!row) return;
+  row.innerHTML='<span style="color:#3a5a7a;font-size:8px;letter-spacing:2px;">SHOW:</span>';
+  orbitDisplaySeq.forEach((s,i)=>{
+    const col='#'+PITCHES[s.pk].color.toString(16).padStart(6,'0');
+    const label=document.createElement('label');
+    label.style.cssText='display:flex;align-items:center;gap:3px;cursor:pointer;font-size:8px;color:#8aabb8;';
+    const cb=document.createElement('input');
+    cb.type='checkbox';cb.checked=true;
+    cb.style.accentColor=col;
+    cb.onchange=()=>{
+      if(cb.checked){
+        if(!orbitIsolation.includes(i)) orbitIsolation.push(i);
+      } else {
+        orbitIsolation=orbitIsolation.filter(x=>x!==i);
+      }
+      orbitPlayMode=false;
+      buildOrbitScene();
+      const sorted=orbitIsolation.slice().sort((a,b)=>a-b);
+      sorted.forEach((idxA,pos,arr)=>{
+        for(let j=pos+1;j<arr.length;j++){
+          orbitDrawTunnelBetween(idxA,arr[j]);
+        }
+      });
+    };
+    const dot=document.createElement('span');
+    dot.style.cssText='width:6px;height:6px;border-radius:50%;background:'+col+';display:inline-block;';
+    const txt=document.createElement('span');
+    txt.textContent=(i+1)+'. '+PITCHES[s.pk].name;
+    label.appendChild(cb);label.appendChild(dot);label.appendChild(txt);
+    row.appendChild(label);
+  });
+
+  // Scrubber chapter markers
+  const scrubber=document.getElementById('orbitScrubber');
+  if(!scrubber) return;
+  scrubber.innerHTML='';
+  if(!orbitDisplaySeq.length){
+    scrubber.innerHTML='<span style="color:#3a5a7a;font-size:9px;font-family:DM Mono,monospace;">No pitches — throw pitches in catcher view first</span>';
+    return;
+  }
+  orbitDisplaySeq.forEach((s,i)=>{
+    const col='#'+PITCHES[s.pk].color.toString(16).padStart(6,'0');
+    const btn=document.createElement('button');
+    btn.id='orbitchapter'+i;
+    btn.style.cssText='flex:1;padding:4px 2px;border-radius:4px;border:0.5px solid #1e2a3a;'+
+      'background:#0d1520;color:'+col+';font-family:DM Mono,monospace;font-size:8px;'+
+      'cursor:pointer;transition:all 0.15s;min-height:28px;';
+    btn.textContent=(i+1)+' '+PITCHES[s.pk].name.split(' ')[0];
+    btn.title='Click to jump to pitch — double-click to solo replay';
+    btn.onclick=()=>orbitJumpToPitch(i);
+    btn.ondblclick=(e)=>{
+      e.stopPropagation();
+      orbitShowSoloPrompt(i);
+    };
+    scrubber.appendChild(btn);
+  });
+}
+
+function orbitHighlightChapter(idx){
+  orbitDisplaySeq.forEach((_,i)=>{
+    const btn=document.getElementById('orbitchapter'+i);
+    if(!btn) return;
+    const col='#'+PITCHES[orbitDisplaySeq[i].pk].color
+      .toString(16).padStart(6,'0');
+    if(i===idx){
+      btn.style.background=col;
+      btn.style.color='#ffffff';
+      btn.style.borderColor=col;
+    } else {
+      btn.style.background='#0d1520';
+      btn.style.color=col;
+      btn.style.borderColor='#1e2a3a';
+    }
+    const mbtn=document.getElementById('orbitchaptermobile'+i);
+    if(mbtn){
+      if(i===idx){
+        mbtn.style.background=col;
+        mbtn.style.color='#ffffff';
+        mbtn.style.borderColor=col;
+      } else {
+        mbtn.style.background='#0d1520';
+        mbtn.style.color=col;
+        mbtn.style.borderColor='#1e2a3a';
+      }
+    }
+  });
+}
+
+function orbitEnterFullscreen(){
+  if(window.innerWidth>600) return;
+  document.body.classList.add('orbit-fullscreen');
+  const exitBtn=document.getElementById('orbitExitBtn');
+  if(exitBtn) exitBtn.style.display='block';
+  orbitUpdateMobileHUD();
+  orbitUpdateMobilePlayBtn();
+  orbitUpdateMobileStepBtns();
+  orbitUpdateAtBatSelector();
+}
+
+function orbitExitFullscreen(){
+  document.body.classList.remove('orbit-fullscreen');
+  const exitBtn=document.getElementById('orbitExitBtn');
+  if(exitBtn) exitBtn.style.display='none';
+  // Return to live at-bat when exiting orbit
+  orbitAtBatHistoryIndex=-1;
+}
+
+function orbitToggleShowRow(){
+  const row=document.getElementById('orbitShowRowMobile');
+  const btn=document.getElementById('orbitShowToggle');
+  if(!row||!btn) return;
+  const open=row.style.display==='flex';
+  row.style.display=open?'none':'flex';
+  btn.textContent=open?'PITCH LOG ▸':'PITCH LOG ▾';
+}
+
+function orbitUpdateMobileHUD(){
+  if(window.innerWidth>600) return;
+  // Build pitch log — vertical list with name, velocity, outcome, checkbox
+  const mobileRow=document.getElementById('orbitShowRowMobile');
+  if(!mobileRow) return;
+  mobileRow.innerHTML='';
+  orbitDisplaySeq.forEach((s,i)=>{
+    const col='#'+PITCHES[s.pk].color.toString(16).padStart(6,'0');
+    const row=document.createElement('div');
+    row.style.cssText=
+      'display:flex;align-items:center;gap:8px;padding:5px 6px;'+
+      'border-radius:4px;background:#0a1018;border:0.5px solid #1e2a3a;';
+
+    // Checkbox
+    const cb=document.createElement('input');
+    cb.type='checkbox';
+    cb.checked=orbitIsolation.includes(i);
+    cb.style.accentColor=col;
+    cb.style.flexShrink='0';
+    cb.onchange=()=>{
+      if(cb.checked){
+        if(!orbitIsolation.includes(i)) orbitIsolation.push(i);
+      } else {
+        orbitIsolation=orbitIsolation.filter(x=>x!==i);
+      }
+      orbitPlayMode=false;
+      buildOrbitScene();
+    };
+
+    // Colored dot + number
+    const dot=document.createElement('span');
+    dot.style.cssText=
+      'width:8px;height:8px;border-radius:50%;flex-shrink:0;'+
+      'background:'+col+';display:inline-block;';
+
+    const num=document.createElement('span');
+    num.style.cssText=
+      'font-size:9px;color:'+col+';font-weight:bold;flex-shrink:0;';
+    num.textContent=String(i+1);
+
+    // Pitch name
+    const name=document.createElement('span');
+    name.style.cssText='font-size:9px;color:#c8d8e8;flex:1;';
+    name.textContent=PITCHES[s.pk].name;
+
+    // Velocity
+    const vel=document.createElement('span');
+    vel.style.cssText='font-size:9px;color:#5a8aaa;flex-shrink:0;';
+    vel.textContent=s.spd+'mph';
+
+    // Outcome
+    const out=document.createElement('span');
+    out.style.cssText='font-size:8px;flex-shrink:0;min-width:60px;'+
+      'text-align:right;';
+    const outcomeText=s.outcome&&s.outcome.length?s.outcome:'—';
+    const isGood=['SWING & MISS','STRIKEOUT','CALLED STRIKE',
+      'GROUND OUT','POP FLY'].includes(s.outcome);
+    const isBad=['BALL','WALK','SINGLE','DOUBLE',
+      'TRIPLE','HOME RUN'].includes(s.outcome);
+    out.style.color=isGood?'#4ade80':isBad?'#f87171':'#5a8aaa';
+    out.textContent=outcomeText;
+
+    row.appendChild(cb);
+    row.appendChild(dot);
+    row.appendChild(num);
+    row.appendChild(name);
+    row.appendChild(vel);
+    row.appendChild(out);
+    mobileRow.appendChild(row);
+  });
+
+  // Sync mobile scrubber chapter buttons
+  const mobileScrubber=document.getElementById('orbitScrubberMobile');
+  if(mobileScrubber){
+    mobileScrubber.innerHTML='';
+    orbitDisplaySeq.forEach((s,i)=>{
+      const col='#'+PITCHES[s.pk].color.toString(16).padStart(6,'0');
+      const btn=document.createElement('button');
+      btn.id='orbitchaptermobile'+i;
+      btn.style.cssText='flex:1;padding:4px 2px;border-radius:4px;'+
+        'border:0.5px solid #1e2a3a;background:#0d1520;color:'+col+';'+
+        'font-family:DM Mono,monospace;font-size:8px;cursor:pointer;'+
+        'min-height:36px;touch-action:manipulation;';
+      btn.textContent=(i+1)+' '+PITCHES[s.pk].name.split(' ')[0];
+      btn.title='Tap to jump · double-tap to solo replay';
+      btn.onclick=()=>orbitJumpToPitch(i);
+      btn.ondblclick=(e)=>{
+        e.stopPropagation();
+        orbitShowSoloPrompt(i);
+      };
+      mobileScrubber.appendChild(btn);
+    });
+  }
+
+  orbitUpdateAtBatSelector();
+}
+
+function orbitUpdateMobilePlayBtn(){
+  if(window.innerWidth>600) return;
+  const btn=document.getElementById('orbitPlayBtnMobile');
+  if(!btn) return;
+  if(orbitPlaying){
+    btn.textContent='PAUSE';
+    btn.style.borderColor='#e05a5a';
+    btn.style.color='#e05a5a';
+    btn.style.background='#1a0a0a';
+  } else {
+    btn.textContent='PLAY';
+    btn.style.borderColor='#4a9a4a';
+    btn.style.color='#4a9a4a';
+    btn.style.background='#1a2a1a';
+  }
+}
+
+function orbitUpdateMobileStepBtns(){
+  if(window.innerWidth>600) return;
+  const back=document.getElementById('orbitStepBackBtn');
+  const fwd=document.getElementById('orbitStepFwdBtn');
+  const active=!orbitPlaying;
+  const activeStyle='border:0.5px solid #7ec8e3;color:#7ec8e3;'+
+    'background:#0d1824;';
+  const dimStyle='border:0.5px solid #2a3a4a;color:#3a5a7a;'+
+    'background:#0d1520;';
+  const base='flex:1;padding:8px;border-radius:4px;font-family:DM Mono,monospace;'+
+    'font-size:11px;letter-spacing:1px;cursor:pointer;min-height:44px;'+
+    'touch-action:manipulation;';
+  if(back) back.style.cssText=base+(active?activeStyle:dimStyle);
+  if(fwd) fwd.style.cssText=base+(active?activeStyle:dimStyle);
+}
+
+function orbitMobileStepBack(){
+  if(orbitPlaying) return;
+  if(orbitFrameStepMode){
+    orbitStepFrame(-1);
+  }
+}
+
+function orbitMobileStepFwd(){
+  if(orbitPlaying) return;
+  if(orbitFrameStepMode){
+    orbitStepFrame(1);
+  } else if(orbitPitchIndex>=0){
+    orbitEnterFrameStep(orbitPitchIndex,0);
+    orbitStepFrame(1);
+  }
+}
+
+function orbitSaveAtBat(){
+  if(!seq||!seq.length) return;
+  const snapshot={
+    pitches:seq.map(s=>({
+      pk:s.pk,
+      zk:s.zk,
+      spd:s.spd,
+      bd:s.bd,
+      role:s.role,
+      count:s.count,
+      outcome:s.outcome||'',
+      pts3d:(s.pts3d||[]).map(v=>new THREE.Vector3(v.x,v.y,v.z))
+    })),
+    batterType:typeof batter!=='undefined'?batter:'',
+    inning:typeof inningNumber!=='undefined'?inningNumber:1,
+    half:typeof simHalfTop!=='undefined'?(simHalfTop?'TOP':'BOT'):'',
+    finalOutcome:seq.length?seq[seq.length-1].outcome:''
+  };
+  orbitAtBatHistory.unshift(snapshot);
+  if(orbitAtBatHistory.length>ORBIT_MAX_AT_BATS){
+    orbitAtBatHistory=orbitAtBatHistory.slice(0,ORBIT_MAX_AT_BATS);
+  }
+}
+
+function orbitLoadAtBat(historyIdx){
+  if(historyIdx<0||historyIdx>=orbitAtBatHistory.length) return;
+  const snap=orbitAtBatHistory[historyIdx];
+  if(!snap||!snap.pitches||!snap.pitches.length) return;
+  orbitAtBatHistoryIndex=historyIdx;
+
+  // Rebuild seq from snapshot for orbit display only
+  const savedSeq=snap.pitches.map(p=>({
+    pk:p.pk,
+    zk:p.zk,
+    spd:p.spd,
+    bd:p.bd,
+    role:p.role,
+    count:p.count,
+    outcome:p.outcome,
+    pts3d:p.pts3d.map(v=>new THREE.Vector3(v.x,v.y,v.z))
+  }));
+
+  orbitDisplaySeq=savedSeq;
+  orbitPlayedIndices=[];
+  orbitSoloMode=false;
+  orbitSoloPitchIndex=-1;
+  orbitSoloStaticPaths=[];
+  orbitSoloStaticTunnels=[];
+  orbitFrameStepMode=false;
+  orbitFrameStepPts=[];
+  orbitFrameStepIndex=0;
+  orbitFrameStepLine=null;
+  orbitFrameStepPitchIdx=-1;
+  orbitFrameStepTunnelRevealed=false;
+  orbitPitchIndex=-1;
+  orbitIsolation=orbitDisplaySeq.map((_,i)=>i);
+  detectOrbitTunnels();
+  buildOrbitScene();
+  buildOrbitToolbar();
+  orbitUpdateMobileHUD();
+  orbitUpdateAtBatSelector();
+}
+
+function orbitUpdateAtBatSelector(){
+  const label=document.getElementById('orbitAtBatLabel');
+  const meta=document.getElementById('orbitAtBatMeta');
+  const labelD=document.getElementById('orbitAtBatLabelDesktop');
+  const metaD=document.getElementById('orbitAtBatMetaDesktop');
+  if(orbitAtBatHistoryIndex<0){
+    // Showing current live at-bat
+    if(label) label.textContent='CURRENT AT-BAT';
+    if(meta) meta.textContent=
+      orbitDisplaySeq.length+' PITCH'+
+      (orbitDisplaySeq.length!==1?'ES':'');
+    if(labelD) labelD.textContent='CURRENT AT-BAT';
+    if(metaD) metaD.textContent=
+      orbitDisplaySeq.length+' PITCH'+
+      (orbitDisplaySeq.length!==1?'ES':'');
+  } else {
+    const snap=orbitAtBatHistory[orbitAtBatHistoryIndex];
+    const total=orbitAtBatHistory.length;
+    const num=orbitAtBatHistoryIndex+1;
+    if(label) label.textContent=
+      'AT-BAT '+num+' OF '+total+
+      (snap.half?' · '+snap.half+' '+snap.inning:'');
+    if(meta) meta.textContent=
+      (snap.batterType||'')+
+      (snap.finalOutcome?' · '+snap.finalOutcome:'');
+    if(labelD) labelD.textContent=
+      'AT-BAT '+num+' OF '+total+
+      (snap.half?' · '+snap.half+' '+snap.inning:'');
+    if(metaD) metaD.textContent=
+      (snap.batterType||'')+
+      (snap.finalOutcome?' · '+snap.finalOutcome:'');
+  }
+}
+
+function orbitShowReplayPrompt(){
+  const existing=document.getElementById('orbitReplayModal');
+  if(existing) existing.remove();
+
+  const overlay=document.createElement('div');
+  overlay.id='orbitReplayModal';
+  overlay.style.cssText=
+    'position:absolute;top:0;left:0;width:100%;height:100%;'+
+    'background:rgba(0,0,0,0.72);display:flex;align-items:center;'+
+    'justify-content:center;z-index:999;font-family:DM Mono,monospace;';
+
+  const box=document.createElement('div');
+  box.style.cssText=
+    'background:#0d1520;border:1px solid #1e3a5a;border-radius:8px;'+
+    'padding:24px 28px;max-width:300px;width:90%;text-align:center;'+
+    'box-shadow:0 8px 32px rgba(0,0,0,0.6);';
+
+  const title=document.createElement('div');
+  title.style.cssText='font-size:11px;letter-spacing:2px;color:#3a5a7a;'+
+    'margin-bottom:10px;';
+  title.textContent='SEQUENCE COMPLETE';
+
+  const msg=document.createElement('div');
+  msg.style.cssText='font-size:12px;color:#c8d8e8;margin-bottom:20px;'+
+    'line-height:1.5;';
+  msg.textContent='Replay sequence from the beginning?';
+
+  const btnCol=document.createElement('div');
+  btnCol.style.cssText='display:flex;flex-direction:column;gap:8px;';
+
+  const yesBtn=document.createElement('button');
+  yesBtn.textContent='REPLAY';
+  yesBtn.style.cssText=
+    'width:100%;padding:10px;border-radius:5px;'+
+    'border:1px solid #4a9a4a;background:#1a2a1a;color:#4ade80;'+
+    'font-family:DM Mono,monospace;font-size:11px;'+
+    'letter-spacing:1px;cursor:pointer;touch-action:manipulation;';
+  yesBtn.onclick=()=>{
+    overlay.remove();
+    orbitPitchIndex=-1;
+    orbitPlayedIndices=[];
+    orbitSoloMode=false;
+    orbitIsolation=orbitDisplaySeq.map((_,i)=>i);
+    detectOrbitTunnels();
+    buildOrbitScene();
+    buildOrbitToolbar();
+    orbitUpdateMobileHUD();
+    orbitStartPlay();
+  };
+
+  const doneBtn=document.createElement('button');
+  doneBtn.textContent='DONE';
+  doneBtn.style.cssText=
+    'width:100%;padding:10px;border-radius:5px;'+
+    'border:1px solid #2a3a4a;background:#0d1520;color:#3a5a7a;'+
+    'font-family:DM Mono,monospace;font-size:11px;'+
+    'letter-spacing:1px;cursor:pointer;touch-action:manipulation;';
+  doneBtn.onclick=()=>overlay.remove();
+
+  btnCol.appendChild(yesBtn);
+  btnCol.appendChild(doneBtn);
+  box.appendChild(title);
+  box.appendChild(msg);
+  box.appendChild(btnCol);
+  overlay.appendChild(box);
+
+  const container=document.getElementById('orbitview');
+  if(container) container.appendChild(overlay);
+}
+
+function orbitPrevAtBat(){
+  // Move to older at-bat (higher index = older)
+  if(!orbitAtBatHistory.length) return;
+  const next=orbitAtBatHistoryIndex+1;
+  if(next>=orbitAtBatHistory.length) return;
+  orbitLoadAtBat(next);
+}
+
+function orbitNextAtBat(){
+  // Move to newer at-bat (lower index = newer)
+  if(orbitAtBatHistoryIndex<=0){
+    // Already at newest — return to live at-bat
+    orbitAtBatHistoryIndex=-1;
+    orbitDisplaySeq=seq;
+    orbitPlayedIndices=[];
+    orbitSoloMode=false;
+    orbitPitchIndex=-1;
+    orbitIsolation=orbitDisplaySeq.map((_,i)=>i);
+    detectOrbitTunnels();
+    buildOrbitScene();
+    buildOrbitToolbar();
+    orbitUpdateMobileHUD();
+    orbitUpdateAtBatSelector();
+    return;
+  }
+  orbitLoadAtBat(orbitAtBatHistoryIndex-1);
+}
+
+function orbitJumpToPitch(idx){
+  orbitStopPlay();
+  if(idx<0||idx>=orbitDisplaySeq.length) return;
+  orbitPitchIndex=idx;
+  orbitHighlightChapter(idx);
+  orbitFocusReleasePoint(idx);
+}
+
+function orbitShowPitchBall(idx){
+  // Ball only appears when Play is pressed — this function is now a no-op
+  // Camera is moved by orbitFocusReleasePoint instead
+  return;
+}
+
+function orbitPrevPitch(){
+  orbitStopPlay();
+  const visible=orbitIsolation.slice().sort((a,b)=>a-b);
+  if(!visible.length) return;
+  const cur=orbitPitchIndex;
+  const prevList=visible.filter(i=>i<cur);
+  const targetIdx=prevList.length
+    ? prevList[prevList.length-1]
+    : visible[visible.length-1];
+
+  // If current pitch has been played, show Keep Path modal
+  if(orbitPlayedIndices.includes(cur)){
+    orbitShowKeepPathModal(
+      cur,
+      ()=>{
+        // YES — keep path, just move camera back
+        orbitPitchIndex=targetIdx;
+        orbitHighlightChapter(targetIdx);
+        orbitFocusReleasePoint(targetIdx);
+      },
+      ()=>{
+        // NO — remove path and most recent tunnel, move camera back
+        orbitRemovePitchPath(cur);
+        orbitPitchIndex=targetIdx;
+        orbitHighlightChapter(targetIdx);
+        orbitFocusReleasePoint(targetIdx);
+      }
+    );
+  } else {
+    // Not yet played — move back silently
+    orbitPitchIndex=targetIdx;
+    orbitHighlightChapter(targetIdx);
+    orbitFocusReleasePoint(targetIdx);
+  }
+}
+
+function orbitNextPitch(){
+  orbitStopPlay();
+  const visible=orbitIsolation.slice().sort((a,b)=>a-b);
+  if(!visible.length) return;
+  const cur=orbitPitchIndex;
+  const nextList=visible.filter(i=>i>cur);
+  if(!nextList.length){
+    // Already at last pitch — show replay prompt
+    orbitShowReplayPrompt();
+    return;
+  }
+  const targetIdx=nextList[0];
+  orbitPitchIndex=targetIdx;
+  orbitHighlightChapter(targetIdx);
+  orbitFocusReleasePoint(targetIdx);
+}
+
+function orbitTogglePlay(){
+  if(orbitPlaying){
+    orbitPlaying=false;
+    const btn=document.getElementById('orbitPlayBtn');
+    if(btn){
+      btn.textContent='PLAY';
+      btn.style.borderColor='#4a9a4a';
+      btn.style.color='#4a9a4a';
+      btn.style.background='#1a2a1a';
+    }
+    orbitUpdateMobilePlayBtn();
+    orbitUpdateMobileStepBtns();
+  } else if(orbitFrameStepMode){
+    const pitchIdx=orbitFrameStepPitchIdx;
+    const resumeFrame=orbitFrameStepIndex;
+    orbitExitFrameStep();
+    orbitResumeFromFrame(pitchIdx,resumeFrame);
+    orbitUpdateMobilePlayBtn();
+    orbitUpdateMobileStepBtns();
+  } else {
+    orbitStartPlay();
+    orbitUpdateMobilePlayBtn();
+    orbitUpdateMobileStepBtns();
+  }
+}
+
+function orbitStartPlay(){
+  if(!orbitDisplaySeq.length) return;
+  if(orbitBallMesh){orbitScene.remove(orbitBallMesh);orbitBallMesh=null;}
+
+  // SINGLE PITCH MODE — a specific pitch has been selected via arrows
+  if(orbitPitchIndex>=0&&orbitPitchIndex<orbitDisplaySeq.length){
+    const pitchIdx=orbitPitchIndex;
+
+    // Do NOT clear the scene — all existing paths/tunnels remain
+    orbitPlaying=true;
+    const btn=document.getElementById('orbitPlayBtn');
+    if(btn){
+      btn.textContent='PAUSE';
+      btn.style.borderColor='#e05a5a';
+      btn.style.color='#e05a5a';
+      btn.style.background='#1a0a0a';
+    }
+
+    orbitHighlightChapter(pitchIdx);
+    orbitFocusReleasePoint(pitchIdx);
+
+    orbitAnimateBallAlongPath(pitchIdx,()=>{
+      // Draw this pitch path after ball lands
+      orbitDrawSinglePath(pitchIdx);
+      // Draw tunnels between this pitch and all previously played pitches
+      orbitPlayedIndices
+        .filter(i=>i!==pitchIdx)
+        .forEach(prevIdx=>{
+          orbitDrawTunnelBetween(
+            Math.min(prevIdx,pitchIdx),
+            Math.max(prevIdx,pitchIdx)
+          );
+        });
+      orbitStopPlay();
+    });
+    return;
+  }
+
+  // FULL SEQUENCE MODE — no pitch selected, play all from beginning
+  orbitDrawnPitchIndices=[];
+  orbitPlayMode=true;
+  buildOrbitScene();
+  orbitPlaying=true;
+  const btn=document.getElementById('orbitPlayBtn');
+  if(btn){
+    btn.textContent='PAUSE';
+    btn.style.borderColor='#e05a5a';
+    btn.style.color='#e05a5a';
+    btn.style.background='#1a0a0a';
+  }
+  const visible=orbitIsolation.slice().sort((a,b)=>a-b);
+  if(!visible.length){orbitStopPlay();return;}
+  let playIdx=0;
+  function playNext(){
+    if(!orbitPlaying||playIdx>=visible.length){
+      orbitStopPlay();
+      return;
+    }
+    const pitchIdx=visible[playIdx];
+    orbitPitchIndex=pitchIdx;
+    orbitHighlightChapter(pitchIdx);
+    orbitAnimateBallAlongPath(pitchIdx,()=>{
+      orbitDrawSinglePath(pitchIdx);
+      orbitDrawnPitchIndices.forEach(prevIdx=>{
+        orbitDrawTunnelBetween(prevIdx,pitchIdx);
+      });
+      orbitDrawnPitchIndices.push(pitchIdx);
+      playIdx++;
+      if(playIdx<visible.length&&orbitPlaying){
+        orbitPlayTimer=setTimeout(playNext,500);
+      } else {
+        orbitStopPlay();
+        orbitShowReplayPrompt();
+      }
+    });
+  }
+  playNext();
+}
+
+function orbitStopPlay(){
+  orbitPlaying=false;
+  orbitPlayMode=false;
+  orbitDrawnPitchIndices=[];
+  if(orbitPlayTimer){clearTimeout(orbitPlayTimer);orbitPlayTimer=null;}
+  if(orbitBallAnimTimer){clearTimeout(orbitBallAnimTimer);
+    orbitBallAnimTimer=null;}
+  if(orbitBallMesh){orbitScene.remove(orbitBallMesh);orbitBallMesh=null;}
+  const btn=document.getElementById('orbitPlayBtn');
+  if(btn){
+    btn.textContent='PLAY';
+    btn.style.borderColor='#4a9a4a';
+    btn.style.color='#4a9a4a';
+    btn.style.background='#1a2a1a';
+  }
+  orbitUpdateMobilePlayBtn();
+  orbitUpdateMobileStepBtns();
+  // NOTE: orbitPitchIndex is intentionally NOT reset here
+  // so the selected pitch is remembered after stopping
+}
+
+function orbitAnimateBallAlongPath(pitchIdx,onDone){
+  if(orbitBallMesh){orbitScene.remove(orbitBallMesh);orbitBallMesh=null;}
+  const s=orbitDisplaySeq[pitchIdx];
+  if(!s||!s.pts3d||!s.pts3d.length){if(onDone)onDone();return;}
+  const pts=s.pts3d.map(v=>new THREE.Vector3(v.x,v.y,v.z));
+  const col=PITCHES[s.pk].color;
+  const geo=new THREE.SphereGeometry(0.055,10,10);
+  const mat=new THREE.MeshBasicMaterial({color:col,depthTest:false});
+  orbitBallMesh=new THREE.Mesh(geo,mat);
+  orbitBallMesh.renderOrder=999;
+  orbitScene.add(orbitBallMesh);
+  const totalFrames=pts.length;
+  const ms=(PITCHES[s.pk].ms||1000)*1.5;
+  const msPerFrame=ms/totalFrames;
+  let frameIdx=0;
+  let done=false;
+  // Expose current frame index so spacebar pause can hand off
+  orbitAnimateBallAlongPath._currentPitchIdx=pitchIdx;
+  orbitAnimateBallAlongPath._getCurrentFrame=()=>frameIdx;
+  orbitAnimateBallAlongPath._getPts=()=>pts;
+  function step(){
+    if(done) return;
+    if(!orbitPlaying){
+      // Paused — hand off to frame step mode at current frame
+      if(orbitFrameStepMode===false&&frameIdx>0){
+        orbitEnterFrameStep(pitchIdx,frameIdx);
+      }
+      done=true;
+      return;
+    }
+    if(orbitBallMesh) orbitBallMesh.position.copy(pts[frameIdx]);
+    frameIdx++;
+    if(frameIdx<totalFrames){
+      orbitBallAnimTimer=setTimeout(
+        ()=>requestAnimationFrame(step),msPerFrame
+      );
+    } else {
+      done=true;
+      if(!orbitPlayedIndices.includes(pitchIdx)){
+        orbitPlayedIndices.push(pitchIdx);
+      }
+      orbitAnimateBallAlongPath._currentPitchIdx=-1;
+      orbitBallAnimTimer=setTimeout(()=>{
+        if(onDone) onDone();
+      },300);
+    }
+  }
+  requestAnimationFrame(step);
+}
+
+function orbitResetCamera(){
+  if(!orbitCamera||!orbitControls) return;
+  orbitCamera.position.set(0,1.06,-1.2);
+  orbitCamera.lookAt(0,1.06,10);
+  orbitControls.target.set(0,1.06,5);
+  orbitControls.update();
+}
+
+function orbitFocusReleasePoint(pitchIdx){
+  if(!orbitCamera||!orbitControls) return;
+  // Always reset to catcher position first — same as RESET CAM
+  // This gives user a consistent orientation on every pitch navigation
+  // User can freely rotate/zoom from this known starting point
+  orbitCamera.position.set(0,1.06,-1.2);
+  orbitCamera.lookAt(0,1.06,10);
+  orbitControls.target.set(0,1.06,5);
+  orbitControls.update();
+}
+
+function orbitEnterFrameStep(pitchIdx,startFrame){
+  // Enter frame step mode for the given pitch at the given frame
+  const s=orbitDisplaySeq[pitchIdx];
+  if(!s||!s.pts3d||!s.pts3d.length) return;
+  orbitFrameStepMode=true;
+  orbitFrameStepPitchIdx=pitchIdx;
+  orbitFrameStepPts=s.pts3d.map(v=>new THREE.Vector3(v.x,v.y,v.z));
+  orbitFrameStepIndex=Math.max(0,Math.min(
+    startFrame,orbitFrameStepPts.length-1
+  ));
+  orbitFrameStepTunnelRevealed=false;
+
+  // Position ball at current frame
+  if(orbitBallMesh) orbitScene.remove(orbitBallMesh);
+  const col=PITCHES[s.pk].color;
+  const geo=new THREE.SphereGeometry(0.055,10,10);
+  const mat=new THREE.MeshBasicMaterial({color:col,depthTest:false});
+  orbitBallMesh=new THREE.Mesh(geo,mat);
+  orbitBallMesh.renderOrder=999;
+  orbitScene.add(orbitBallMesh);
+  orbitBallMesh.position.copy(orbitFrameStepPts[orbitFrameStepIndex]);
+
+  // Draw path up to current frame
+  orbitRedrawFrameStepPath();
+}
+
+function orbitExitFrameStep(){
+  orbitFrameStepMode=false;
+  orbitFrameStepPts=[];
+  orbitFrameStepIndex=0;
+  orbitFrameStepPitchIdx=-1;
+  orbitFrameStepTunnelRevealed=false;
+  if(orbitFrameStepLine){
+    orbitScene.remove(orbitFrameStepLine);
+    orbitFrameStepLine=null;
+  }
+}
+
+function orbitResumeFromFrame(pitchIdx,startFrame){
+  const s=orbitDisplaySeq[pitchIdx];
+  if(!s||!s.pts3d||!s.pts3d.length) return;
+  const pts=s.pts3d.map(v=>new THREE.Vector3(v.x,v.y,v.z));
+  const col=PITCHES[s.pk].color;
+  const totalFrames=pts.length;
+  const ms=(PITCHES[s.pk].ms||1000)*1.5;
+  const msPerFrame=ms/totalFrames;
+
+  // Ensure ball mesh exists
+  if(orbitBallMesh) orbitScene.remove(orbitBallMesh);
+  const geo=new THREE.SphereGeometry(0.055,10,10);
+  const mat=new THREE.MeshBasicMaterial({color:col,depthTest:false});
+  orbitBallMesh=new THREE.Mesh(geo,mat);
+  orbitBallMesh.renderOrder=999;
+  orbitScene.add(orbitBallMesh);
+
+  orbitPlaying=true;
+  const btn=document.getElementById('orbitPlayBtn');
+  if(btn){
+    btn.textContent='PAUSE';
+    btn.style.borderColor='#e05a5a';
+    btn.style.color='#e05a5a';
+    btn.style.background='#1a0a0a';
+  }
+
+  // Draw path up to resume frame immediately
+  if(startFrame>0){
+    const existingPts=pts.slice(0,startFrame+1);
+    const resumeGeo=new THREE.BufferGeometry().setFromPoints(existingPts);
+    const resumeMat=new THREE.LineBasicMaterial({
+      color:col,transparent:true,opacity:0.85,linewidth:2
+    });
+    const resumeLine=new THREE.Line(resumeGeo,resumeMat);
+    orbitScene.add(resumeLine);
+    orbitStaticPaths.push(resumeLine);
+  }
+
+  let frameIdx=startFrame;
+  let done=false;
+
+  function step(){
+    if(done) return;
+    if(!orbitPlaying){
+      if(!orbitFrameStepMode&&frameIdx>0){
+        orbitEnterFrameStep(pitchIdx,frameIdx);
+      }
+      done=true;
+      return;
+    }
+    if(orbitBallMesh) orbitBallMesh.position.copy(pts[frameIdx]);
+    frameIdx++;
+    if(frameIdx<totalFrames){
+      orbitBallAnimTimer=setTimeout(
+        ()=>requestAnimationFrame(step),msPerFrame
+      );
+    } else {
+      done=true;
+      if(!orbitPlayedIndices.includes(pitchIdx)){
+        orbitPlayedIndices.push(pitchIdx);
+      }
+      orbitBallAnimTimer=setTimeout(()=>{
+        orbitDrawSinglePath(pitchIdx);
+        orbitPlayedIndices
+          .filter(i=>i!==pitchIdx)
+          .forEach(prevIdx=>{
+            orbitDrawTunnelBetween(
+              Math.min(prevIdx,pitchIdx),
+              Math.max(prevIdx,pitchIdx)
+            );
+          });
+        orbitStopPlay();
+      },300);
+    }
+  }
+  requestAnimationFrame(step);
+}
+
+function orbitRedrawFrameStepPath(){
+  // Remove existing frame step path line
+  if(orbitFrameStepLine){
+    orbitScene.remove(orbitFrameStepLine);
+    orbitFrameStepLine=null;
+  }
+  if(orbitFrameStepIndex<1) return;
+  const s=orbitDisplaySeq[orbitFrameStepPitchIdx];
+  if(!s) return;
+  const col=PITCHES[s.pk].color;
+  const pts=orbitFrameStepPts.slice(0,orbitFrameStepIndex+1);
+  const geo=new THREE.BufferGeometry().setFromPoints(pts);
+  const mat=new THREE.LineBasicMaterial({
+    color:col,transparent:true,opacity:0.85,linewidth:2
+  });
+  orbitFrameStepLine=new THREE.Line(geo,mat);
+  orbitScene.add(orbitFrameStepLine);
+
+  // Reveal tunnel when ball enters tunnel zone on forward step
+  const totalFrames=orbitFrameStepPts.length;
+  const tunnelStartFrame=Math.floor(totalFrames*0.15);
+  const tunnelEndFrame=Math.floor(totalFrames*0.72);
+  if(!orbitFrameStepTunnelRevealed&&
+    orbitFrameStepIndex>=tunnelStartFrame&&
+    orbitFrameStepIndex<=tunnelEndFrame){
+    orbitPlayedIndices.forEach(prevIdx=>{
+      if(prevIdx===orbitFrameStepPitchIdx) return;
+      orbitDrawTunnelBetween(
+        Math.min(prevIdx,orbitFrameStepPitchIdx),
+        Math.max(prevIdx,orbitFrameStepPitchIdx)
+      );
+    });
+    orbitFrameStepTunnelRevealed=true;
+  }
+}
+
+function orbitStepFrame(delta){
+  // delta: +1 forward, -1 backward
+  if(!orbitFrameStepMode) return;
+  const newIdx=orbitFrameStepIndex+delta;
+  if(newIdx<0||newIdx>=orbitFrameStepPts.length) return;
+  orbitFrameStepIndex=newIdx;
+  if(orbitBallMesh){
+    orbitBallMesh.position.copy(orbitFrameStepPts[orbitFrameStepIndex]);
+  }
+  orbitRedrawFrameStepPath();
+
+  // If stepped to last frame, mark as played and draw final path
+  if(orbitFrameStepIndex===orbitFrameStepPts.length-1){
+    const pitchIdx=orbitFrameStepPitchIdx;
+    if(!orbitPlayedIndices.includes(pitchIdx)){
+      orbitPlayedIndices.push(pitchIdx);
+    }
+    orbitExitFrameStep();
+    orbitDrawSinglePath(pitchIdx);
+    orbitPlayedIndices
+      .filter(i=>i!==pitchIdx)
+      .forEach(prevIdx=>{
+        orbitDrawTunnelBetween(
+          Math.min(prevIdx,pitchIdx),
+          Math.max(prevIdx,pitchIdx)
+        );
+      });
+    orbitStopPlay();
+  }
+}
+
+function orbitTunnelZoom(){
+  if(!orbitTunnelClusters||!orbitTunnelClusters.length){
+    const ind=document.getElementById('tunnelIndicator');
+    if(ind){ind.textContent='NO TUNNELS DETECTED';ind.style.display='block';
+      setTimeout(()=>{ind.style.display='none';},2000);}
+    return;
+  }
+  const cluster=orbitTunnelClusters[orbitTunnelClusterIndex];
+  if(!cluster||!cluster.length) return;
+
+  // Find center of tunnel cluster
+  const cx=cluster.reduce((s,p)=>s+p.x,0)/cluster.length;
+  const cy=cluster.reduce((s,p)=>s+p.y,0)/cluster.length;
+  const cz=cluster.reduce((s,p)=>s+p.z,0)/cluster.length;
+
+  // Fly camera to tunnel zone
+  if(orbitControls) orbitControls.target.set(cx,cy,cz);
+  if(orbitCamera) orbitCamera.position.set(cx-1.5,cy+0.8,cz-1.5);
+  if(orbitControls) orbitControls.update();
+
+  // Update indicator
+  orbitTunnelClusterIndex=(orbitTunnelClusterIndex+1)%orbitTunnelClusters.length;
+  const ind=document.getElementById('tunnelIndicator');
+  if(ind){
+    ind.textContent='TUNNEL '+(orbitTunnelClusterIndex)+' of '+orbitTunnelClusters.length;
+    ind.style.display='block';
+    setTimeout(()=>{ind.style.display='none';},2500);
+  }
+}
+
+(function loop(){requestAnimationFrame(loop);renderer.render(scene,cam);})();
+
+// ── Pitch Velocity System ──
+function getMaxVelocity(){
+  const profile=getProfile();
+  if(profile&&profile.maxVelocity) return profile.maxVelocity;
+  const ageGroup=profile?profile.ageGroup:'hs';
+  return AGE_GROUP_MAX_VELOCITY[ageGroup]||80;
+}
+
+function getPitchAutoVelocity(pitchKey){
+  const maxVel=getMaxVelocity();
+  const pct=PITCH_VELOCITY_PCT[pitchKey]||0.85;
+  return Math.round(maxVel*pct);
+}
+
+function getPitchVelocityRange(pitchKey){
+  const auto=getPitchAutoVelocity(pitchKey);
+  return{
+    min:Math.max(40,auto-VELOCITY_RANGE_BELOW),
+    max:Math.min(110,auto+VELOCITY_RANGE_ABOVE),
+    auto
+  };
+}
+
+function applyPitchVelocity(pitchKey){
+  const range=getPitchVelocityRange(pitchKey);
+  const slider=document.getElementById('spd');
+  const sval=document.getElementById('sval');
+  const rangeLabel=document.getElementById('velrangelabel');
+  if(!slider) return;
+
+  // Set slider bounds
+  slider.min=range.min;
+  slider.max=range.max;
+  slider.value=range.auto;
+
+  // Update display
+  if(sval) sval.textContent=range.auto+' mph';
+  if(rangeLabel) rangeLabel.textContent=range.min+'-'+range.max+' mph';
+
+  // Update internal speed variable
+  if(typeof handleSpeedInput==='function') handleSpeedInput(range.auto);
+}
+
+function onMaxVelChange(val){
+  const v=parseInt(val,10);
+  if(isNaN(v)) return;
+  // Sync both inputs
+  const slider=document.getElementById('prof-maxvel-slider');
+  const input=document.getElementById('prof-maxvel');
+  if(slider) slider.value=v;
+  if(input) input.value=v;
+  // Update current pitch velocity if a pitch is selected
+  if(typeof pitch!=='undefined'&&pitch) applyPitchVelocity(pitch);
+  if(typeof simMode!=='undefined'&&simMode&&typeof applyFatigueToVelocity==='function')applyFatigueToVelocity();
+}
+
+function onSettingsMaxVelChange(val){
+  const v=parseInt(val,10);
+  if(isNaN(v)) return;
+  const display=document.getElementById('settings-maxvel-display');
+  if(display) display.textContent=v+' mph';
+  // Save to profile immediately
+  const profile=getProfile();
+  if(profile){
+    profile.maxVelocity=v;
+    saveProfile(profile);
+    if(typeof getAppMode==='function'&&getAppMode()==='team'){
+      const activeId=typeof getActivePitcherId==='function'?getActivePitcherId():null;
+      if(activeId&&typeof updatePitcherInRoster==='function'){
+        updatePitcherInRoster(activeId,{maxVelocity:v});
+      }
+    }
+    // Recalculate current pitch velocity
+    if(typeof pitch!=='undefined'&&pitch) applyPitchVelocity(pitch);
+    if(typeof simMode!=='undefined'&&simMode&&typeof applyFatigueToVelocity==='function')applyFatigueToVelocity();
+  }
+}
+
+// ── Stats Tab ──
+function toggleStatsTab(){
+  const tab=document.getElementById('statstab');
+  const label=document.getElementById('statsTabLabel');
+  if(!tab||!label) return;
+  const open=tab.classList.toggle('visible');
+  label.textContent=open?'STATS ▾':'STATS ▸';
+}
+function setStatsSubtab(mode){
+  document.getElementById('subtabTable').classList.toggle('active',mode==='table');
+  document.getElementById('subtabHeatmap').classList.toggle('active',mode==='heatmap');
+  document.getElementById('statsTableView').classList.toggle('visible',mode==='table');
+  document.getElementById('statsHeatmapView').classList.toggle('visible',mode==='heatmap');
+}
+function setStatsPerspective(p){
+  document.getElementById('statsPitcherBtn').classList.toggle('active',p==='pitcher');
+  document.getElementById('statsBatterBtn').classList.toggle('active',p==='batter');
+}
+function setStatsColMode(mode){
+  document.getElementById('colBtnZones').classList.toggle('active',mode==='zones');
+  document.getElementById('colBtnOutcomes').classList.toggle('active',mode==='outcomes');
+}
+
+window.addEventListener('load',()=>{
+  initSplash();
+  initStats();
+  // Load Mr. OG preference
+  const savedMrOG=localStorage.getItem('pitchseq-mrog');
+  if(savedMrOG==='0'){
+    mrOGVisible=false;
+    const t=document.getElementById('mrogtoggle');
+    if(t) t.checked=false;
+  }
+  // Load SRE preference
+  const savedSRE=localStorage.getItem('pitchseq-sre');
+  if(savedSRE==='1'){
+    sreEnabled=true;
+    const s=document.getElementById('sretoggle');
+    if(s) s.checked=true;
+  }
+  // Apply velocity for default selected pitch
+  if(typeof pitch!=='undefined'&&pitch) applyPitchVelocity(pitch);
+  setCamera();
+  buildStatic();
+  buildZoneDiagram();
+  refreshGhost();
+  restoreSimState();
+  refreshPlanDropdown();
+  updateSimPanelVisibility();
+  updateSimStatBar();
+  updateSimLogUI();
+  initProfile();
+  setView('catcher');
+
+  // Orbit view keyboard controls
+  document.addEventListener('keydown',(e)=>{
+    if(currentView!=='orbit') return;
+    // Spacebar — toggle play/pause
+    if(e.code==='Space'){
+      e.preventDefault();
+      orbitTogglePlay();
+      return;
+    }
+    // Arrow keys — frame step (only when paused)
+    if(e.code==='ArrowRight'&&!orbitPlaying){
+      e.preventDefault();
+      if(orbitFrameStepMode){
+        orbitStepFrame(1);
+      } else if(orbitPitchIndex>=0){
+        // Enter frame step at frame 0 of selected pitch
+        orbitEnterFrameStep(orbitPitchIndex,0);
+        orbitStepFrame(1);
+      }
+      return;
+    }
+    if(e.code==='ArrowLeft'&&!orbitPlaying){
+      e.preventDefault();
+      if(orbitFrameStepMode){
+        orbitStepFrame(-1);
+      }
+      return;
+    }
+  });
+
+  // Orbit view mobile touch controls
+  const orbitCanvas=document.getElementById('orbitcanvas');
+  if(orbitCanvas){
+    orbitCanvas.addEventListener('touchstart',(e)=>{
+      if(currentView!=='orbit') return;
+      if(e.touches.length===1){
+        orbitTouchStartX=e.touches[0].clientX;
+        orbitTouchStartY=e.touches[0].clientY;
+        orbitTouchStartTime=performance.now();
+      }
+    },{passive:true});
+
+    orbitCanvas.addEventListener('touchend',(e)=>{
+      if(currentView!=='orbit') return;
+      if(e.changedTouches.length===1){
+        const dx=e.changedTouches[0].clientX-orbitTouchStartX;
+        const dy=e.changedTouches[0].clientY-orbitTouchStartY;
+        const dt=performance.now()-orbitTouchStartTime;
+        const dist=Math.sqrt(dx*dx+dy*dy);
+
+        // Tap — toggle play/pause (short touch, minimal movement)
+        if(dist<12&&dt<300){
+          orbitTogglePlay();
+          return;
+        }
+
+        // Swipe gestures removed — frame stepping handled by
+        // HUD STEP BACK / STEP FWD buttons to avoid conflict with
+        // OrbitControls single-finger rotate gesture
+      }
+    },{passive:true});
+  }
+});

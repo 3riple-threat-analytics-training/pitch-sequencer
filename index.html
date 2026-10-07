@@ -1,0 +1,1236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pitch Sequencer v37</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/styles.css">
+<link rel="manifest" href="./manifest.json">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PitchSeq">
+<link rel="apple-touch-icon" href="./icons/icon-180.png">
+<style>
+.sitrow{display:flex;gap:4px;}
+.sitbtn{
+  flex:1;padding:5px 4px;border-radius:4px;
+  border:0.5px solid #1e2a3a;background:#0d1520;
+  color:#4a6a8a;font-family:'DM Mono',monospace;font-size:8px;
+  cursor:pointer;letter-spacing:0.5px;transition:all 0.15s;
+}
+.sitbtn:hover{border-color:#4a7aaa;}
+.sitbtn.active[id='sitNEUTRAL']{border-color:#7ec8e3;color:#7ec8e3;background:#0a1e2e;}
+.sitbtn.active[id='sitAHEAD']{border-color:#4ade80;color:#4ade80;background:#0a1a10;}
+.sitbtn.active[id='sitBEHIND']{border-color:#f87171;color:#f87171;background:#1a0a0a;}
+.umprow{display:flex;gap:4px;}
+.umpbtn{
+  flex:1;padding:5px 4px;border-radius:4px;
+  border:0.5px solid #1e2a3a;background:#0d1520;
+  color:#4a6a8a;font-family:'DM Mono',monospace;font-size:9px;
+  cursor:pointer;letter-spacing:0.5px;transition:all 0.15s;
+}
+.umpbtn:hover{border-color:#4a7aaa;}
+.umpbtn.active[id='umpGOOD']{border-color:#4ade80;color:#4ade80;background:#0a1a10;}
+.umpbtn.active[id='umpBAD']{border-color:#f87171;color:#f87171;background:#1a0a0a;}
+.umpbtn.active[id='umpHOMER']{border-color:#f97316;color:#f97316;background:#1a0e00;}
+#extendbtn{
+  width:100%;padding:4px;border-radius:4px;
+  border:0.5px solid #1e2a3a;background:transparent;
+  color:#3a5a7a;font-family:'DM Mono',monospace;font-size:8px;
+  cursor:pointer;letter-spacing:1px;transition:all 0.15s;
+  margin-bottom:4px;
+}
+#extendbtn:hover{border-color:#7ec8e3;color:#7ec8e3;}
+#extendbtn.active{border-color:#eab308;color:#eab308;background:#1a1500;}
+
+/* Theme overrides for modal inline styles */
+#notesoverlay,
+#diamondmodal{background:var(--bg-overlay) !important;}
+#notesoverlay > div,
+#diamondmodal > div{
+  background:var(--bg-card) !important;
+  border-color:var(--border-panel) !important;
+}
+#notesoverlay [style*="color:#e8f4fd"],
+#diamondmodal [style*="color:#e8f4fd"]{color:var(--text-primary) !important;}
+#notesoverlay [style*="color:#3a5a7a"],
+#diamondmodal [style*="color:#3a5a7a"]{color:var(--text-muted) !important;}
+#notesoverlay textarea[style*="background:#0d1520"],
+#notesoverlay input[style*="background:#0d1520"],
+#diamondmodal button[style*="background:#0d1520"]{
+  background:var(--bg-input) !important;
+  border-color:var(--border-panel) !important;
+  color:var(--text-primary) !important;
+}
+#notesoverlay button[style*="background:#1a3a5c"],
+#diamondmodal button[style*="background:#1a3a5c"]{
+  background:var(--bg-savebtn) !important;
+  border-color:var(--border-accent) !important;
+  color:var(--text-savebtn) !important;
+}
+#notesoverlay button[style*="background:transparent"],
+#diamondmodal button[style*="background:transparent"]{
+  background:transparent !important;
+  border-color:var(--border-panel) !important;
+  color:var(--text-muted) !important;
+}
+</style>
+</head>
+<body data-theme="light">
+<div id="splashoverlay">
+  <!-- Step 1: Tagline -->
+  <div class="splash-step" id="splash-s1">
+    <div id="splash-tagline">GET 1% BETTER</div>
+  </div>
+  <!-- Step 2: 3riplethreat logo + presents -->
+  <div class="splash-step" id="splash-s2">
+    <img id="splash-3rt-logo" src="assets/3riplethreat-logo.png" alt="3riplethreat">
+    <div id="splash-presents">PRESENTS</div>
+  </div>
+  <!-- Step 3: Pitch Sequencer icon + mode selection -->
+  <div class="splash-step" id="splash-s3">
+    <img id="splash-app-icon" src="icons/icon-512.png" alt="Pitch Sequencer">
+    <div id="splash-app-name">PITCH SEQUENCER</div>
+    <div id="splash-app-sub">SELECT YOUR MODE</div>
+    <div class="splash-mode-btns">
+      <button class="splash-mode-btn" id="splashMyPitcher" onclick="chooseSplashMode('individual')">MY PITCHER</button>
+      <button class="splash-mode-btn" id="splashMyTeam" onclick="chooseSplashMode('team')">MY TEAM</button>
+    </div>
+  </div>
+  <button onclick="openSplashSignIn()" id="splash-signin-btn"
+    style="position:fixed;bottom:60px;left:50%;transform:translateX(-50%);
+    padding:10px 24px;border-radius:8px;border:1px solid #06b6d4;
+    background:transparent;color:#06b6d4;font-family:'Bebas Neue',sans-serif;
+    font-size:16px;letter-spacing:2px;cursor:pointer;z-index:2001;
+    display:none;">🔐 SIGN IN TO YOUR ACCOUNT</button>
+  <button class="splash-skip" onclick="skipSplash()">SKIP</button>
+</div>
+<div id="profileoverlay">
+  <div id="profilecard">
+    <div id="profiletitle">PITCHER PROFILE</div>
+    <div id="profilesubtitle">Set up your profile to get started</div>
+    
+    <div class="pfield">
+      <label class="pflbl">PITCHER NAME</label>
+      <input type="text" id="prof-name" placeholder="Enter pitcher name" maxlength="30">
+    </div>
+
+    <div class="pfield">
+      <label class="pflbl">HANDEDNESS</label>
+      <div class="ptogglerow">
+        <button class="ptbtn active" id="prof-rhp" onclick="profSetHand('R')">RHP</button>
+        <button class="ptbtn" id="prof-lhp" onclick="profSetHand('L')">LHP</button>
+      </div>
+    </div>
+
+    <div class="pfield">
+      <label class="pflbl">AGE GROUP</label>
+      <select id="prof-age" onchange="profAgeChanged()">
+        <option value="rec12">Youth / Rec (12U and under) — 35 to 70 mph</option>
+        <option value="hsvar">High School (14U–18U) — 55 to 85 mph</option>
+        <option value="college">College / Minor League — 70 to 95 mph</option>
+        <option value="pro">Professional (MLB / Mexican League / NPB) — 80 to 100+ mph</option>
+      </select>
+    </div>
+
+    <div class="pfield">
+      <label class="pflbl">MAX FASTBALL VELOCITY <span style="color:#7ec8e3;font-size:8px;">(mph)</span></label>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <input type="range" min="40" max="110" value="80" id="prof-maxvel-slider"
+          oninput="document.getElementById('prof-maxvel').value=this.value;onMaxVelChange(this.value)"
+          style="flex:1;">
+        <input type="number" id="prof-maxvel" min="40" max="110" value="80"
+          oninput="document.getElementById('prof-maxvel-slider').value=this.value;onMaxVelChange(this.value)"
+          style="width:52px;padding:5px;border-radius:4px;border:0.5px solid #1e2a3a;
+          background:#0d1520;color:#e8f4fd;font-family:DM Mono,monospace;font-size:11px;
+          text-align:center;">
+        <span style="font-family:DM Mono,monospace;font-size:9px;color:#3a5a7a;">mph</span>
+      </div>
+    </div>
+
+    <div class="pfield">
+      <label class="pflbl">PITCH ARSENAL <span id="arsenalcount" style="color:#7ec8e3">(select 2–5)</span></label>
+      <div id="arsenalgrid"></div>
+    </div>
+
+    <div id="profileerror"></div>
+    <button id="profsavebtn" onclick="saveProfileAndStart()">START PITCHING</button>
+    <div id="profileeditlbl" style="display:none">
+      <button id="profaddanotherbtn" style="display:none;width:100%;padding:7px;border-radius:6px;font-family:'DM Mono',monospace;font-size:9px;letter-spacing:2px;background:transparent;border:0.5px solid #cc1a1a;color:#cc1a1a;cursor:pointer;margin-top:4px;" onclick="saveAndAddAnotherPitcher()">+ ADD ANOTHER PITCHER</button>
+      <button id="profcancelbtn" onclick="closeProfileOverlay()">CANCEL</button>
+    </div>
+  </div>
+</div>
+<div id="notesoverlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;
+  background:rgba(5,8,18,0.97);z-index:999;align-items:center;justify-content:center;">
+  <div style="background:#080c14;border:0.5px solid #1e2a3a;border-radius:12px;
+    padding:24px;width:100%;max-width:460px;margin:20px;display:flex;flex-direction:column;gap:14px;">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:3px;color:#e8f4fd;">
+      PLAN NOTES
+    </div>
+    <div id="notesplanname" style="font-size:9px;color:#3a5a7a;letter-spacing:2px;"></div>
+    <div>
+      <div class="plbl">outcome</div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap;">
+        <button class="outcomebtn" data-outcome="UNTESTED" onclick="setOutcome('UNTESTED')">UNTESTED</button>
+        <button class="outcomebtn" data-outcome="WORKED" onclick="setOutcome('WORKED')">WORKED</button>
+        <button class="outcomebtn" data-outcome="DIDN'T WORK" onclick="setOutcome('DIDN\'T WORK')">DIDN'T WORK</button>
+        <button class="outcomebtn" data-outcome="NEEDS ADJUSTMENT" onclick="setOutcome('NEEDS ADJUSTMENT')">NEEDS ADJUSTMENT</button>
+      </div>
+    </div>
+    <div>
+      <div class="plbl">batter notes - tendencies & weaknesses</div>
+      <textarea id="notesbaatter" rows="3" placeholder="e.g. Crowds the plate, chases low breaking balls at 2 strikes, weak against inside heat..."
+        style="width:100%;background:#0d1520;border:0.5px solid #1e2a3a;border-radius:4px;
+        color:#e8f4fd;font-family:DM Mono,monospace;font-size:9px;padding:7px;resize:vertical;
+        outline:none;line-height:1.5;"></textarea>
+    </div>
+    <div>
+      <div class="plbl">game notes - what happened when plan was used</div>
+      <textarea id="notesgame" rows="3" placeholder="e.g. Worked well in 1st at bat, got a groundout. 2nd at bat batter adjusted and hit a single..."
+        style="width:100%;background:#0d1520;border:0.5px solid #1e2a3a;border-radius:4px;
+        color:#e8f4fd;font-family:DM Mono,monospace;font-size:9px;padding:7px;resize:vertical;
+        outline:none;line-height:1.5;"></textarea>
+    </div>
+    <div style="display:flex;gap:6px;">
+      <button onclick="saveNotes()" style="flex:1;padding:8px;border-radius:6px;
+        font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:2px;
+        background:#1a3a5c;border:0.5px solid #7ec8e3;color:#7ec8e3;cursor:pointer;">SAVE NOTES</button>
+      <button onclick="closeNotesModal()" style="flex:1;padding:8px;border-radius:6px;
+        font-family:'DM Mono',monospace;font-size:9px;letter-spacing:1px;
+        background:transparent;border:0.5px solid #1e2a3a;color:#3a5a7a;cursor:pointer;">CLOSE</button>
+    </div>
+  </div>
+</div>
+<!-- Feature discovery banner — outside all modals -->
+<div id="featurebanner" style="display:none;position:fixed;
+  bottom:100px;left:50%;transform:translateX(-50%);
+  background:#0d1520;border:1px solid #7ec8e3;border-radius:10px;
+  padding:16px 24px;font-family:'DM Mono',monospace;font-size:11px;
+  color:#7ec8e3;letter-spacing:1px;z-index:9999;max-width:380px;
+  width:90%;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,0.6);">
+  ⚾ NEW: Mr. OG batter &amp; 🧠 Smart Role Engine now available!<br>
+  <span style="font-size:9px;opacity:0.8;">Find them in Settings ⚙ to
+  customize your experience.</span>
+  <button onclick="dismissFeatureBanner()" style="display:block;
+    margin:10px auto 0;padding:6px 20px;border-radius:6px;
+    border:1px solid #7ec8e3;background:transparent;
+    color:#7ec8e3;font-family:'DM Mono',monospace;font-size:10px;
+    letter-spacing:1px;cursor:pointer;">GOT IT</button>
+</div>
+<!-- Sim mode first-use reminder -->
+<div id="simbanner" style="display:none;position:fixed;
+  bottom:100px;left:50%;transform:translateX(-50%);
+  background:#0d1520;border:1px solid #c084fc;border-radius:10px;
+  padding:16px 24px;font-family:'DM Mono',monospace;font-size:11px;
+  color:#c084fc;letter-spacing:1px;z-index:9999;max-width:380px;
+  width:90%;text-align:center;box-shadow:0 4px 24px rgba(0,0,0,0.6);">
+  🧠 Smart Role Engine is available!<br>
+  <span style="font-size:9px;opacity:0.8;">Turn it on in Settings ⚙
+  to get coaching hints after each pitch.</span>
+  <button onclick="dismissSimBanner()" style="display:block;
+    margin:10px auto 0;padding:6px 20px;border-radius:6px;
+    border:1px solid #c084fc;background:transparent;
+    color:#c084fc;font-family:'DM Mono',monospace;font-size:10px;
+    letter-spacing:1px;cursor:pointer;">GOT IT</button>
+</div>
+<div id="diamondmodal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;
+  background:rgba(5,8,18,0.95);z-index:998;align-items:center;justify-content:center;">
+  <div style="background:#080c14;border:0.5px solid #1e2a3a;border-radius:12px;
+    padding:20px;width:100%;max-width:340px;margin:20px;display:flex;flex-direction:column;
+    gap:12px;align-items:center;">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:3px;color:#e8f4fd;">
+      AT-BAT RESULT
+    </div>
+    <div id="diamond-outcome-badge" style="display:none;padding:6px 16px;border-radius:6px;
+      font-family:'Bebas Neue',sans-serif;font-size:18px;letter-spacing:3px;
+      margin-top:-4px;"></div>
+    <div id="runs-result" style="font-size:11px;font-family:'DM Mono',monospace;color:#5a8aaa;"></div>
+
+    <!-- Outs display -->
+    <div style="display:flex;align-items:center;gap:8px;">
+      <span style="font-family:'DM Mono',monospace;font-size:9px;color:#5a8aaa;letter-spacing:1px;">OUTS:</span>
+      <div id="modal-out-1" style="width:12px;height:12px;border-radius:50%;border:1px solid #3a5a7a;background:transparent;"></div>
+      <div id="modal-out-2" style="width:12px;height:12px;border-radius:50%;border:1px solid #3a5a7a;background:transparent;"></div>
+      <div id="modal-out-3" style="width:12px;height:12px;border-radius:50%;border:1px solid #3a5a7a;background:transparent;"></div>
+    </div>
+
+    <!-- Quick stats -->
+    <div style="display:flex;gap:8px;justify-content:center;width:100%;">
+      <div style="flex:1;background:#0d1520;border-radius:5px;padding:5px;text-align:center;">
+        <span id="modal-stat-pitches" style="font-family:'Bebas Neue',sans-serif;font-size:16px;color:#e8f4fd;display:block;">0</span>
+        <span style="font-family:'DM Mono',monospace;font-size:7px;color:#3a5a7a;letter-spacing:1px;">PITCHES</span>
+      </div>
+      <div style="flex:1;background:#0d1520;border-radius:5px;padding:5px;text-align:center;">
+        <span id="modal-stat-k" style="font-family:'Bebas Neue',sans-serif;font-size:16px;color:#e8f4fd;display:block;">0</span>
+        <span style="font-family:'DM Mono',monospace;font-size:7px;color:#3a5a7a;letter-spacing:1px;">K</span>
+      </div>
+      <div style="flex:1;background:#0d1520;border-radius:5px;padding:5px;text-align:center;">
+        <span id="modal-stat-bb" style="font-family:'Bebas Neue',sans-serif;font-size:16px;color:#e8f4fd;display:block;">0</span>
+        <span style="font-family:'DM Mono',monospace;font-size:7px;color:#3a5a7a;letter-spacing:1px;">BB</span>
+      </div>
+      <div style="flex:1;background:#0d1520;border-radius:5px;padding:5px;text-align:center;">
+        <span id="modal-stat-h" style="font-family:'Bebas Neue',sans-serif;font-size:16px;color:#e8f4fd;display:block;">0</span>
+        <span style="font-family:'DM Mono',monospace;font-size:7px;color:#3a5a7a;letter-spacing:1px;">H</span>
+      </div>
+    </div>
+
+    <svg width="160" height="144" viewBox="0 0 200 180" xmlns="http://www.w3.org/2000/svg">
+      <polygon points="100,10 180,90 100,170 20,90" fill="none" stroke="#2a4a6a" stroke-width="1.5"/>
+      <line x1="100" y1="10" x2="180" y2="90" stroke="#1e2a3a" stroke-width="0.5"/>
+      <line x1="180" y1="90" x2="100" y2="170" stroke="#1e2a3a" stroke-width="0.5"/>
+      <line x1="100" y1="170" x2="20" y2="90" stroke="#1e2a3a" stroke-width="0.5"/>
+      <line x1="20" y1="90" x2="100" y2="10" stroke="#1e2a3a" stroke-width="0.5"/>
+      <circle id="base-second" cx="100" cy="16" r="12" fill="#0d1520" stroke="#2a4a6a" stroke-width="1.5"
+        onclick="toggleBase('second')" style="cursor:pointer;"/>
+      <text x="100" y="21" text-anchor="middle" fill="#3a5a7a" font-size="9"
+        font-family="DM Mono,monospace" pointer-events="none">2B</text>
+      <circle id="base-third" cx="20" cy="90" r="12" fill="#0d1520" stroke="#2a4a6a" stroke-width="1.5"
+        onclick="toggleBase('third')" style="cursor:pointer;"/>
+      <text x="20" y="95" text-anchor="middle" fill="#3a5a7a" font-size="9"
+        font-family="DM Mono,monospace" pointer-events="none">3B</text>
+      <circle id="base-first" cx="180" cy="90" r="12" fill="#0d1520" stroke="#2a4a6a" stroke-width="1.5"
+        onclick="toggleBase('first')" style="cursor:pointer;"/>
+      <text x="180" y="95" text-anchor="middle" fill="#3a5a7a" font-size="9"
+        font-family="DM Mono,monospace" pointer-events="none">1B</text>
+      <polygon points="100,162 110,170 100,178 90,170" fill="#4a7aaa"/>
+      <text x="100" y="195" text-anchor="middle" fill="#3a5a7a" font-size="9"
+        font-family="DM Mono,monospace">HOME</text>
+    </svg>
+
+    <div style="display:flex;align-items:center;gap:10px;">
+      <button onclick="removeRun()" style="padding:4px 10px;border-radius:4px;
+        border:0.5px solid #1e2a3a;background:#0d1520;color:#5a8aaa;
+        font-family:'DM Mono',monospace;font-size:12px;cursor:pointer;">-</button>
+      <span id="modal-score" style="font-family:'Bebas Neue',sans-serif;font-size:22px;
+        letter-spacing:2px;color:#e8f4fd;">SCORE: 0</span>
+      <button onclick="addRun()" style="padding:4px 10px;border-radius:4px;
+        border:0.5px solid #1e2a3a;background:#0d1520;color:#5a8aaa;
+        font-family:'DM Mono',monospace;font-size:12px;cursor:pointer;">+</button>
+    </div>
+
+    <div style="font-size:8px;color:#3a5a7a;font-family:'DM Mono',monospace;text-align:center;">
+      Tap bases to toggle runners · Use +/- to adjust score
+    </div>
+
+    <!-- NEW BATTER button — always visible -->
+    <button id="modal-new-batter-btn" onclick="modalNewBatter()">
+      NEW BATTER
+    </button>
+
+    <!-- NEW INNING button — only shown when 3 outs -->
+    <button id="modal-new-inning-btn" onclick="modalNewInning()">
+      NEW INNING
+    </button>
+
+  </div>
+</div>
+<div id="app">
+  <div id="beta-banner" style="width:100%;background:#0c4a6e;color:#bae6fd;
+    font-family:'DM Mono',monospace;font-size:9px;letter-spacing:1px;
+    text-align:center;padding:5px;display:flex;align-items:center;
+    justify-content:center;gap:12px;">
+    <span>🚀 BETA — FREE ACCESS DURING LAUNCH PERIOD</span>
+    <a href="mailto:3triple.threat869@gmail.com?subject=Pitch Sequencer Updates" 
+      style="color:#06b6d4;font-weight:700;text-decoration:none;
+      border:0.5px solid #06b6d4;padding:2px 8px;border-radius:4px;">
+      GET UPDATES
+    </a>
+  </div>
+  <div id="header">
+    <div><div id="title">PITCH SEQUENCER</div><div id="subtitle">CATCHER'S VIEW</div></div>
+    <div class="header-controls">
+      <div id="hand-toggle">
+        <button class="hbtn active" id="brhp" onclick="setHand('R')">RHP</button>
+        <button class="hbtn" id="blhp" onclick="setHand('L')">LHP</button>
+      </div>
+      <div class="tgrp">
+        <button class="tbtn" id="blhb" onclick="setBatter('LHB')">RHB</button>
+        <button class="tbtn" id="boff" onclick="setBatter('OFF')">OFF</button>
+        <button class="tbtn active" id="brhb" onclick="setBatter('RHB')">LHB</button>
+      </div>
+      <div class="tgrp" id="viewtoggle">
+        <button class="tbtn active" id="vcatcher" onclick="setView('catcher')">CATCHER</button>
+        <button class="tbtn" id="vside" onclick="setView('side')">SIDE VIEW</button>
+        <button class="tbtn" id="vorbit" onclick="setView('orbit')">ORBIT</button>
+      </div>
+      <button id="simbtn" onclick="toggleSimMode()">SIM MODE OFF</button>
+      <button id="activepitcherpill" onclick="openRosterFromPill()"></button>
+      <button id="gearbtn" onclick="openSettingsModal()" title="Settings">⚙</button>
+    </div>
+  </div>
+  <div id="main">
+    <div id="cwrap">
+      <canvas id="c"></canvas>
+      <div id="outcome-flash"></div>
+      <div id="sideview" style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;background:#0a0e1a;overflow:hidden;">
+        <svg id="sidesvg" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg"></svg>
+        <div id="sidereplaybtn" style="position:absolute;bottom:12px;right:12px;">
+          <button onclick="replaySideView()" style="padding:6px 14px;border-radius:4px;border:0.5px solid #4a9a4a;background:#1a2a1a;color:#4a9a4a;font-family:DM Mono,monospace;font-size:11px;cursor:pointer;letter-spacing:1px;">REPLAY</button>
+        </div>
+      </div>
+      <div id="orbitview" style="display:none;position:absolute;top:0;left:0;width:100%;height:100%;background:#0a0e1a;overflow:hidden;">
+        <canvas id="orbitcanvas" style="width:100%;height:100%;display:block;touch-action:none;"></canvas>
+        <!-- Tunnel zoom indicator -->
+        <div id="tunnelIndicator" style="display:none;position:absolute;top:12px;left:50%;transform:translateX(-50%);
+          background:rgba(10,14,26,0.85);border:0.5px solid #eab308;border-radius:6px;
+          padding:6px 16px;font-family:DM Mono,monospace;font-size:10px;letter-spacing:2px;
+          color:#eab308;pointer-events:none;">TUNNEL 1 of 1</div>
+        <!-- Exit button — mobile only, top-left of canvas -->
+        <button id="orbitExitBtn" onclick="setView('catcher')"
+style="display:none;position:absolute;top:12px;left:12px;z-index:600;
+width:44px;height:44px;border-radius:8px;
+background:rgba(10,14,26,0.85);border:1px solid #2a3a4a;
+color:#7ec8e3;font-size:20px;cursor:pointer;
+font-family:DM Mono,monospace;touch-action:manipulation;
+-webkit-tap-highlight-color:transparent;">✕</button>
+        <!-- Top right controls — hidden on mobile, shown in HUD instead -->
+        <div id="orbitTopControls" style="position:absolute;top:12px;right:12px;display:flex;flex-direction:column;gap:6px;">
+          <button id="tunnelZoomBtn" onclick="orbitTunnelZoom()" style="padding:6px 12px;border-radius:4px;
+            border:0.5px solid #eab308;background:rgba(10,14,26,0.85);color:#eab308;
+            font-family:DM Mono,monospace;font-size:9px;letter-spacing:1px;cursor:pointer;">⬡ TUNNEL ZOOM</button>
+          <button onclick="orbitResetCamera()" style="padding:6px 12px;border-radius:4px;
+            border:0.5px solid #4a7aaa;background:rgba(10,14,26,0.85);color:#7ec8e3;
+            font-family:DM Mono,monospace;font-size:9px;letter-spacing:1px;cursor:pointer;">⌖ RESET CAM</button>
+        </div>
+        <!-- Bottom playback toolbar — desktop layout -->
+        <div id="orbitToolbar" style="position:absolute;bottom:0;left:0;right:0;
+          background:rgba(8,12,20,0.92);border-top:0.5px solid #1e2a3a;
+          padding:10px 16px;display:flex;flex-direction:column;gap:8px;">
+          <!-- At-bat selector row -->
+          <div style="display:flex;align-items:center;gap:10px;">
+            <button onclick="orbitPrevAtBat()" style="padding:4px 10px;border-radius:4px;border:0.5px solid #1e2a3a;background:#0d1520;
+color:#7ec8e3;font-family:DM Mono,monospace;font-size:12px;cursor:pointer;min-width:32px;min-height:28px;">◀</button>
+            <div style="flex:1;text-align:center;">
+              <div id="orbitAtBatLabelDesktop" style="font-size:9px;letter-spacing:2px;color:#3a5a7a;font-family:DM Mono,monospace;">CURRENT AT-BAT</div>
+              <div id="orbitAtBatMetaDesktop" style="font-size:9px;color:#7ec8e3;margin-top:1px;font-family:DM Mono,monospace;"></div>
+            </div>
+            <button onclick="orbitNextAtBat()" style="padding:4px 10px;border-radius:4px;border:0.5px solid #1e2a3a;background:#0d1520;
+color:#7ec8e3;font-family:DM Mono,monospace;font-size:12px;cursor:pointer;min-width:32px;min-height:28px;">▶</button>
+          </div>
+          <!-- Pitch isolation row -->
+          <div id="orbitIsolationRow" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;
+            font-family:DM Mono,monospace;font-size:9px;color:#5a8aaa;letter-spacing:1px;">
+            <span style="color:#3a5a7a;font-size:8px;letter-spacing:2px;">SHOW:</span>
+          </div>
+          <!-- Scrubber row -->
+          <div style="display:flex;align-items:center;gap:10px;">
+            <button onclick="orbitPrevPitch()" style="padding:6px 10px;border-radius:4px;
+              border:0.5px solid #1e2a3a;background:#0d1520;color:#7ec8e3;
+              font-family:DM Mono,monospace;font-size:12px;cursor:pointer;min-width:36px;min-height:36px;">◀</button>
+            <div id="orbitScrubber" style="flex:1;display:flex;gap:4px;align-items:center;position:relative;height:36px;">
+              <!-- Chapter markers injected by JS -->
+            </div>
+            <button onclick="orbitNextPitch()" style="padding:6px 10px;border-radius:4px;
+              border:0.5px solid #1e2a3a;background:#0d1520;color:#7ec8e3;
+              font-family:DM Mono,monospace;font-size:12px;cursor:pointer;min-width:36px;min-height:36px;">▶</button>
+            <button id="orbitPlayBtn" onclick="orbitTogglePlay()" style="padding:6px 16px;border-radius:4px;
+              border:0.5px solid #4a9a4a;background:#1a2a1a;color:#4a9a4a;
+              font-family:'Bebas Neue',sans-serif;font-size:14px;letter-spacing:2px;
+              cursor:pointer;min-width:80px;min-height:36px;">PLAY</button>
+          </div>
+        </div>
+        <!-- Mobile fullscreen HUD — only visible on mobile -->
+        <div id="orbitMobileHUD" style="display:none;position:absolute;bottom:0;left:0;right:0;
+          background:rgba(6,10,18,0.96);border-top:1px solid #1e2a3a;
+          padding:8px 12px;display:none;flex-direction:column;gap:6px;
+          font-family:DM Mono,monospace;">
+          <!-- Row 1: At-bat selector -->
+          <div id="orbitAtBatRow" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+            <button onclick="orbitPrevAtBat()" style="padding:4px 10px;border-radius:4px;border:0.5px solid #1e2a3a;background:#0d1520;
+color:#7ec8e3;font-family:DM Mono,monospace;font-size:14px;cursor:pointer;min-width:36px;min-height:36px;touch-action:manipulation;">◀</button>
+            <div style="flex:1;text-align:center;">
+              <div id="orbitAtBatLabel" style="font-size:9px;letter-spacing:2px;color:#3a5a7a;">CURRENT AT-BAT</div>
+              <div id="orbitAtBatMeta" style="font-size:9px;color:#7ec8e3;margin-top:1px;"></div>
+            </div>
+            <button onclick="orbitNextAtBat()" style="padding:4px 10px;border-radius:4px;border:0.5px solid #1e2a3a;background:#0d1520;
+color:#7ec8e3;font-family:DM Mono,monospace;font-size:14px;cursor:pointer;min-width:36px;min-height:36px;touch-action:manipulation;">▶</button>
+            <button onclick="orbitTunnelZoom()" style="padding:4px 8px;border-radius:4px;border:0.5px solid #eab308;background:rgba(10,14,26,0.9);
+color:#eab308;font-family:DM Mono,monospace;font-size:8px;cursor:pointer;min-height:36px;touch-action:manipulation;">⬡ TUNNEL</button>
+            <button onclick="orbitResetCamera()" style="padding:4px 8px;border-radius:4px;border:0.5px solid #4a7aaa;background:rgba(10,14,26,0.9);
+color:#7ec8e3;font-family:DM Mono,monospace;font-size:8px;cursor:pointer;min-height:36px;touch-action:manipulation;">⌖ CAM</button>
+          </div>
+          <!-- Row 2: SHOW collapsible pitch log -->
+          <div>
+            <button onclick="orbitToggleShowRow()" id="orbitShowToggle" style="padding:3px 10px;border-radius:4px;border:0.5px solid #1e2a3a;
+background:#0d1520;color:#5a8aaa;font-family:DM Mono,monospace;font-size:8px;letter-spacing:1px;cursor:pointer;touch-action:manipulation;">
+PITCH LOG ▸</button>
+            <div id="orbitShowRowMobile" style="display:none;margin-top:6px;
+flex-direction:column;gap:4px;"></div>
+          </div>
+          <!-- Row 3: Pitch nav + Play -->
+          <div style="display:flex;align-items:center;gap:6px;">
+            <button onclick="orbitPrevPitch()" style="padding:6px 10px;border-radius:4px;border:0.5px solid #1e2a3a;background:#0d1520;
+color:#7ec8e3;font-family:DM Mono,monospace;font-size:14px;cursor:pointer;min-width:44px;min-height:44px;touch-action:manipulation;">◀</button>
+            <div id="orbitScrubberMobile" style="flex:1;display:flex;gap:3px;align-items:center;overflow-x:auto;"></div>
+            <button onclick="orbitNextPitch()" style="padding:6px 10px;border-radius:4px;border:0.5px solid #1e2a3a;background:#0d1520;
+color:#7ec8e3;font-family:DM Mono,monospace;font-size:14px;cursor:pointer;min-width:44px;min-height:44px;touch-action:manipulation;">▶</button>
+            <button id="orbitPlayBtnMobile" onclick="orbitTogglePlay()" style="padding:6px 16px;border-radius:4px;border:0.5px solid #4a9a4a;
+background:#1a2a1a;color:#4a9a4a;font-family:'Bebas Neue',sans-serif;font-size:16px;letter-spacing:2px;cursor:pointer;min-width:80px;
+min-height:44px;touch-action:manipulation;">PLAY</button>
+          </div>
+          <!-- Row 4: Frame step buttons — always visible -->
+          <div style="display:flex;gap:6px;align-items:center;">
+            <button id="orbitStepBackBtn" onclick="orbitMobileStepBack()" style="flex:1;padding:8px;border-radius:4px;border:0.5px solid #2a3a4a;
+background:#0d1520;color:#3a5a7a;font-family:DM Mono,monospace;font-size:11px;letter-spacing:1px;cursor:pointer;min-height:44px;touch-action:manipulation;">
+◀◀ STEP BACK</button>
+            <button id="orbitStepFwdBtn" onclick="orbitMobileStepFwd()" style="flex:1;padding:8px;border-radius:4px;border:0.5px solid #2a3a4a;
+background:#0d1520;color:#3a5a7a;font-family:DM Mono,monospace;font-size:11px;letter-spacing:1px;cursor:pointer;min-height:44px;touch-action:manipulation;">
+STEP FWD ▶▶</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div id="panel">
+      <div>
+        <div id="target-zone-header">
+          <div class="plbl">target zone</div>
+          <button id="gearbtn-mobile" onclick="openSettingsModal()" title="Settings">⚙</button>
+        </div>
+        <div id="ze-toggle" class="zone-toggle">
+          <button class="zebtn active" id="zezone" type="button" onclick="setTargetMode('ZONE')">ZONE</button>
+          <button class="zebtn" id="zeedge" type="button" onclick="setTargetMode('EDGE')">EDGE</button>
+          <div id="count-inline">
+            <span class="clbl">B</span>
+            <button class="carr" onclick="adjCount('b',-1)">◀</button>
+            <span id="bnum-inline" class="cnum">0</span>
+            <button class="carr" onclick="adjCount('b',1)">▶</button>
+            <span class="clbl">S</span>
+            <button class="carr" onclick="adjCount('s',-1)">◀</button>
+            <span id="snum-inline" class="cnum">0</span>
+            <button class="carr" onclick="adjCount('s',1)">▶</button>
+          </div>
+        </div>
+        <div id="zonediagram"></div>
+      </div>
+      <div id="fatiguewrap" style="display:none;">
+        <div class="plbl">pitch count & fatigue</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;
+          margin-bottom:4px;">
+          <div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--text-secondary);">
+            PITCHES: <span id="fatigue-pitch-count" style="color:var(--text-primary);
+            font-weight:600;">0</span>
+          </div>
+          <div style="font-family:'DM Mono',monospace;font-size:9px;font-weight:600;"
+            id="fatigue-level-label">FRESH</div>
+          <button onclick="resetPitchCount()" style="padding:2px 8px;border-radius:4px;
+            border:0.5px solid var(--border-panel);background:transparent;
+            color:var(--text-muted);font-family:'DM Mono',monospace;font-size:7px;
+            cursor:pointer;letter-spacing:1px;">RESET</button>
+        </div>
+        <div style="width:100%;height:6px;background:var(--bg-input);border-radius:3px;
+          border:0.5px solid var(--border-panel);overflow:hidden;margin-bottom:4px;">
+          <div id="fatigue-bar" style="height:100%;width:0%;background:#4ade80;
+            border-radius:3px;transition:width 0.3s ease,background 0.3s ease;"></div>
+        </div>
+        <div style="display:flex;gap:4px;">
+          <button onclick="showPitchingChangeModal()" style="flex:1;padding:4px;
+            border-radius:4px;border:0.5px solid #f87171;background:transparent;
+            color:#f87171;font-family:'DM Mono',monospace;font-size:8px;
+            cursor:pointer;letter-spacing:1px;transition:all 0.15s;">
+            ⇄ CHANGE
+          </button>
+          <button onclick="if(window._endGamePending)return;window._endGamePending=true;setTimeout(function(){window._endGamePending=false;},3000);confirmEndGame();" style="flex:1;padding:4px;
+            border-radius:4px;border:0.5px solid #cc1a1a;background:#cc1a1a;
+            color:#ffffff;font-family:'DM Mono',monospace;font-size:8px;
+            cursor:pointer;letter-spacing:1px;transition:all 0.15s;">
+            ■ END GAME
+          </button>
+        </div>
+      </div>
+      <div>
+        <div class="plbl">options</div>
+        <div class="crow" style="gap:4px;display:flex;flex-direction:column;">
+          <button id="ckbd-backdoor" onclick="toggleBdMode('backdoor')" 
+            style="width:100%;padding:4px 8px;border-radius:4px;
+            border:0.5px solid #3a5a7a;background:#0a1520;
+            color:#4a7aaa;font-family:'DM Mono',monospace;
+            font-size:9px;letter-spacing:1px;cursor:pointer;
+            text-align:left;transition:all 0.15s;">
+            ↩ BACKDOOR
+          </button>
+          <button id="ckbd-backfoot" onclick="toggleBdMode('backfoot')"
+            style="width:100%;padding:4px 8px;border-radius:4px;
+            border:0.5px solid #3a5a7a;background:#0a1520;
+            color:#4a7aaa;font-family:'DM Mono',monospace;
+            font-size:9px;letter-spacing:1px;cursor:pointer;
+            text-align:left;transition:all 0.15s;">
+            ↙ BACK-FOOT
+          </button>
+        </div>
+      </div>
+      <div class="actbtns">
+        <button class="actbtn" id="throwbtn" onclick="throwPitch()">THROW</button>
+        <button class="actbtn" id="replaybtn" onclick="replaySeq()">REPLAY</button>
+      </div>
+      <div>
+        <button id="activepitcherpill-panel" onclick="openRosterFromPill()" style="display:none;"></button>
+        <div class="plbl">pitch type</div>
+        <div id="pitchtypesection">
+        <button class="pbtn sel" id="p4FB" data-abbr="4SFB" onclick="selPitch('4FB')"><span class="dot dot-4fb"></span>4-seam FB</button>
+        <button class="pbtn" id="p2FB" data-abbr="2SFB" onclick="selPitch('2FB')"><span class="dot dot-2fb"></span>2-seam FB</button>
+        <button class="pbtn" id="pCB" data-abbr="CB" onclick="selPitch('CB')"><span class="dot dot-cb"></span>Curveball</button>
+        <button class="pbtn" id="pSL" data-abbr="SL" onclick="selPitch('SL')"><span class="dot dot-sl"></span>Slider</button>
+        <button class="pbtn" id="pCH" data-abbr="CH" onclick="selPitch('CH')"><span class="dot dot-ch"></span>Changeup</button>
+        <button class="pbtn" id="pCT" data-abbr="CT" onclick="selPitch('CT')"><span class="dot dot-ct"></span>Cutter</button>
+        <button class="pbtn" id="pSP" data-abbr="SPL" onclick="selPitch('SP')"><span class="dot dot-sp"></span>Splitter</button>
+        <button class="pbtn" id="pSK"  data-abbr="SNK" onclick="selPitch('SK')"><span class="dot" style="background:#f43f5e"></span>Sinker</button>
+        <button class="pbtn" id="pFK"  data-abbr="FK" onclick="selPitch('FK')"><span class="dot" style="background:#0891b2"></span>Forkball</button>
+        <button class="pbtn" id="pSCR" data-abbr="SCR" onclick="selPitch('SCR')"><span class="dot" style="background:#ec4899"></span>Screwball</button>
+        <button class="pbtn" id="pEPH" data-abbr="EPH" onclick="selPitch('EPH')"><span class="dot" style="background:#d97706"></span>Eephus</button>
+        <button class="pbtn" id="pSLV" data-abbr="SLV" onclick="selPitch('SLV')"><span class="dot" style="background:#7c3aed"></span>Slurve</button>
+        <button class="pbtn" id="pSWP" data-abbr="SWP" onclick="selPitch('SWP')"><span class="dot" style="background:#10b981"></span>Sweeper</button>
+        <button class="pbtn" id="pKN" data-abbr="KN" onclick="selPitch('KN')"><span class="dot" style="background:#94a3b8"></span>Knuckleball</button>
+        <button class="pbtn" id="pKC" data-abbr="KC" onclick="selPitch('KC')"><span class="dot" style="background:#6366f1"></span>Knuckle Curve</button>
+        </div>
+      </div>
+      <div>
+        <div class="plbl">speed (mph)</div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px;">
+          <span id="velrangelabel" style="font-family:'DM Mono',monospace;font-size:7px;
+            color:var(--text-muted);letter-spacing:1px;">— mph range</span>
+        </div>
+        <div id="srow">
+          <input type="range" min="45" max="100" value="85" id="spd" step="1"
+            oninput="handleSpeedInput(this.value)">
+          <span id="sval">85 mph</span>
+        </div>
+      </div>
+      <div>
+        <div class="plbl">pitch role</div>
+        <div id="rolepills">
+          <button class="rpill active" data-role="SETUP" onclick="selRole('SETUP')">SETUP</button>
+          <button class="rpill" data-role="TUNNEL" onclick="selRole('TUNNEL')">TUNNEL</button>
+          <button class="rpill" data-role="CHASE" onclick="selRole('CHASE')">CHASE</button>
+          <button class="rpill" data-role="PUTAWAY" onclick="selRole('PUTAWAY')">PUTAWAY</button>
+          <button class="rpill" data-role="RESET" onclick="selRole('RESET')">RESET</button>
+        </div>
+      </div>
+      <div>
+        <div class="plbl">count</div>
+        <div id="countrow">
+          <span class="clbl">B</span>
+          <button class="carr" onclick="adjCount('b',-1)">◀</button>
+          <span id="bnum" class="cnum">0</span>
+          <button class="carr" onclick="adjCount('b',1)">▶</button>
+          <span class="clbl count-s-label">S</span>
+          <button class="carr" onclick="adjCount('s',-1)">◀</button>
+          <span id="snum" class="cnum">0</span>
+          <button class="carr" onclick="adjCount('s',1)">▶</button>
+          <span id="countdisp">0-0</span>
+        </div>
+      </div>
+      <div>
+        <div class="plbl">tunnel visualization</div>
+        <button id="tunnelbtn" onclick="toggleTunnel()">⬡ TUNNEL OFF</button>
+      </div>
+      <div>
+        <div class="plbl">rubber position</div>
+        <div id="rwrap" onclick="setRubber(event)"><div id="rbar"></div><div id="rdot"></div></div>
+        <div class="rlbls"><span>3B side</span><span>center</span><span>1B side</span></div>
+        <div id="tip">Click rubber to set pitcher position.</div>
+      </div>
+      <div>
+        <div id="statsSection">
+          <div class="plbl" id="statsTabLabel" style="cursor:pointer;user-select:none;" onclick="toggleStatsTab()">STATS ▸</div>
+          <div id="statstab">
+            <div class="stats-matchup-pill" id="statsMatchupPill">— vs —</div>
+            <div class="stats-subtabs">
+              <button class="stats-subtab active" id="subtabTable" onclick="setStatsSubtab('table')">TABLE</button>
+              <button class="stats-subtab" id="subtabHeatmap" onclick="setStatsSubtab('heatmap')">HEATMAP</button>
+            </div>
+            <div class="stats-toggle-row">
+              <button class="stats-toggle-btn active" id="statsPitcherBtn" onclick="setStatsPerspective('pitcher')">MY PITCHER</button>
+              <button class="stats-toggle-btn" id="statsBatterBtn" onclick="setStatsPerspective('batter')">THIS BATTER</button>
+            </div>
+            <div id="statsTableView" class="visible">
+              <div class="stats-col-toggle">
+                <button class="stats-col-btn active" id="colBtnZones" onclick="setStatsColMode('zones')">BY ZONE</button>
+                <button class="stats-col-btn" id="colBtnOutcomes" onclick="setStatsColMode('outcomes')">BY OUTCOME</button>
+              </div>
+              <div id="statsTableContainer">
+                <div class="stats-no-data">Enable SIM MODE and throw pitches to see live stats, or load a plan to see historical data.</div>
+              </div>
+              <div class="plbl" style="margin-top:4px;">BEST PITCHES THIS MATCHUP</div>
+              <div id="statsBestPitches" class="stats-best-pitches"></div>
+            </div>
+            <div id="statsHeatmapView">
+              <div class="stats-heatmap-grid" id="statsHeatmapGrid"></div>
+              <div id="statsHeatmapDetail" style="display:none;padding:6px;border:0.5px solid var(--border-panel);border-radius:4px;background:var(--bg-input);font-family:'DM Mono',monospace;font-size:8px;color:var(--text-secondary);line-height:1.5;"></div>
+            </div>
+          </div>
+        </div>
+        <div class="plbl">sequence <span id="seqn" class="seqn-color">0</span><span id="seqlimit">/6</span></div>
+        <div id="extendwrap">
+          <button id="extendbtn" onclick="toggleExtendAtBat()">EXTEND AT BAT</button>
+        </div>
+        <div id="seqlist"></div>
+        <button id="clrbtn" onclick="clearAll()">CLEAR ALL</button>
+        <div id="simpanelwrap">
+          <div class="plbl sim-results-label">sim results</div>
+          <div id="battertypewrap">
+            <div class="plbl">batter type</div>
+            <div class="planrow">
+              <select id="battertype" class="planselect" onchange="onBatterTypeChange(this.value)">
+                <option value="GENERIC">GENERIC</option>
+                <option value="FREE_SWINGER">FREE SWINGER</option>
+                <option value="PATIENT">PATIENT</option>
+                <option value="LOW_BALL">LOW BALL HITTER</option>
+                <option value="HIGH_BALL">HIGH BALL HITTER</option>
+                <option value="PULL">PULL HITTER</option>
+                <option value="RANDOM" selected>RANDOM</option>
+              </select>
+            </div>
+          </div>
+          <div id="batterlevelwrap" style="display:none;">
+            <div class="plbl">batter level</div>
+            <select id="batterlevel" class="planselect" onchange="onBatterLevelChange(this.value)">
+              <option value="rec10">8U-10U Rec</option>
+              <option value="club10">8U-10U Club</option>
+              <option value="rec12" selected>11U-12U Rec</option>
+              <option value="club12">11U-12U Club</option>
+              <option value="comp13">12U-13U Competitive</option>
+              <option value="hsjv">HS JV (14U-15U)</option>
+              <option value="hsvar">HS Varsity (16U-18U)</option>
+              <option value="college">College / Minor League</option>
+              <option value="pro">Professional (MLB / Mexican League / NPB)</option>
+            </select>
+          </div>
+          <div id="situationwrap" style="display:none;">
+            <div class="plbl">game situation</div>
+            <div class="sitrow">
+              <button class="sitbtn active" id="sitNEUTRAL" onclick="setGameSituation('NEUTRAL')">NEUTRAL</button>
+              <button class="sitbtn" id="sitAHEAD" onclick="setGameSituation('AHEAD')">AHEAD</button>
+              <button class="sitbtn" id="sitBEHIND" onclick="setGameSituation('BEHIND')">BEHIND</button>
+            </div>
+          </div>
+          <div id="umpirewrap" style="display:none;">
+            <div class="plbl">umpire</div>
+            <div class="umprow">
+              <button class="umpbtn active" id="umpGOOD" onclick="setUmpireQuality('GOOD')">GOOD</button>
+              <button class="umpbtn" id="umpBAD" onclick="setUmpireQuality('BAD')">BAD</button>
+              <button class="umpbtn" id="umpHOMER" onclick="setUmpireQuality('HOMER')">HOMER</button>
+            </div>
+          </div>
+          <div id="simstatbar" class="simstatbar">
+            <span>INN <span id="siminning">1 ↑</span></span>
+            <span>
+              <span id="simdot0" class="simdot sim-out-dot"></span>
+              <span id="simdot1" class="simdot sim-out-dot"></span>
+              <span id="simdot2" class="simdot sim-out-dot"></span>
+            </span>
+            <span id="teamscore-display" style="font-family:'DM Mono',monospace;">
+              <span id="teamlabel">HOME</span> <span id="simteamscore">0</span>
+              <span style="color:#3a5a7a;"> — </span>
+              <span id="opplabel">AWAY</span> <span id="simscore">0</span>
+            </span>
+            <span id="diamondicon" onclick="openDiamondModal()" title="Baserunners" style="cursor:pointer;">
+              <svg width="24" height="22" viewBox="0 0 24 22" xmlns="http://www.w3.org/2000/svg">
+                <polygon points="12,2 22,11 12,20 2,11" fill="none" stroke="#3a5a7a" stroke-width="1"/>
+                <circle id="runsecond" cx="12" cy="4" r="2.5" fill="#1e2a3a" stroke="#3a5a7a" stroke-width="0.5"/>
+                <circle id="runthird"  cx="4"  cy="11" r="2.5" fill="#1e2a3a" stroke="#3a5a7a" stroke-width="0.5"/>
+                <circle id="runfirst"  cx="20" cy="11" r="2.5" fill="#1e2a3a" stroke="#3a5a7a" stroke-width="0.5"/>
+                <polygon points="12,18 14,20 12,22 10,20" fill="#3a5a7a"/>
+              </svg>
+            </span>
+          </div>
+          <div id="simlog" class="simlog"></div>
+        </div>
+      </div>
+      <div>
+        <div class="plbl">save plan</div>
+        <input id="planname" class="planinput" type="text" placeholder="Batter name / type" style="width:100%;margin-bottom:4px;">
+        <div style="position:relative;">
+          <input id="planopp" class="planinput" type="text" placeholder="Opponent (optional)" autocomplete="off"
+            style="width:100%;margin-bottom:4px;" oninput="filterOpponentSuggestions()" onfocus="showOpponentSuggestions()" onblur="hideOpponentSuggestions()">
+          <div id="oppsuggest" style="display:none;position:absolute;top:100%;left:0;right:0;background:#0d1520;border:0.5px solid #2a4a6a;border-radius:4px;z-index:100;max-height:120px;overflow-y:auto;"></div>
+        </div>
+        <button class="planbtn" onclick="savePlan()">SAVE</button>
+        <button class="planbtn" id="exportpdfbtn" onclick="window.open('print.html','_blank')" disabled style="width:100%;margin-top:4px;">EXPORT PDF</button>
+      </div>
+      <div>
+        <div class="plbl">load plan</div>
+        <select id="oppfilter" class="planselect" onchange="filterPlansByOpponent()" style="width:100%;margin-bottom:4px;">
+          <option value="">ALL OPPONENTS</option>
+        </select>
+        <div class="planrow" style="margin-bottom:4px;">
+          <select id="planselect" class="planselect" style="flex:1;"></select>
+        </div>
+        <div class="planrow">
+          <button class="planbtn" onclick="loadPlan()">LOAD</button>
+          <button class="planbtn" id="notesbtn" onclick="openNotesModal()" style="display:none;">NOTES</button>
+          <button class="planbtn" id="deleteplanbtn" onclick="deletePlan()">DELETE</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- Auth Modal -->
+<div id="authoverlay" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;
+  background:rgba(5,8,18,0.97);z-index:1100;align-items:center;justify-content:center;">
+  <div style="background:#0a1520;border:1px solid #06b6d4;border-radius:12px;
+    padding:28px 24px;width:100%;max-width:380px;margin:20px;
+    display:flex;flex-direction:column;gap:14px;">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;
+      letter-spacing:3px;color:#06b6d4;" id="authtitle">SIGN IN</div>
+    <div id="autherror" style="font-size:9px;color:#f87171;font-family:'DM Mono',monospace;
+      display:none;padding:6px;background:#1a0a0a;border-radius:4px;"></div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <input type="email" id="auth-email" placeholder="Email address"
+        style="padding:8px 10px;border-radius:6px;border:0.5px solid #1e3a5c;
+        background:#0d1520;color:#e8f4fd;font-family:'DM Mono',monospace;
+        font-size:11px;outline:none;width:100%;box-sizing:border-box;">
+      <input type="password" id="auth-password" placeholder="Password"
+        style="padding:8px 10px;border-radius:6px;border:0.5px solid #1e3a5c;
+        background:#0d1520;color:#e8f4fd;font-family:'DM Mono',monospace;
+        font-size:11px;outline:none;width:100%;box-sizing:border-box;">
+      <input type="password" id="auth-password2" placeholder="Confirm password (sign up only)"
+        style="padding:8px 10px;border-radius:6px;border:0.5px solid #1e3a5c;
+        background:#0d1520;color:#e8f4fd;font-family:'DM Mono',monospace;
+        font-size:11px;outline:none;width:100%;box-sizing:border-box;display:none;">
+    </div>
+    <button id="auth-submit-btn" onclick="handleAuthSubmit()"
+      style="padding:10px;border-radius:6px;border:none;
+      background:#06b6d4;color:#fff;font-family:'Bebas Neue',sans-serif;
+      font-size:16px;letter-spacing:2px;cursor:pointer;">SIGN IN</button>
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <button onclick="toggleAuthMode()"
+        style="background:transparent;border:none;color:#5a8aaa;
+        font-family:'DM Mono',monospace;font-size:9px;cursor:pointer;
+        text-decoration:underline;" id="auth-toggle-btn">
+        Need an account? Sign up
+      </button>
+      <button onclick="closeAuthModal()"
+        style="background:transparent;border:0.5px solid #3a5a7a;
+        color:#5a8aaa;font-family:'DM Mono',monospace;font-size:9px;
+        cursor:pointer;padding:4px 10px;border-radius:4px;">CANCEL</button>
+    </div>
+    <div style="text-align:center;">
+      <button onclick="handleForgotPassword()"
+        style="background:transparent;border:none;color:#5a8aaa;
+        font-family:'DM Mono',monospace;font-size:9px;cursor:pointer;
+        text-decoration:underline;" id="auth-forgot-btn">
+        Forgot password?
+      </button>
+    </div>
+  </div>
+</div>
+<div id="settingsoverlay">
+  <div id="settingscard">
+    <div id="settingstitle">SETTINGS</div>
+    <div class="setting-row">
+      <span class="setting-label">🌙 Dark Mode</span>
+      <label class="theme-switch">
+        <input type="checkbox" id="themetoggle" onchange="toggleTheme(this.checked)">
+        <span class="theme-slider"></span>
+      </label>
+    </div>
+    <div class="setting-row">
+      <div style="display:flex;flex-direction:column;gap:2px;">
+        <span class="setting-label">⚾ Mr. OG</span>
+        <span style="font-family:'DM Mono',monospace;font-size:7px;
+          color:var(--text-muted);">Show/hide batter silhouette</span>
+      </div>
+      <label class="theme-switch">
+        <input type="checkbox" id="mrogtoggle" checked
+          onchange="toggleMrOG(this.checked)">
+        <span class="theme-slider"></span>
+      </label>
+    </div>
+    <div class="setting-row">
+      <div style="display:flex;flex-direction:column;gap:2px;">
+        <span class="setting-label">🧠 Smart Role Engine</span>
+        <span style="font-family:'DM Mono',monospace;font-size:7px;
+          color:var(--text-muted);">Coaching hints after each pitch</span>
+      </div>
+      <label class="theme-switch">
+        <input type="checkbox" id="sretoggle"
+          onchange="toggleSRE(this.checked)">
+        <span class="theme-slider"></span>
+      </label>
+    </div>
+    <div id="rosterSection">
+      <div class="settings-section-label">MY ROSTER</div>
+      <div class="roster-list" id="rosterList"></div>
+      <button class="roster-add-btn" id="rosterAddBtn" onclick="openAddPitcherFromSettings()">+ ADD PITCHER</button>
+    </div>
+    <button class="settings-editprofile" id="editProfileBtn" onclick="openProfileFromSettings()">✏ EDIT PITCHER PROFILE</button>
+    <div style="border-top:0.5px solid var(--border-panel);padding-top:12px;margin-top:4px;">
+      <div style="font-family:'DM Mono',monospace;font-size:8px;color:var(--text-muted);
+        letter-spacing:1px;margin-bottom:8px;">PITCHER SETTINGS</div>
+      <div style="font-family:'DM Mono',monospace;font-size:9px;color:var(--text-secondary);
+        margin-bottom:4px;">MAX FASTBALL VELOCITY</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <input type="range" min="40" max="110" value="80" id="settings-maxvel-slider"
+          oninput="onSettingsMaxVelChange(this.value)"
+          style="flex:1;accent-color:#cc1a1a;">
+        <span id="settings-maxvel-display" style="font-family:'DM Mono',monospace;
+          font-size:11px;color:var(--text-primary);min-width:48px;text-align:right;">80 mph</span>
+      </div>
+      <div style="font-family:'DM Mono',monospace;font-size:7px;color:var(--text-muted);
+        margin-top:3px;">Adjusting this recalculates all pitch velocities</div>
+    </div>
+    <div style="border-top:0.5px solid var(--border-panel);padding-top:12px;margin-top:4px;">
+      <div style="font-family:'DM Mono',monospace;font-size:8px;color:var(--text-muted);letter-spacing:1px;margin-bottom:6px;">SESSION DATA</div>
+      <button onclick="clearAllStats()" style="width:100%;padding:7px;border-radius:6px;font-family:'DM Mono',monospace;font-size:9px;letter-spacing:1px;background:transparent;border:0.5px solid #cc1a1a;color:#cc1a1a;cursor:pointer;">CLEAR SESSION STATS</button>
+    </div>
+    <div style="border-top:0.5px solid var(--border-panel);padding-top:12px;margin-top:4px;">
+      <div style="font-family:'DM Mono',monospace;font-size:8px;color:var(--text-muted);letter-spacing:1px;margin-bottom:6px;">REPORTS</div>
+      <button onclick="closeSettingsModal();showGameSummary();" style="width:100%;padding:7px;border-radius:6px;font-family:'DM Mono',monospace;font-size:9px;letter-spacing:1px;background:transparent;border:0.5px solid #4ade80;color:#4ade80;cursor:pointer;margin-bottom:6px;">📊 LAST GAME REPORT</button>
+      <div style="font-family:'DM Mono',monospace;font-size:8px;color:var(--text-muted);letter-spacing:1px;margin-bottom:6px;margin-top:8px;">VIEW CAREER REPORTS</div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px;">
+        <button onclick="closeSettingsModal();openCareerReport('GAME');" style="flex:1;min-width:80px;padding:5px 4px;border-radius:6px;font-family:'DM Mono',monospace;font-size:8px;letter-spacing:1px;background:transparent;border:0.5px solid #06b6d4;color:#06b6d4;cursor:pointer;">GAME</button>
+        <button onclick="closeSettingsModal();openCareerReport('BUNDLES');" style="flex:1;min-width:80px;padding:5px 4px;border-radius:6px;font-family:'DM Mono',monospace;font-size:8px;letter-spacing:1px;background:transparent;border:0.5px solid #06b6d4;color:#06b6d4;cursor:pointer;">BUNDLES</button>
+        <button onclick="closeSettingsModal();openCareerReport('CAREER');" style="flex:1;min-width:80px;padding:5px 4px;border-radius:6px;font-family:'DM Mono',monospace;font-size:8px;letter-spacing:1px;background:transparent;border:0.5px solid #06b6d4;color:#06b6d4;cursor:pointer;">CAREER</button>
+        <button onclick="closeSettingsModal();openCareerReport('SEQUENCES');" style="flex:1;min-width:80px;padding:5px 4px;border-radius:6px;font-family:'DM Mono',monospace;font-size:8px;letter-spacing:1px;background:transparent;border:0.5px solid #06b6d4;color:#06b6d4;cursor:pointer;">SEQUENCES</button>
+        <button onclick="closeSettingsModal();openCareerReport('TUNNEL');" style="flex:1;min-width:80px;padding:5px 4px;border-radius:6px;font-family:'DM Mono',monospace;font-size:8px;letter-spacing:1px;background:transparent;border:0.5px solid #06b6d4;color:#06b6d4;cursor:pointer;">TUNNEL</button>
+        <button onclick="closeSettingsModal();openCareerReport('COUNTER');" style="flex:1;min-width:80px;padding:5px 4px;border-radius:6px;font-family:'DM Mono',monospace;font-size:8px;letter-spacing:1px;background:transparent;border:0.5px solid #7c3aed;color:#7c3aed;cursor:pointer;">🎯 COUNTER</button>
+      </div>
+      <div style="border-top:0.5px solid var(--border-panel);padding-top:12px;margin-top:4px;">
+      <div style="font-family:'DM Mono',monospace;font-size:8px;color:var(--text-muted);letter-spacing:1px;margin-bottom:6px;">TUTORIALS</div>
+      <button onclick="closeSettingsModal();showTutorialPrompt();" style="width:100%;padding:7px;border-radius:6px;font-family:'DM Mono',monospace;font-size:9px;letter-spacing:1px;background:transparent;border:0.5px solid #06b6d4;color:#06b6d4;cursor:pointer;margin-bottom:6px;">📖 BASICS TUTORIAL</button>
+      <button onclick="closeSettingsModal();showTutorial2Prompt();" style="width:100%;padding:7px;border-radius:6px;font-family:'DM Mono',monospace;font-size:9px;letter-spacing:1px;background:transparent;border:0.5px solid #06b6d4;color:#06b6d4;cursor:pointer;">📖 ADVANCED TUTORIAL</button>
+    </div>
+    <div style="border-top:0.5px solid var(--border-panel);padding-top:12px;margin-top:4px;">
+      <div style="font-family:'DM Mono',monospace;font-size:8px;color:var(--text-muted);
+        letter-spacing:1px;margin-bottom:6px;">ACCOUNT</div>
+      <div id="auth-status" style="font-family:'DM Mono',monospace;font-size:9px;
+        color:var(--text-muted);margin-bottom:6px;">Not signed in</div>
+      <button id="auth-action-btn" onclick="openAuthModal()"
+        style="width:100%;padding:7px;border-radius:6px;font-family:'DM Mono',monospace;
+        font-size:9px;letter-spacing:1px;background:transparent;
+        border:0.5px solid #06b6d4;color:#06b6d4;cursor:pointer;">
+        🔐 SIGN IN / CREATE ACCOUNT
+      </button>
+    </div>
+    <button class="settings-close" onclick="closeSettingsModal()">CLOSE</button>
+  </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+  import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+  import { getFirestore, doc, setDoc, getDoc, collection, addDoc, getDocs, query, orderBy } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAhQLefELgNCbFSZfUVsyzXWod9WbaJH8Y",
+    authDomain: "riplethreat-pitch-sequencer.firebaseapp.com",
+    projectId: "riplethreat-pitch-sequencer",
+    storageBucket: "riplethreat-pitch-sequencer.firebasestorage.app",
+    messagingSenderId: "395895218844",
+    appId: "1:395895218844:web:9080cb059a0ba507034359"
+  };
+
+  const app=initializeApp(firebaseConfig);
+  const auth=getAuth(app);
+  const db=getFirestore(app);
+
+  // Expose to window so other scripts can access
+  window._fbAuth=auth;
+  window._fbDb=db;
+  window._fbFns={
+    createUserWithEmailAndPassword,
+    signInWithEmailAndPassword,
+    signOut,
+    onAuthStateChanged,
+    doc,setDoc,getDoc,collection,addDoc,getDocs,query,orderBy
+  };
+
+  // Listen for auth state changes
+  onAuthStateChanged(auth,function(user){
+    window._fbUser=user||null;
+    const event=new CustomEvent('fbAuthStateChanged',{detail:{user}});
+    document.dispatchEvent(event);
+  });
+</script>
+<script src="js/firebase.js"></script>
+<script src="js/ml.js"></script>
+<script src="js/data.js"></script>
+<script src="js/config.js"></script>
+<script src="js/pitches.js"></script>
+<script src="js/zones.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/sim.js"></script>
+<script src="js/app.js?v=2"></script>
+<script src="js/stats.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+// ── Theme ──
+function applyTheme(dark){
+  document.body.setAttribute('data-theme', dark ? 'dark' : 'light');
+  document.getElementById('themetoggle').checked = dark;
+  localStorage.setItem('pitchseq-theme', dark ? 'dark' : 'light');
+}
+function toggleTheme(dark){ applyTheme(dark); }
+
+// ── Settings Modal ──
+function openSettingsModal(){
+  const saved = localStorage.getItem('pitchseq-theme');
+  const isDark = saved === 'dark';
+  document.getElementById('themetoggle').checked = isDark;
+  const mrogEl=document.getElementById('mrogtoggle');
+  if(mrogEl) mrogEl.checked=mrOGVisible;
+  const sreEl=document.getElementById('sretoggle');
+  if(sreEl) sreEl.checked=sreEnabled;
+  const maxVel = typeof getMaxVelocity === 'function' ? getMaxVelocity() : 80;
+  const settingsSlider = document.getElementById('settings-maxvel-slider');
+  const settingsDisplay = document.getElementById('settings-maxvel-display');
+  if(settingsSlider) settingsSlider.value = maxVel;
+  if(settingsDisplay) settingsDisplay.textContent = maxVel + ' mph';
+  document.getElementById('settingsoverlay').classList.add('visible');
+}
+function closeSettingsModal(){
+  document.getElementById('settingsoverlay').classList.remove('visible');
+}
+function openProfileFromSettings(){
+  closeSettingsModal();
+  openProfileOverlay();
+}
+
+// ── Auth Modal ──
+let _authMode='signin';
+function openAuthModal(){
+  closeSettingsModal();
+  _authMode='signin';
+  document.getElementById('authtitle').textContent='SIGN IN';
+  document.getElementById('auth-submit-btn').textContent='SIGN IN';
+  document.getElementById('auth-toggle-btn').textContent='Need an account? Sign up';
+  document.getElementById('auth-password2').style.display='none';
+  document.getElementById('auth-email').value='';
+  document.getElementById('auth-password').value='';
+  document.getElementById('auth-password2').value='';
+  document.getElementById('autherror').style.display='none';
+  const overlay=document.getElementById('authoverlay');
+  overlay.style.display='flex';
+}
+function closeAuthModal(){
+  document.getElementById('authoverlay').style.display='none';
+}
+function toggleAuthMode(){
+  _authMode=_authMode==='signin'?'signup':'signin';
+  const isSignUp=_authMode==='signup';
+  document.getElementById('authtitle').textContent=isSignUp?'CREATE ACCOUNT':'SIGN IN';
+  document.getElementById('auth-submit-btn').textContent=isSignUp?'CREATE ACCOUNT':'SIGN IN';
+  document.getElementById('auth-toggle-btn').textContent=isSignUp?'Already have an account? Sign in':'Need an account? Sign up';
+  document.getElementById('auth-password2').style.display=isSignUp?'block':'none';
+  document.getElementById('autherror').style.display='none';
+}
+async function handleForgotPassword(){
+  const email=document.getElementById('auth-email').value.trim();
+  const errEl=document.getElementById('autherror');
+  if(!email){
+    errEl.textContent='Please enter your email address first.';
+    errEl.style.display='block';
+    return;
+  }
+  try{
+    const{sendPasswordResetEmail}=await import(
+      'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
+    await sendPasswordResetEmail(window._fbAuth,email);
+    errEl.style.cssText='font-size:9px;color:#4ade80;font-family:\'DM Mono\',monospace;'
+      +'display:block;padding:6px;background:#0a1a0a;border-radius:4px;';
+    errEl.textContent='Password reset email sent! Check your inbox.';
+  }catch(e){
+    errEl.style.cssText='font-size:9px;color:#f87171;font-family:\'DM Mono\',monospace;'
+      +'display:block;padding:6px;background:#1a0a0a;border-radius:4px;';
+    errEl.textContent=e.message||'Could not send reset email.';
+  }
+}
+async function handleAuthSubmit(){
+  const email=document.getElementById('auth-email').value.trim();
+  const password=document.getElementById('auth-password').value;
+  const password2=document.getElementById('auth-password2').value;
+  const errEl=document.getElementById('autherror');
+  errEl.style.display='none';
+  if(!email||!password){
+    errEl.textContent='Please enter email and password.';
+    errEl.style.display='block';
+    return;
+  }
+  if(_authMode==='signup'&&password!==password2){
+    errEl.textContent='Passwords do not match.';
+    errEl.style.display='block';
+    return;
+  }
+  const btn=document.getElementById('auth-submit-btn');
+  btn.textContent='PLEASE WAIT...';
+  btn.disabled=true;
+  let result;
+  if(_authMode==='signup'){
+    result=await fbSignUp(email,password);
+  } else {
+    result=await fbSignIn(email,password);
+  }
+  btn.disabled=false;
+  btn.textContent=_authMode==='signup'?'CREATE ACCOUNT':'SIGN IN';
+  if(result.success){
+    closeAuthModal();
+    updateAuthStatus(result.user);
+    // Offer migration if local data exists
+    const hasLocalData=localStorage.getItem('pitchseq-pitcher-profile')||
+      localStorage.getItem('pitchseq-game-history');
+    if(hasLocalData&&_authMode==='signup'){
+      setTimeout(function(){
+        if(confirm('Migrate your existing local data to your new cloud account?')){
+          fbMigrateFromLocalStorage().then(function(r){
+            if(r.success){
+              alert('Data migrated successfully! Your profile, plans and game history are now saved to your account.');
+            }
+          });
+        }
+      },500);
+    }
+  } else {
+    errEl.textContent=result.error||'Authentication failed. Please try again.';
+    errEl.style.display='block';
+  }
+}
+function updateAuthStatus(user){
+  const statusEl=document.getElementById('auth-status');
+  const btnEl=document.getElementById('auth-action-btn');
+  if(user){
+    if(statusEl) statusEl.textContent='Signed in: '+user.email;
+    if(btnEl){
+      btnEl.textContent='🔓 SIGN OUT';
+      btnEl.onclick=async function(){
+        await fbSignOut();
+        updateAuthStatus(null);
+      };
+    }
+  } else {
+    if(statusEl) statusEl.textContent='Not signed in';
+    if(btnEl){
+      btnEl.textContent='🔐 SIGN IN / CREATE ACCOUNT';
+      btnEl.onclick=function(){openAuthModal();};
+    }
+  }
+}
+// Listen for Firebase auth state changes
+document.addEventListener('fbAuthStateChanged',function(e){
+  updateAuthStatus(e.detail.user);
+  if(e.detail.user){
+    // User signed in — load profile from Firestore and apply it
+    fbLoadProfile().then(function(r){
+      if(r.success&&r.data){
+        const profile=r.data;
+        // Save to localStorage
+        localStorage.setItem('pitchseq-pitcher-profile',JSON.stringify(profile));
+        // Apply profile if function exists
+        if(typeof applyProfile==='function'){
+          applyProfile(profile);
+        }
+        // Dismiss splash and go to canvas — works in both Safari and PWA standalone mode
+        const splash=document.getElementById('splashoverlay');
+        if(splash&&!splash.classList.contains('hidden')){
+          // Hide profile overlay if showing
+          const profileOverlay=document.getElementById('profileoverlay');
+          if(profileOverlay){
+            profileOverlay.style.display='';
+            profileOverlay.classList.remove('visible');
+          }
+          // Hide auth overlay
+          const authOverlay=document.getElementById('authoverlay');
+          if(authOverlay) authOverlay.style.display='none';
+          // Set app mode and dismiss splash
+          if(typeof setAppMode==='function') setAppMode('individual');
+          splash.classList.add('hidden');
+          splash.style.display='none';
+          // Apply profile to canvas
+          if(typeof applyProfile==='function') applyProfile(profile);
+        } else {
+          // PWA mode or splash already hidden — just apply profile
+          if(typeof applyProfile==='function') applyProfile(profile);
+          // Hide auth overlay
+          const authOverlay=document.getElementById('authoverlay');
+          if(authOverlay) authOverlay.style.display='none';
+          // Make sure splash is hidden
+          const splashEl=document.getElementById('splashoverlay');
+          if(splashEl){splashEl.classList.add('hidden');splashEl.style.display='none';}
+        }
+        // Reset sign in button z-index
+        const signinBtn=document.getElementById('splash-signin-btn');
+        if(signinBtn) signinBtn.style.display='none';
+        // profile loaded
+      }
+    });
+    // Sync game history from Firestore
+    fbLoadGameHistory().then(function(r){
+      if(r.success&&r.data.length){
+        localStorage.setItem('pitchseq-game-history',JSON.stringify(r.data));
+        // game history loaded
+      }
+    });
+  }
+});
+
+// ── Apply saved theme on load (light is default) ──
+(function(){
+  const saved = localStorage.getItem('pitchseq-theme');
+  applyTheme(saved === 'dark');
+})();
+
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg=>console.log('Service worker registered:',reg.scope))
+      .catch(err=>console.log('Service worker failed:',err));
+  });
+}
+</script>
+<div id="pitchingchangemodal" style="display:none;position:fixed;top:0;left:0;
+  width:100%;height:100%;background:rgba(5,8,18,0.97);z-index:1002;
+  align-items:center;justify-content:center;">
+  <div style="background:var(--bg-card);border:0.5px solid #f87171;border-radius:12px;
+    padding:28px 24px;width:100%;max-width:380px;margin:20px;
+    display:flex;flex-direction:column;gap:16px;">
+    <div style="font-family:'Bebas Neue',sans-serif;font-size:22px;
+      letter-spacing:4px;color:var(--text-primary);">PITCHING CHANGE?</div>
+    <div style="font-family:'DM Mono',monospace;font-size:10px;
+      color:var(--text-secondary);line-height:1.6;">
+      <span id="pc-pitcher-name" style="color:var(--text-primary);
+        font-weight:600;"></span> has thrown
+      <span id="pc-pitch-count" style="color:#f87171;
+        font-weight:600;"></span> pitches.<br>
+      Fatigue level: <span id="pc-fatigue-level"
+        style="font-weight:600;"></span>
+    </div>
+    <div id="pc-stats-box" style="background:var(--bg-input);border-radius:6px;
+      padding:10px;font-family:'DM Mono',monospace;font-size:9px;
+      color:var(--text-muted);line-height:1.6;">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;
+        gap:8px;text-align:center;">
+        <div>
+          <div style="font-size:18px;font-weight:700;color:var(--text-primary);"
+            id="pc-strikeouts">0</div>
+          <div style="font-size:7px;color:var(--text-muted);letter-spacing:1px;">K</div>
+        </div>
+        <div>
+          <div style="font-size:18px;font-weight:700;color:var(--text-primary);"
+            id="pc-walks">0</div>
+          <div style="font-size:7px;color:var(--text-muted);letter-spacing:1px;">BB</div>
+        </div>
+        <div>
+          <div style="font-size:18px;font-weight:700;color:var(--text-primary);"
+            id="pc-hits">0</div>
+          <div style="font-size:7px;color:var(--text-muted);letter-spacing:1px;">H</div>
+        </div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <button onclick="confirmPitchingChange()" style="flex:1;padding:10px;
+        border-radius:6px;font-family:'Bebas Neue',sans-serif;font-size:14px;
+        letter-spacing:2px;background:#cc1a1a;border:none;color:#ffffff;
+        cursor:pointer;">CHANGE PITCHER</button>
+      <button onclick="closePitchingChangeModal()" style="flex:1;padding:10px;
+        border-radius:6px;font-family:'DM Mono',monospace;font-size:9px;
+        letter-spacing:1px;background:transparent;
+        border:0.5px solid var(--border-panel);color:var(--text-muted);
+        cursor:pointer;">KEEP PITCHING</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>
