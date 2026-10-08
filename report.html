@@ -1164,6 +1164,7 @@ function buildCounterReport(data){
   const cpCT={};
   const cpCO={};
   const cpZones={};
+  const cpCountZones={}; // count→zone→{k:0,hit:0}
   const cpOutcomes={STRIKEOUT:0,'GROUND OUT':0,'POP FLY':0,SINGLE:0,DOUBLE:0,TRIPLE:0,'HOME RUN':0,WALK:0};
   const TWO_STRIKE_COUNTS=['0-2','1-2','2-2','3-2'];
   const AHEAD_COUNTS=['0-1','0-2','1-2'];
@@ -1199,6 +1200,22 @@ function buildCounterReport(data){
         Object.values(byOutcome).forEach(function(byZone){
           Object.entries(byZone).forEach(function(ze){
             cpZones[ze[0]]=(cpZones[ze[0]]||0)+ze[1];
+          });
+        });
+      });
+    });
+    // Zone data for all counts (for Phase 2 K-zone / hit-zone)
+    Object.entries(g.countPitchZoneOutcomes||{}).forEach(function(ce){
+      const ct=ce[0];
+      if(!cpCountZones[ct]) cpCountZones[ct]={};
+      Object.values(ce[1]).forEach(function(byOutcome){
+        Object.entries(byOutcome).forEach(function(oe){
+          const outcome=oe[0];
+          Object.entries(oe[1]).forEach(function(ze){
+            const zk=ze[0]; const n=ze[1];
+            if(!cpCountZones[ct][zk]) cpCountZones[ct][zk]={k:0,hit:0};
+            if(outcome==='STRIKEOUT') cpCountZones[ct][zk].k+=n;
+            if(outcome==='SINGLE'||outcome==='DOUBLE'||outcome==='TRIPLE'||outcome==='HOME RUN') cpCountZones[ct][zk].hit+=n;
           });
         });
       });
@@ -1256,6 +1273,16 @@ function buildCounterReport(data){
     if(!d) return 0;
     const total=Object.values(d).reduce(function(a,b){return a+b;},0)||1;
     return Math.round(((d['SINGLE']||0)+(d['DOUBLE']||0)+(d['TRIPLE']||0)+(d['HOME RUN']||0))/total*100);
+  }
+  function topZoneForOutcome(ct, type){
+    const zones=cpCountZones[ct];
+    if(!zones) return null;
+    let best=null; let bestN=0;
+    Object.entries(zones).forEach(function(e){
+      const n=type==='k'?e[1].k:e[1].hit;
+      if(n>bestN){bestN=n;best=e[0];}
+    });
+    return bestN>0?best:null;
   }
 
   // ── Overall stats ──
@@ -1564,11 +1591,19 @@ function buildCounterReport(data){
     if(!tops.length) return;
     const fr=finishRate(ct);
     const hr=hitRate(ct);
+    const d=cpCO[ct]||{};
+    const total=Object.values(d).reduce(function(a,b){return a+b;},0)||1;
+    const countMoved=100-fr-hr;
+    const kZone=topZoneForOutcome(ct,'k');
+    const hitZone=topZoneForOutcome(ct,'hit');
     const isPredictable=tops[0]&&tops[0].pct>=60;
     const isWorking=fr>=40&&hr<=25;
     const pitchLine=tops.map(function(t){return t.pk+' '+t.pct+'%';}).join(' · ');
     let type='info';
-    let detail='Top pitches: '+pitchLine+' | Finish:'+fr+'% Hits:'+hr+'%';
+    let detail='Top pitches: '+pitchLine;
+    detail+=' | Next pitch → Out:'+fr+'% Hit:'+hr+'% Count moved:'+countMoved+'%';
+    if(kZone) detail+=' | K zone: '+kZone;
+    if(hitZone) detail+=' | Hit zone: '+hitZone;
     if(isPredictable&&isWorking){
       detail+=' ✓ Pattern is working — reinforce it';
       type='good';
