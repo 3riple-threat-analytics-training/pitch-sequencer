@@ -1582,8 +1582,8 @@ function buildCounterReport(data){
   tbl.appendChild(r7);
   page.appendChild(tbl);
 
-  // ── PHASE 2: STAYING AHEAD ──
-  secLabel('PHASE 2 — STAYING AHEAD');
+  // ── PHASE 2: WORKING THE COUNT ──
+  secLabel('PHASE 2 — WORKING THE COUNT');
   // Count tendency analysis for key counts
   const aheadBehindCounts=['0-1','1-0','1-1','2-0','2-1','3-1'];
   aheadBehindCounts.forEach(function(ct){
@@ -1594,7 +1594,6 @@ function buildCounterReport(data){
     const d=cpCO[ct]||{};
     const total=Object.values(d).reduce(function(a,b){return a+b;},0)||1;
     const countMoved=100-fr-hr;
-    const kZone=topZoneForOutcome(ct,'k');
     const hitZone=topZoneForOutcome(ct,'hit');
     const isPredictable=tops[0]&&tops[0].pct>=60;
     const isWorking=fr>=40&&hr<=25;
@@ -1602,7 +1601,6 @@ function buildCounterReport(data){
     let type='info';
     let detail='Top pitches: '+pitchLine;
     detail+=' | Next pitch → Out:'+fr+'% Hit:'+hr+'% Count moved:'+countMoved+'%';
-    if(kZone) detail+=' | K zone: '+kZone;
     if(hitZone) detail+=' | Hit zone: '+hitZone;
     if(isPredictable&&isWorking){
       detail+=' ✓ Pattern is working — reinforce it';
