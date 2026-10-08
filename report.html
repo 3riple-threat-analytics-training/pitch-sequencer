@@ -1326,7 +1326,7 @@ function buildCounterReport(data){
 
   function secLabel(txt){
     const s=document.createElement('div');
-    s.style.cssText='font-family:\'Bebas Neue\',sans-serif;font-size:13px;color:#0c4a6e;'
+    s.style.cssText='font-family:\'Bebas Neue\',sans-serif;font-size:15px;color:#0c4a6e;'
       +'letter-spacing:2px;border-bottom:1px solid #bae6fd;padding-bottom:4px;margin:14px 0 8px 0;';
     s.textContent=txt;
     page.appendChild(s);
@@ -1338,8 +1338,8 @@ function buildCounterReport(data){
     el.style.cssText='padding:8px 10px;border-radius:6px;margin-bottom:6px;'
       +'border-left:4px solid '+(colors[type]||'#0c4a6e')+';'
       +'background:'+(bgs[type]||'#f0f9ff')+';';
-    el.innerHTML='<div style="font-size:10px;font-weight:700;color:'+(colors[type]||'#0c4a6e')+';">'+text+'</div>'
-      +(detail?'<div style="font-size:8px;color:#475569;margin-top:3px;line-height:1.5;">'+detail+'</div>':'');
+    el.innerHTML='<div style="font-size:12px;font-weight:700;color:'+(colors[type]||'#0c4a6e')+';">'+text+'</div>'
+      +(detail?'<div style="font-size:10px;color:#475569;margin-top:3px;line-height:1.5;">'+detail+'</div>':'');
     page.appendChild(el);
   }
 
@@ -1350,7 +1350,7 @@ function buildCounterReport(data){
   hdr.textContent='COUNTER REPORT';
   page.appendChild(hdr);
   const sub=document.createElement('div');
-  sub.style.cssText='font-size:9px;color:#475569;margin-bottom:12px;';
+  sub.style.cssText='font-size:11px;color:#475569;margin-bottom:12px;';
   sub.textContent='Based on '+allGames.length+' games. Recommendations use only pitches in your arsenal.';
   page.appendChild(sub);
 
