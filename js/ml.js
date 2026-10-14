@@ -94,22 +94,50 @@ function computeMLWeights(games){
   const counts=['0-0','0-1','0-2','1-0','1-1','1-2','2-0','2-1','2-2','3-0','3-1','3-2'];
   const zones=['TL','TM','TR','ML','MM','MR','BL','BM','BR'];
 
+  // ── Smoothing settings (tested Oct 14 2026 on 64 games) ──
+  // ML_SMOOTHING: how many pitches of evidence a count needs before its own
+  // numbers outweigh the pitcher's overall mix. Prevents "100% from 1 pitch".
+  // ML_RECENCY: weight per game back in time (0.95 = last game 1.0, 10 games ago 0.60).
+  const ML_SMOOTHING=16;
+  const ML_RECENCY=0.95;
+  const nGames=games.length;
+  function gameWeight(i){return Math.pow(ML_RECENCY,nGames-1-i);}
+
+  // ── Overall pitch mix (recency weighted) — the prior for everything else ──
+  const mixAgg={};
+  games.forEach(function(g,i){
+    const w=gameWeight(i);
+    Object.entries(g.pitchMix||{}).forEach(function(e){
+      mixAgg[e[0]]=(mixAgg[e[0]]||0)+e[1]*w;
+    });
+  });
+  const mixTotal=pitchKeys.reduce(function(s,pk){return s+(mixAgg[pk]||0);},0);
+  const overallMix={};
+  pitchKeys.forEach(function(pk){
+    overallMix[pk]=mixTotal>0?(mixAgg[pk]||0)/mixTotal:1/pitchKeys.length;
+  });
+  function smooth(agg){
+    const total=pitchKeys.reduce(function(s,pk){return s+(agg[pk]||0);},0);
+    const out={};
+    pitchKeys.forEach(function(pk){
+      out[pk]=((agg[pk]||0)+ML_SMOOTHING*overallMix[pk])/(total+ML_SMOOTHING);
+    });
+    return out;
+  }
+
   // ── Count weights ──
-  // Aggregate count tendencies across all games
+  // Recency-weighted count tendencies, smoothed toward the overall mix
   const countWeights={};
   counts.forEach(function(ct){
     const agg={};
-    games.forEach(function(g){
+    games.forEach(function(g,i){
+      const w=gameWeight(i);
       const ctData=g.countTendencies&&g.countTendencies[ct]||{};
       Object.entries(ctData).forEach(function(e){
-        agg[e[0]]=(agg[e[0]]||0)+e[1];
+        agg[e[0]]=(agg[e[0]]||0)+e[1]*w;
       });
     });
-    const total=Object.values(agg).reduce(function(a,b){return a+b;},0)||1;
-    countWeights[ct]={};
-    pitchKeys.forEach(function(pk){
-      countWeights[ct][pk]=(agg[pk]||0)/total;
-    });
+    countWeights[ct]=smooth(agg);
   });
 
   // ── Zone weights ──
@@ -120,7 +148,8 @@ function computeMLWeights(games){
       zoneAgg[e[0]]=(zoneAgg[e[0]]||0)+e[1];
     });
   });
-  const zoneTotal=Object.values(zoneAgg).reduce(function(a,b){return a+b;},0)||1;
+  // Total over the 9 inner zones only, so weights average 1.0 (was all 25 zones)
+  const zoneTotal=zones.reduce(function(s,z){return s+(zoneAgg[z]||0);},0)||1;
   const zoneWeights={};
   zones.forEach(function(z){
     // Scale: zones used more than average get weight > 1, less get weight < 1
@@ -134,20 +163,16 @@ function computeMLWeights(games){
   const sequenceWeights={};
   pitchKeys.forEach(function(prev){
     const agg={};
-    games.forEach(function(g){
+    games.forEach(function(g,i){
+      const w=gameWeight(i);
       const seqs=g.sequences||{};
       pitchKeys.forEach(function(next){
         const key=prev+'->'+next;
-        if(seqs[key]) agg[next]=(agg[next]||0)+seqs[key];
+        if(seqs[key]) agg[next]=(agg[next]||0)+seqs[key]*w;
       });
     });
     const total=Object.values(agg).reduce(function(a,b){return a+b;},0);
-    if(total>0){
-      sequenceWeights[prev]={};
-      pitchKeys.forEach(function(next){
-        sequenceWeights[prev][next]=(agg[next]||0)/total;
-      });
-    }
+    if(total>0) sequenceWeights[prev]=smooth(agg);
   });
 
   // ── First pitch weights ──
