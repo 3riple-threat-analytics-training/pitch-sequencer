@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pitch Sequencer Harness</title>
+<style>
+  body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;margin:16px;background:#fff;color:#111}
+  h1{font-size:20px;margin:0 0 8px}
+  p{margin:4px 0 12px;max-width:900px}
+  button{font-size:15px;padding:8px 16px;margin:0 8px 12px 0}
+  #app{width:100%;height:420px;border:1px solid #999}
+  #progress{font-weight:600;margin:8px 0}
+  #downloads a{display:inline-block;margin:0 12px 8px 0}
+  pre{background:#f4f4f4;border:1px solid #ddd;padding:10px;white-space:pre;overflow-x:auto;font-size:12px}
+</style>
+</head>
+<body>
+<h1>Pitch Sequencer Harness</h1>
+<p>Built for app commit <b>60f53b6</b>. Loads the real app below; <b>Run</b> injects <code>harness-engine.js</code>,
+which plays simulated innings through the app's own functions. No app files are changed.
+Firestore writes and <code>endGame</code> are blocked. Results stay on this computer.</p>
+<button id="run" disabled>Run</button>
+<div id="progress"></div>
+<div id="downloads"></div>
+<iframe id="app" src="../index.html"></iframe>
+<pre id="out">Preparing…</pre>
+<script>
+(async function(){
+  const out = document.getElementById('out');
+  const btn = document.getElementById('run');
+  const frame = document.getElementById('app');
+  const progress = document.getElementById('progress');
+  const downloads = document.getElementById('downloads');
+  const lines = [];
+  const say = t => { lines.push(t); out.textContent = lines.join('\n'); };
+
+  // 0. Watch for the app frame to finish loading. Attach this FIRST, and also check
+  //    whether it has already loaded, so a fast load is never missed.
+  let appLoaded = false, setupDone = false;
+  const isLocal = ['localhost', '127.0.0.1'].includes(location.hostname);
+  const enableIfReady = () => {
+    if (!(appLoaded && setupDone)) return;
+    if (!isLocal) { say('This harness only runs on localhost. Run is disabled here (' + location.hostname + ').'); return; }
+    say('App loaded. Click "Run".'); btn.disabled = false;
+  };
+  frame.addEventListener('load', () => { appLoaded = true; enableIfReady(); });
+  try { if (frame.contentDocument && frame.contentDocument.readyState === 'complete' && frame.contentWindow.location.href !== 'about:blank') appLoaded = true; } catch (e) {}
+
+  // 1. Which commit is this folder at? (python's server also serves the .git folder)
+  try {
+    const head = (await (await fetch('/.git/HEAD', {cache:'no-store'})).text()).trim();
+    let sha = head;
+    if (head.startsWith('ref: ')) {
+      const ref = head.slice(5);
+      const r = await fetch('/.git/' + ref, {cache:'no-store'});
+      if (r.ok) sha = (await r.text()).trim();
+      else {
+        const packed = await (await fetch('/.git/packed-refs', {cache:'no-store'})).text();
+        const line = packed.split('\n').find(l => l.endsWith(' ' + ref));
+        sha = line ? line.split(' ')[0] : 'unknown (' + ref + ')';
+      }
+    }
+    const short = sha.slice(0, 7);
+    say('Folder commit: ' + short + (short === '60f53b6' ? '  (matches the commit this harness was built for)'
+                                                         : '  ⚠ DIFFERENT from 60f53b6 — tell Claude before trusting results'));
+  } catch (e) { say('Folder commit: could not read (' + e.message + ')'); }
+
+  // 2. Make sure no service worker serves stale files on localhost (affects localhost only)
+  try {
+    if (navigator.serviceWorker) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      for (const r of regs) await r.unregister();
+      say('Service workers removed on localhost: ' + regs.length);
+    }
+    if (window.caches) {
+      const keys = await caches.keys();
+      for (const k of keys) await caches.delete(k);
+      say('Caches cleared on localhost: ' + keys.length);
+    }
+  } catch (e) { say('Service worker cleanup failed: ' + e.message); }
+
+  say('Loading app…');
+  setupDone = true;
+  enableIfReady();
+
+  btn.onclick = () => {
+    btn.disabled = true;
+    say('Running… (progress shows above; keep this tab in front)');
+    const d = frame.contentDocument;
+    const s = d.createElement('script');
+    s.src = '/tools/harness-engine.js?t=' + Date.now();
+    d.body.appendChild(s);
+  };
+
+  window.addEventListener('message', e => {
+    const m = e.data || {};
+    if (m.type === 'harness-progress') progress.textContent = m.text;
+    if (m.type === 'harness-file') {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([m.text], {type: m.mime || 'text/plain'}));
+      a.download = m.name;
+      a.textContent = 'Download ' + m.name;
+      downloads.appendChild(a);
+    }
+    if (m.type === 'harness-report') {
+      say('');
+      say('===== REPORT (copy everything in this box and paste it to Claude) =====');
+      m.lines.forEach(say);
+      progress.textContent = 'Finished.';
+    }
+  });
+})();
+</script>
+</body>
+</html>
