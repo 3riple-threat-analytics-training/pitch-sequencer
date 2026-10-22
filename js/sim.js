@@ -5896,8 +5896,8 @@ function buildSimWeights(zk,rl,bd,ct,speed,pitchKey){
     w['SWING & MISS']-=8;
     if(w.STRIKE!==undefined) w.STRIKE-=5;
   }
-  if(rl==='PUTAWAY'){w['SWING & MISS']+=12;if(w.STRIKE!==undefined)w.STRIKE+=4;w['STRONG CONTACT']-=4;}
-  if(rl==='CHASE'){w.BALL=Math.max(0,(w.BALL||0)+12);if(w.STRIKE!==undefined)w.STRIKE-=3;}
+  // Roles (SETUP / PUTAWAY / CHASE) are teaching labels only: they never change outcomes.
+  // Removed Oct 22, 2026 (sim-engine-audit.md, problem 9): PUTAWAY/CHASE odds changes inherited from Phase 1.
   if(bd){if(w.STRIKE!==undefined)w.STRIKE+=10;w.BALL=Math.max(0,(w.BALL||0)-6);}
 
   if(CHASE_ZONE_KEYS.includes(zk)) delete w.STRIKE;
