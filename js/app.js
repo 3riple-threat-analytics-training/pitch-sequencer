@@ -733,7 +733,7 @@ function getAutoRole(count,seq,zk,batter,gameState){
 
   // Tunnel established detection
   const tunnelEstablished=prevPitches.some(s=>
-    s.tunnelData&&s.tunnelData.hasTunnel
+    s.tunnelData&&s.tunnelData.detected
   );
   const backFootAvailable=false;
   const backFootPitch=null;
@@ -893,7 +893,7 @@ function getAutoRole(count,seq,zk,batter,gameState){
   // Tunnel detection
   const lastTunneled=last2.length===2&&
     last2[0].tunnelData&&last2[1].tunnelData&&
-    last2[0].tunnelData.hasTunnel&&last2[1].tunnelData.hasTunnel;
+    last2[0].tunnelData.detected&&last2[1].tunnelData.detected;
 
   // ── ARSENAL-BASED SUGGESTIONS ──
   function getContrastCategory(lastCat,foulType){
@@ -1486,8 +1486,8 @@ function getAutoRole(count,seq,zk,batter,gameState){
               'Tunnel is established — '+tunnelPitch.name+
               ' through same flight path, '+moveText:
               'Match early flight path of your last pitch — '+
-              tunnelPitch.pk==='2FB'?moveText:
-              'let this one break differently'
+              (tunnelPitch.pk==='2FB'?moveText:
+              'let this one break differently')
           });
         }
       }
@@ -2964,7 +2964,7 @@ function buildTube(pts){
 }
 function buildTunnels(){
   clearTunnels();if(!tunnelOn||seq.length<2)return;
-  for(let a=0;a<seq.length-1;a++)for(let b=a+1;b<seq.length;b++)drawTunnelPair(seq[a].pts3d,seq[b].pts3d);
+  for(let a=0;a<seq.length-1;a++)for(let b=a+1;b<seq.length;b++)if(checkTunnel(seq[b],seq[a]).tunnel)drawTunnelPair(seq[a].pts3d,seq[b].pts3d);
 }
 
 function bdTarget(tp,h,bdMode){
@@ -3201,7 +3201,7 @@ function drawSideView(){
 
   for(let a=0;a<seq.length-1;a++){
     for(let b=a+1;b<seq.length;b++){
-      const ptsA=seq[a].pts3d;
+      if(!checkTunnel(seq[b],seq[a]).tunnel) continue; const ptsA=seq[a].pts3d;
       const ptsB=seq[b].pts3d;
       const n=Math.min(ptsA.length,ptsB.length);
       const s0=Math.floor(n*0.15);
@@ -3456,7 +3456,7 @@ function replaySideView(){
 
     // Check if this pitch tunnels with any previously drawn pitch
     drawnPitches.forEach(prev=>{
-      const tunnelPts=getTunnelPath(prev.pts3d,s.pts3d);
+      const tunnelPts=checkTunnel(s,prev).tunnel?getTunnelPath(prev.pts3d,s.pts3d):null;
       if(tunnelPts){
         // Draw tunnel corridor immediately alongside this pitch
         drawTunnelCorridor(tunnelPts);
@@ -3564,17 +3564,17 @@ function commitPitch(pts3d,pk,zk,spd,bd,rl,ct,outcome){
     const s1=Math.floor(n*TUNNEL_END);
     const windowSize=s1-s0;
     let bestTunnel={detected:false,length:0,prevIndex:-1,prevPk:'',prevSpd:0};
-    for(let si=seq.length-1;si>=Math.max(0,seq.length-3);si--){
+    for(let si=seq.length-1;si>=0;si--){ // C2/C3: compare with every earlier pitch in the at-bat
       const prev=seq[si];
       if(!prev.pts3d||!prev.pts3d.length) continue;
-      let tunnelPoints=0;
-      for(let i=s0;i<s1;i++){
-        const pA=pts3d[i];
-        const pB=prev.pts3d[Math.min(i,prev.pts3d.length-1)];
-        if(pA&&pB&&pA.distanceTo(pB)<=TUNNEL_THRESH) tunnelPoints++;
-      }
-      const tunnelLength=windowSize>0?tunnelPoints/windowSize:0;
-      if(tunnelLength>0.10&&tunnelLength>bestTunnel.length){
+      // Shared tunnel check (catcher-view rules): different pitch types,
+      // early overlap > 10% of the window, plate gap >= TUNNEL_SPLIT_MIN (3 in).
+      const t=checkTunnel({pk:pk,pts3d:pts3d},prev);
+      if(!t.tunnel) continue;
+      // Keep the best VALID partner: the highest early overlap among real tunnels
+      // (not just the closest path, and not limited to the last 3 pitches).
+      const tunnelLength=t.overlap;
+      if(tunnelLength>bestTunnel.length){
         bestTunnel={
           detected:true,
           length:tunnelLength,
@@ -4200,7 +4200,7 @@ function orbitDrawTunnelBetween(idxA,idxB){
   if(!orbitScene) return;
   const ptsA=orbitDisplaySeq[idxA]&&orbitDisplaySeq[idxA].pts3d;
   const ptsB=orbitDisplaySeq[idxB]&&orbitDisplaySeq[idxB].pts3d;
-  if(!ptsA||!ptsB) return;
+  if(!ptsA||!ptsB) return; if(!checkTunnel(orbitDisplaySeq[idxB],orbitDisplaySeq[idxA]).tunnel) return;
   const n=Math.min(ptsA.length,ptsB.length);
   const s0=Math.floor(n*0.15);
   const s1=Math.floor(n*0.72);
@@ -4294,7 +4294,7 @@ function detectOrbitTunnels(){
     for(let b=a+1;b<orbitDisplaySeq.length;b++){
       const ptsA=orbitDisplaySeq[a].pts3d;
       const ptsB=orbitDisplaySeq[b].pts3d;
-      if(!ptsA||!ptsB) continue;
+      if(!ptsA||!ptsB) continue; if(!checkTunnel(orbitDisplaySeq[b],orbitDisplaySeq[a]).tunnel) continue;
       const n=Math.min(ptsA.length,ptsB.length);
       const s0=Math.floor(n*0.15);
       const s1=Math.floor(n*0.72);
@@ -5871,3 +5871,23 @@ window.addEventListener('load',()=>{
     },{passive:true});
   }
 });
+
+// ── Shared tunnel check (C2, Oct 2026; see c2-shared-tunnel-check.md) ──
+// One rule for every view. Decided only from the catcher's-view pitch paths (makeCurve, meters).
+// A tunnel = different pitch types + shared early path + split at the plate.
+const TUNNEL_SPLIT_MIN=0.08; // minimum distance at the plate: 3 inches (decided in C1)
+function checkTunnel(a,b){
+  const res={tunnel:false,overlap:0,plateGap:0};
+  if(!a||!b||!a.pts3d||!b.pts3d||!a.pts3d.length||!b.pts3d.length) return res;
+  const pA=a.pts3d,pB=b.pts3d;
+  res.plateGap=pA[pA.length-1].distanceTo(pB[pB.length-1]);
+  const n=pA.length,s0=Math.floor(n*TUNNEL_START),s1=Math.floor(n*TUNNEL_END),w=s1-s0;
+  let close=0;
+  for(let i=s0;i<s1;i++){
+    const q=pB[Math.min(i,pB.length-1)];
+    if(pA[i]&&q&&pA[i].distanceTo(q)<=TUNNEL_THRESH) close++;
+  }
+  res.overlap=w>0?close/w:0;
+  res.tunnel=a.pk!==b.pk&&res.overlap>0.10&&res.plateGap>=TUNNEL_SPLIT_MIN;
+  return res;
+}
