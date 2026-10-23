@@ -1,4 +1,4 @@
-// Pitch Sequencer harness — build step 5: full baseline (animation frozen, repeatability check). Built for app commit 60f53b6.
+// Pitch Sequencer harness — build step 5: full baseline (animation frozen, repeatability check). Built for app commit d1a725e (C2/C3/C5).
 // Six pitchers x 1,000 innings each, played as 10 blocks of 100 innings with different seeds
 // (the spread between blocks gives the error ranges). Runs ONLY on localhost.
 // Runs INSIDE the app page (injected by tools/harness.html), so it can see the app's own variables.
@@ -6,7 +6,7 @@
 // A fast-forward clock runs the app's timers immediately, in order. Randomness is seeded (repeatable).
 // No app file is changed. Firestore writes and endGame() are blocked first. Home games only.
 (async function () {
-  const BUILT_FOR = '60f53b6';
+  const BUILT_FOR = 'd1a725e';
   const BLOCKS = 10;                 // blocks per pitcher
   const INNINGS_PER_BLOCK = 100;     // innings per block  (10 x 100 = 1,000 innings per pitcher)
   const BASE_SEED = 20261021;
@@ -266,7 +266,26 @@
               check(Math.abs(lastRep.strongMult - e) < 0.0005, 'P1 repetition ×' + lastRep.strongMult + ' expected ×' + e);
             }
             if (rec && rec.tunnelData && !tunnelShapeLogged) { log('Tunnel data fields (first pitch that has them):', Object.keys(rec.tunnelData).join(', ')); tunnelShapeLogged = true; }
-            const tunnel = rec && rec.tunnelData && (rec.tunnelData.detected || rec.tunnelData.hasTunnel) ? 1 : 0;
+            const tunnel = rec && rec.tunnelData && rec.tunnelData.detected ? 1 : 0;
+            // C2/C3 check: the stored partner must be a different type, at least 3 in apart at the plate (measured here
+            // from the pitch paths), and the valid earlier pitch with the highest overlap; no tunnel only if none is valid.
+            let tPartner = '', tOverlap = '', tGapIn = '';
+            if (rec && rec.pts3d && rec.pts3d.length) {
+              let best = -1, bestOv = 0;
+              for (let i = 0; i < seq.length - 1; i++) { const t = checkTunnel(rec, seq[i]); if (t.tunnel && t.overlap > bestOv) { best = i; bestOv = t.overlap; } }
+              if (tunnel) {
+                const td = rec.tunnelData, prev = seq[td.prevIndex];
+                check(!!prev, P.id + ' tunnel partner ' + td.prevIndex + ' missing');
+                if (prev) {
+                  const a = rec.pts3d[rec.pts3d.length - 1], b = prev.pts3d[prev.pts3d.length - 1];
+                  const gap = a.distanceTo(b);
+                  tPartner = prev.pk + ' ' + prev.zk; tOverlap = td.length.toFixed(3); tGapIn = (gap / 0.0254).toFixed(1);
+                  check(prev.pk !== rec.pk, P.id + ' tunnel between same types ' + rec.pk + '/' + prev.pk);
+                  check(gap >= 0.08, P.id + ' tunnel plate gap ' + tGapIn + ' in (< 3 in)');
+                  check(Math.abs(td.length - bestOv) < 1e-9, P.id + ' stored partner overlap ' + td.length + ' is not the best valid ' + bestOv);
+                }
+              } else check(best === -1, P.id + ' no tunnel stored, but earlier pitch ' + best + ' is a valid tunnel');
+            }
             if (outcome === 'STRIKEOUT') { S.K++; inningK++; }
             if (outcome === 'WALK') S.BB++;
             if (HITS.includes(outcome)) S.H++;
@@ -281,7 +300,7 @@
             S.tunnels += tunnel;
             rows.push([P.id, blockNo, seed, game, inning, batterNo, (secretBatterType || batterType), batter, pitchInAB, b0 + '-' + s0, o0,
               choice.zk, g, choice.pk, spd, outcome, lastContact, lastRep ? lastRep.strongMult.toFixed(3) : '',
-              fouls, ctr0 + '>' + inningStrikePitches, totalScore, tunnel].join(','));
+              fouls, ctr0 + '>' + inningStrikePitches, totalScore, tunnel, tPartner, tOverlap, tGapIn].join(','));
 
             drain(); // app's own end-of-at-bat timers
 
@@ -348,7 +367,7 @@
       { key: 'WK', label: 'Weak contact % of pitches', f: S => 100 * S.weak / S.pitches },
       { key: 'ST', label: 'Strong contact % of pitches', f: S => 100 * S.strong / S.pitches },
       { key: 'IM', label: 'Immaculate innings per 100 innings', f: S => 100 * S.immaculate / S.innings },
-      { key: 'TU', label: '"Tunnels" (app detection) per inning', f: S => S.tunnels / S.innings },
+      { key: 'TU', label: 'Tunnels (app detection, C2 rules) per inning', f: S => S.tunnels / S.innings },
       { key: 'FL', label: 'FOUL (LATE) % of fouls', f: S => { const t = S.fLate + S.fPulled + S.fStraight; return t ? 100 * S.fLate / t : 0; } },
       { key: 'FP', label: 'FOUL (PULLED) % of fouls', f: S => { const t = S.fLate + S.fPulled + S.fStraight; return t ? 100 * S.fPulled / t : 0; } },
       { key: 'FS', label: 'FOUL (STRAIGHT BACK) % of fouls', f: S => { const t = S.fLate + S.fPulled + S.fStraight; return t ? 100 * S.fStraight / t : 0; } }
@@ -391,7 +410,7 @@
     log('Automatic checks: ' + (failures.length === 0 ? 'ALL PASSED' : failures.length + ' FAILED (first 30 shown above)'));
 
     // ---- 10. files: CSV of every pitch, and a results page with charts --------
-    const header = 'pitcher,block,seed,game,inning,batter,batterType,hand,pitchInAB,countBefore,outsBefore,zone,zoneGroup,pitch,speed,outcome,contact,repStrong,foulsSB/PULL/LATE,strikeCounter,scoreAfter,tunnel';
+    const header = 'pitcher,block,seed,game,inning,batter,batterType,hand,pitchInAB,countBefore,outsBefore,zone,zoneGroup,pitch,speed,outcome,contact,repStrong,foulsSB/PULL/LATE,strikeCounter,scoreAfter,tunnel,tunnelPartner,tunnelOverlap,plateGapIn';
     post({ type: 'harness-file', name: 'harness-baseline-' + BUILT_FOR + '.csv', mime: 'text/csv', text: header + '\n' + rows.join('\n') + '\n' });
     post({ type: 'harness-file', name: 'harness-baseline-' + BUILT_FOR + '.html', mime: 'text/html',
            text: resultsPage(stats, METRICS, { built: BUILT_FOR, blocks: BLOCKS, inningsPerBlock: INNINGS_PER_BLOCK, baseSeed: BASE_SEED,
