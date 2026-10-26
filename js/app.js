@@ -4288,7 +4288,7 @@ function buildOrbitTunnelHighlights(){
 }
 
 function detectOrbitTunnels(){
-  orbitTunnelClusters=[];
+  orbitTunnelClusters=[];orbitTunnelClusterIndex=0; // C7: start at the first tunnel
   if(!orbitDisplaySeq||orbitDisplaySeq.length<2) return;
   for(let a=0;a<orbitDisplaySeq.length-1;a++){
     for(let b=a+1;b<orbitDisplaySeq.length;b++){
@@ -5651,7 +5651,7 @@ function orbitTunnelZoom(){
       setTimeout(()=>{ind.style.display='none';},2000);}
     return;
   }
-  const cluster=orbitTunnelClusters[orbitTunnelClusterIndex];
+  if(orbitTunnelClusterIndex>=orbitTunnelClusters.length) orbitTunnelClusterIndex=0; const cluster=orbitTunnelClusters[orbitTunnelClusterIndex]; // C7
   if(!cluster||!cluster.length) return;
 
   // Find center of tunnel cluster
@@ -5665,10 +5665,10 @@ function orbitTunnelZoom(){
   if(orbitControls) orbitControls.update();
 
   // Update indicator
-  orbitTunnelClusterIndex=(orbitTunnelClusterIndex+1)%orbitTunnelClusters.length;
+  const shownNo=orbitTunnelClusterIndex+1; orbitTunnelClusterIndex=(orbitTunnelClusterIndex+1)%orbitTunnelClusters.length; // C7: label = tunnel shown
   const ind=document.getElementById('tunnelIndicator');
   if(ind){
-    ind.textContent='TUNNEL '+(orbitTunnelClusterIndex)+' of '+orbitTunnelClusters.length;
+    ind.textContent='TUNNEL '+shownNo+' of '+orbitTunnelClusters.length;
     ind.style.display='block';
     setTimeout(()=>{ind.style.display='none';},2500);
   }
