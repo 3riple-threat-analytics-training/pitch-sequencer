@@ -1065,7 +1065,7 @@ function buildTunnelReport(data){
     });
     Object.entries(game.tunnelPairs||{}).forEach(function(e){
       pairCounts[e[0]]=(pairCounts[e[0]]||0)+e[1];
-      totalTunnels+=e[1];
+      if(game.tunnelCount==null) totalTunnels+=e[1]; // C6: older games only
     });
   });
   const page=document.createElement('div');
@@ -1079,7 +1079,7 @@ function buildTunnelReport(data){
   // Summary stat
   const sumDiv=document.createElement('div');
   sumDiv.style.cssText='font-size:11px;color:#475569;margin-bottom:12px;';
-  sumDiv.textContent='Total tunneled pitches across '+allGames.length+' game(s): '+totalTunnels;
+  sumDiv.textContent='Tunnels across '+allGames.length+' game(s): '+c6TunnelSummary(allGames,totalTunnels);
   page.appendChild(sumDiv);
   // Top pairs
   const sortedPairs=Object.entries(pairCounts).sort(function(a,b){return b[1]-a[1];});
@@ -1617,6 +1617,16 @@ function buildCounterReport(data){
   });
 
   pages.appendChild(page);
+}
+
+// C6: tunnels in games saved after C6 (older games are counted from their pairs, as before)
+function c6TunnelSummary(allGames,oldCount){
+  let tunnels=oldCount,inTn=0;
+  allGames.forEach(function(g){
+    if(g.tunnelCount==null) return;
+    tunnels+=g.tunnelCount; inTn+=(g.pitchesInTunnels||0);
+  });
+  return tunnels+(inTn?' ('+inTn+' pitches in tunnels)':'');
 }
 </script>
 </body>

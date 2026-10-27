@@ -339,7 +339,7 @@ function saveGameHistory(){
           if(!tunnelZones[tKey]) tunnelZones[tKey]={};
           tunnelZones[tKey][zk]=(tunnelZones[tKey][zk]||0)+1;
         }
-        tunnelQualities.push(td.length||0);
+        tunnelQualities.push(td.tunnelQ||td.length||0); // C6: shared path with its tunnel
       }
       // Contact and tunnel by inning
       const inn=p.inning||1;
@@ -466,7 +466,7 @@ function saveGameHistory(){
       tunnelPairs,tunnelOutcomes,tunnelZones,tunnelsByInning,tunnelsByInningDetail,
       avgTunnelQuality:tunnelQualities.length?
         Math.round(tunnelQualities.reduce(function(a,b){return a+b;},0)/tunnelQualities.length*100):0,
-      totalTunnels:tunnelQualities.length,
+      totalTunnels:tunnelQualities.length,...tunnelCountsC6(pitches), // C6
       contactByInning,
       vsBatterType,vsLHB,vsRHB
     };
@@ -1083,7 +1083,7 @@ function showGameReport(game,title,onClose){
     tnSection.appendChild(tnSectionLbl);
     // Stats row
     const tnStats=document.createElement('div');
-    tnStats.style.cssText='display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:8px;';
+    tnStats.style.cssText='display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:8px;';
     function tnGameStat(label,value,color){
       const box=document.createElement('div');
       box.style.cssText='background:#f0f9ff;border:1px solid #7dd3fc;border-radius:6px;'
@@ -1093,10 +1093,10 @@ function showGameReport(game,title,onClose){
         +'<div style="font-size:7px;color:#0c4a6e;letter-spacing:1px;font-weight:600;">'+label+'</div>';
       return box;
     }
-    tnStats.appendChild(tnGameStat('TUNNELS CREATED',game.totalTunnels,'#0891b2'));
+    tnStats.appendChild(tnGameStat('TUNNELS CREATED',gameTunnelCount(game),'#0891b2')); // C6
     tnStats.appendChild(tnGameStat('AVG QUALITY',game.avgTunnelQuality+'%',
       game.avgTunnelQuality>=60?'#166534':game.avgTunnelQuality>=40?'#ca8a04':'#991b1b'));
-    tnSection.appendChild(tnStats);
+    addPitchesInTunnelsBox(game,tnStats,tnGameStat);tnSection.appendChild(tnStats); // C6
     // Top tunnel pairs this game
     const gamePairs=Object.entries(game.tunnelPairs||{}).sort(function(a,b){return b[1]-a[1];}).slice(0,4);
     if(gamePairs.length>0){
@@ -3768,7 +3768,7 @@ function showGameReport(game,title,onClose){
       const aggPairs={},aggOutcomes={},aggZones={};
       let totalTunnels=0,totalQuality=0,qualityCount=0;
       tnGamesWith.forEach(function(g){
-        totalTunnels+=(g.totalTunnels||0);
+        totalTunnels+=gameTunnelCount(g); // C6: tunnels (older games: their old count)
         if(g.avgTunnelQuality){totalQuality+=g.avgTunnelQuality;qualityCount++;}
         Object.entries(g.tunnelPairs||{}).forEach(function(e){
           aggPairs[e[0]]=(aggPairs[e[0]]||0)+e[1];
@@ -5081,8 +5081,8 @@ function simClearSequenceOnly(){
         length:td.length,
         prevPk:td.prevPk,
         prevSpd:td.prevSpd,
-        prevIndex:td.prevIndex
-      }:{detected:false};
+        prevIndex:td.prevIndex,...tunnelMetaC6(td) // C6
+      }:{detected:false,inTunnel:!!(td&&td.inTunnel)}; // C6
       return Object.assign({},p,{pts3d:null,tunnelData:tunnelMeta});
     }));
   }
@@ -6653,4 +6653,27 @@ function showTeamRunsNotification(msg,onDone){
   box.appendChild(btn);
   overlay.appendChild(box);
   document.body.appendChild(overlay);
+}
+
+// ── Tunnel groups in saved games and reports (C6, Oct 2026; see c6-tunnel-groups.md) ──
+// Number of tunnels and of pitches in tunnels, from the flags saved with each pitch.
+function tunnelCountsC6(pitches){
+  const has=function(p,f){return !!(p.tunnelData&&p.tunnelData[f]);};
+  return {
+    tunnelCount:pitches.filter(function(p){return has(p,'tunnelStart');}).length,
+    pitchesInTunnels:pitches.filter(function(p){return has(p,'inTunnel');}).length
+  };
+}
+// Tunnels in a saved game; older games (before C6) keep their old count.
+function gameTunnelCount(g){
+  return g.tunnelCount!=null?g.tunnelCount:(g.totalTunnels||0);
+}
+// C6 fields kept when an at-bat is copied into the game record.
+function tunnelMetaC6(td){
+  return {tunnelNo:td.tunnelNo||0,tunnelStart:!!td.tunnelStart,tunnelQ:td.tunnelQ||0,inTunnel:!!td.inTunnel};
+}
+// Game report: "PITCHES IN TUNNELS" box (games saved after C6 only).
+function addPitchesInTunnelsBox(game,tnStats,tnGameStat){
+  if(game.pitchesInTunnels==null) return;
+  tnStats.appendChild(tnGameStat('PITCHES IN TUNNELS',game.pitchesInTunnels,'#0c4a6e'));
 }

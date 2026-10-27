@@ -3563,7 +3563,7 @@ function commitPitch(pts3d,pk,zk,spd,bd,rl,ct,outcome){
     const s0=Math.floor(n*TUNNEL_START);
     const s1=Math.floor(n*TUNNEL_END);
     const windowSize=s1-s0;
-    let bestTunnel={detected:false,length:0,prevIndex:-1,prevPk:'',prevSpd:0};
+    let bestTunnel={detected:false,length:0,prevIndex:-1,prevPk:'',prevSpd:0},bestSame=false;
     for(let si=seq.length-1;si>=0;si--){ // C2/C3: compare with every earlier pitch in the at-bat
       const prev=seq[si];
       if(!prev.pts3d||!prev.pts3d.length) continue;
@@ -3571,10 +3571,10 @@ function commitPitch(pts3d,pk,zk,spd,bd,rl,ct,outcome){
       // early overlap > 10% of the window, plate gap >= TUNNEL_SPLIT_MIN (3 in).
       const t=checkTunnel({pk:pk,pts3d:pts3d},prev);
       if(!t.tunnel) continue;
-      // Keep the best VALID partner: the highest early overlap among real tunnels
+      // Keep the best VALID partner: same rubber spot first (C6), then the highest early overlap among real tunnels
       // (not just the closest path, and not limited to the last 3 pitches).
-      const tunnelLength=t.overlap;
-      if(tunnelLength>bestTunnel.length){
+      const tunnelLength=t.overlap,sameSpot=sameEntrance({pts3d:pts3d},prev);
+      if((sameSpot&&!bestSame)||(sameSpot===bestSame&&tunnelLength>bestTunnel.length)){bestSame=sameSpot;
         bestTunnel={
           detected:true,
           length:tunnelLength,
@@ -3584,7 +3584,7 @@ function commitPitch(pts3d,pk,zk,spd,bd,rl,ct,outcome){
         };
       }
     }
-    tunnelData=bestTunnel;
+    tunnelData=bestTunnel;Object.assign(tunnelData,tunnelGroupInfo(seq,{pk:pk,pts3d:pts3d})); // C6: which tunnel this pitch is in
   }
   const foulType=(outcome==='FOUL'||
     outcome==='FOUL (PULLED)'||
@@ -3868,6 +3868,7 @@ let orbitPlayTimer=null;
 let orbitIsolation=[];
 let orbitTunnelClusters=[];
 let orbitTunnelClusterIndex=0;
+let orbitTunnelGroups=[],orbitTunnelSizes=[]; // C6: TUNNEL ZOOM list, one entry per tunnel
 let orbitBallMesh=null;
 let orbitBallAnimTimer=null;
 let orbitPlayMode=false;
@@ -4289,6 +4290,8 @@ function buildOrbitTunnelHighlights(){
 
 function detectOrbitTunnels(){
   orbitTunnelClusters=[];orbitTunnelClusterIndex=0; // C7: start at the first tunnel
+  orbitTunnelGroups=[];orbitTunnelSizes=[]; // C6: rebuilt with the tunnel list
+  const _grp=groupTunnels(orbitDisplaySeq||[]),_gp=[]; // C6: tunnels and their zoom points
   if(!orbitDisplaySeq||orbitDisplaySeq.length<2) return;
   for(let a=0;a<orbitDisplaySeq.length-1;a++){
     for(let b=a+1;b<orbitDisplaySeq.length;b++){
@@ -4314,9 +4317,20 @@ function detectOrbitTunnels(){
           break;
         }
       }
-      if(tunnelPts.length>=3) orbitTunnelClusters.push(tunnelPts);
+      if(tunnelPts.length>=3){
+        orbitTunnelClusters.push(tunnelPts);
+        // C6: add this stretch to the tunnel that both pitches are in
+        const k=_grp.findIndex(g=>g.includes(a)&&g.includes(b));
+        if(k>=0) _gp[k]=(_gp[k]||[]).concat(tunnelPts);
+      }
     }
   }
+  // C6: one TUNNEL ZOOM entry per tunnel
+  _grp.forEach((g,k)=>{
+    if(!_gp[k]||!_gp[k].length) return;
+    orbitTunnelGroups.push(_gp[k]);
+    orbitTunnelSizes.push(g.length);
+  });
 }
 
 function orbitShowKeepPathModal(pitchIdx,onYes,onNo){
@@ -5645,30 +5659,31 @@ function orbitStepFrame(delta){
 }
 
 function orbitTunnelZoom(){
-  if(!orbitTunnelClusters||!orbitTunnelClusters.length){
+  if(!orbitTunnelGroups||!orbitTunnelGroups.length){
     const ind=document.getElementById('tunnelIndicator');
     if(ind){ind.textContent='NO TUNNELS DETECTED';ind.style.display='block';
       setTimeout(()=>{ind.style.display='none';},2000);}
     return;
   }
-  if(orbitTunnelClusterIndex>=orbitTunnelClusters.length) orbitTunnelClusterIndex=0; const cluster=orbitTunnelClusters[orbitTunnelClusterIndex]; // C7
+  // C7: past the end -> back to the first tunnel. C6: one entry per tunnel
+  if(orbitTunnelClusterIndex>=orbitTunnelGroups.length) orbitTunnelClusterIndex=0;
+  const cluster=orbitTunnelGroups[orbitTunnelClusterIndex];
   if(!cluster||!cluster.length) return;
-
   // Find center of tunnel cluster
   const cx=cluster.reduce((s,p)=>s+p.x,0)/cluster.length;
   const cy=cluster.reduce((s,p)=>s+p.y,0)/cluster.length;
   const cz=cluster.reduce((s,p)=>s+p.z,0)/cluster.length;
-
   // Fly camera to tunnel zone
   if(orbitControls) orbitControls.target.set(cx,cy,cz);
   if(orbitCamera) orbitCamera.position.set(cx-1.5,cy+0.8,cz-1.5);
   if(orbitControls) orbitControls.update();
-
-  // Update indicator
-  const shownNo=orbitTunnelClusterIndex+1; orbitTunnelClusterIndex=(orbitTunnelClusterIndex+1)%orbitTunnelClusters.length; // C7: label = tunnel shown
+  // Update indicator. C7: the label names the tunnel shown
+  const shownNo=orbitTunnelClusterIndex+1;
+  orbitTunnelClusterIndex=(orbitTunnelClusterIndex+1)%orbitTunnelGroups.length;
+  const size=orbitTunnelSizes[shownNo-1]; // C6: pitches in this tunnel
   const ind=document.getElementById('tunnelIndicator');
   if(ind){
-    ind.textContent='TUNNEL '+shownNo+' of '+orbitTunnelClusters.length;
+    ind.textContent='TUNNEL '+shownNo+' of '+orbitTunnelGroups.length+(size?' · '+size+' PITCHES':'');
     ind.style.display='block';
     setTimeout(()=>{ind.style.display='none';},2500);
   }
@@ -5890,4 +5905,60 @@ function checkTunnel(a,b){
   res.overlap=w>0?close/w:0;
   res.tunnel=a.pk!==b.pk&&res.overlap>0.10&&res.plateGap>=TUNNEL_SPLIT_MIN;
   return res;
+}
+
+// ── Tunnel groups (C6, Oct 2026; see c6-tunnel-groups.md) ──
+// A tunnel = pitches that all look the same out of the hand. The entrance is the release point.
+const TUNNEL_SAME_SPOT=0.051; // same rubber spot: release points within 2 inches (Rafael, Oct 27)
+function sameEntrance(a,b){
+  return !!(a&&b&&a.pts3d&&b.pts3d&&a.pts3d.length&&b.pts3d.length&&a.pts3d[0].distanceTo(b.pts3d[0])<=TUNNEL_SAME_SPOT);
+}
+// Can pitch j share a tunnel with earlier pitch i (indices in one at-bat)?
+// A real tunnel pair (checkTunnel), or the same pitch type from the same spot, not back-to-back,
+// sharing the early path (e.g. fastball - changeup - fastball).
+function tunnelFit(ps,i,j){
+  const t=checkTunnel(ps[j],ps[i]);
+  if(t.tunnel) return {ok:true,overlap:t.overlap};
+  const ok=ps[i].pk===ps[j].pk&&j-i>1&&sameEntrance(ps[i],ps[j])&&t.overlap>0.10;
+  return {ok:ok,overlap:t.overlap};
+}
+// Place pitch j into the tunnels G (arrays of indices), in throw order:
+// same entrance first; join the most recent tunnel it fits with every pitch of;
+// otherwise start a new tunnel with its best partner (same spot first).
+function tunnelStep(ps,j,G){
+  const p=ps[j];
+  if(!p||!p.pts3d||!p.pts3d.length) return {tunnel:-1,starts:false,partner:-1,quality:0};
+  const fitAll=[];
+  G.forEach((g,k)=>{if(g.every(i=>tunnelFit(ps,i,j).ok)) fitAll.push(k);});
+  const fitSame=fitAll.filter(k=>G[k].some(i=>sameEntrance(ps[i],p)));
+  const fit=fitSame.length?fitSame:fitAll;
+  if(fit.length){
+    const k=fit.reduce((b,x)=>Math.max(...G[x])>Math.max(...G[b])?x:b,fit[0]); // most recent tunnel
+    const q=G[k].reduce((sum,i)=>sum+tunnelFit(ps,i,j).overlap,0)/G[k].length;
+    G[k].push(j);
+    return {tunnel:k,starts:false,partner:-1,quality:q};
+  }
+  let best=-1,bo=0,bs=false;
+  for(let i=j-1;i>=0;i--){ // newest first, like detection: ties keep the most recent pitch
+    const t=checkTunnel(p,ps[i]); if(!t.tunnel) continue;
+    const s=sameEntrance(ps[i],p);
+    if((s&&!bs)||(s===bs&&t.overlap>bo)){best=i;bo=t.overlap;bs=s;}
+  }
+  if(best<0) return {tunnel:-1,starts:false,partner:-1,quality:0};
+  G.push([best,j]);
+  return {tunnel:G.length-1,starts:true,partner:best,quality:bo};
+}
+function groupTunnels(ps){
+  const G=[];
+  for(let j=0;j<(ps?ps.length:0);j++) tunnelStep(ps,j,G);
+  return G;
+}
+// For a new pitch: which tunnel it is in, given the earlier pitches of the at-bat (seq).
+function tunnelGroupInfo(prevSeq,newP){
+  const ps=prevSeq.concat([newP]),G=[];
+  for(let j=0;j<ps.length-1;j++) tunnelStep(ps,j,G);
+  const res=tunnelStep(ps,ps.length-1,G);
+  if(res.tunnel<0) return {tunnelNo:0,tunnelStart:false,tunnelQ:0,inTunnel:false};
+  if(res.starts&&prevSeq[res.partner]&&prevSeq[res.partner].tunnelData) prevSeq[res.partner].tunnelData.inTunnel=true;
+  return {tunnelNo:res.tunnel+1,tunnelStart:res.starts,tunnelQ:res.quality,inTunnel:true};
 }
