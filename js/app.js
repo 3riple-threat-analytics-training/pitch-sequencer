@@ -455,9 +455,9 @@ function selPitch(p){
 function selRole(r){role=r;document.querySelectorAll('.rpill').forEach(b=>b.classList.toggle('active',b.dataset.role===r));}
 function setRubber(e){
   const rect=document.getElementById('rwrap').getBoundingClientRect();
-  rubber=Math.max(0,Math.min(1,(e.clientX-rect.left)/rect.width));
-  document.getElementById('rdot').style.left=(10+rubber*(rect.width-20))+'px';
-  document.getElementById('tip').textContent=TIPS[rubber<0.33?'left':rubber>0.66?'right':'center'];
+  rubber=1-Math.max(0,Math.min(1,(e.clientX-rect.left)/rect.width)); // right end = 1B side (low), left end = 3B side (high), as labeled
+  document.getElementById('rdot').style.left=(10+(1-rubber)*(rect.width-20))+'px';
+  document.getElementById('tip').textContent=TIPS[rubber>0.67?'left':rubber<0.34?'right':'center'];
   buildStatic();rebuildPaths();refreshGhost();
 }
 function toggleTunnel(){tunnelOn=!tunnelOn;const b=document.getElementById('tunnelbtn');b.textContent=tunnelOn?'⬡ TUNNEL ON':'⬡ TUNNEL OFF';b.classList.toggle('on',tunnelOn);buildTunnels();}
