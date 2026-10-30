@@ -17,7 +17,7 @@
 </head>
 <body>
 <h1>Pitch Sequencer Harness</h1>
-<p>Built for app commit <b>d1a725e</b>. Loads the real app below; <b>Run</b> injects <code>harness-engine.js</code>,
+<p>Harness for the C6 tunnel rules (Oct 2026). Loads the real app below; <b>Run</b> injects <code>harness-engine.js</code>,
 which plays simulated innings through the app's own functions. No app files are changed.
 Firestore writes and <code>endGame</code> are blocked. Results stay on this computer.</p>
 <button id="run" disabled>Run</button>
@@ -62,8 +62,8 @@ Firestore writes and <code>endGame</code> are blocked. Results stay on this comp
       }
     }
     const short = sha.slice(0, 7);
-    say('Folder commit: ' + short + (short === 'd1a725e' ? '  (matches the commit this harness was built for)'
-                                                         : '  ⚠ DIFFERENT from d1a725e — tell Claude before trusting results'));
+    const okSha = /^[0-9a-f]{7}$/.test(short);
+    say('Folder commit: ' + (okSha ? short + '  (recorded for this run; include it when you paste the report)' : 'could not read (not a normal git folder)'));
   } catch (e) { say('Folder commit: could not read (' + e.message + ')'); }
 
   // 2. Make sure no service worker serves stale files on localhost (affects localhost only)
