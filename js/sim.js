@@ -6677,3 +6677,144 @@ function addPitchesInTunnelsBox(game,tnStats,tnGameStat){
   if(game.pitchesInTunnels==null) return;
   tnStats.appendChild(tnGameStat('PITCHES IN TUNNELS',game.pitchesInTunnels,'#0c4a6e'));
 }
+// A6 part 1 (Nov 2, 2026): batter anticipation, logged to the console only.
+// Changes no outcome and uses no random numbers. Design: a6-anticipation-design.md.
+// Turn printing off with window.ANTICIPATION_LOG=false (the harness does this).
+const ANTIC_W={loc:0.30,type:0.25,speed:0.30,order:0.15};
+const ANTIC_SHARE={same:0.6,other:0.3};
+const ANTIC_RECENCY=0.85;
+const ANTIC_CONF=2;
+const ANTIC_ON_TIME_MPH=3;
+const ANTIC_SPEED_RANGE=15;
+const ANTIC_CEILING={
+  rec10:0.30,rec12:0.30,club10:0.40,club12:0.48,comp13:0.58,
+  hsjv:0.70,hsvar:0.82,college:0.92,pro:1.00
+};
+const ANTIC_LINE_ZONES=['TL','TM','TR','ML','MM','MR','BL','BM','BR',
+  'TL-CRN','TR-CRN','BL-CRN','BR-CRN','TOP-EDG','BOT-EDG','LFT-EDG','RGT-EDG'];
+function anticPos(zk){const p=ZPOS[zk];return p?{x:p.x,y:p.y}:null;}
+function anticBlend(raw,w){return 0.5+(raw-0.5)*(w/(w+ANTIC_CONF));}
+function anticHeight(y){
+  if(y>Y_MID+SQ/2) return 'up';
+  if(y<Y_MID-SQ/2) return 'down';
+  return 'middle';
+}
+// Memory = earlier pitches this game (gameSeq) + earlier pitches this at-bat.
+function anticMemory(cur){
+  const myType=cur.batterType||'GENERIC';
+  const past=(typeof gameSeq!=='undefined'&&gameSeq?gameSeq:[]).map(p=>({p:p,ab:false}));
+  const ab=seq.slice(0,-1).map(p=>({p:p,ab:true}));
+  const all=past.concat(ab);
+  const n=all.length;
+  return all.map((m,i)=>{
+    const share=m.ab?1.0:((m.p.batterType||'GENERIC')===myType?ANTIC_SHARE.same:ANTIC_SHARE.other);
+    return {p:m.p,ab:m.ab,w:share*Math.pow(ANTIC_RECENCY,n-1-i)};
+  });
+}
+// A8: is this pitch a new spot on a line (flank-anchor-flank) with a spot already thrown
+// this at-bat? Then it is building toward its anchor (neutral). Repeats are counted.
+function anticLineBuilding(cur){
+  if(!ANTIC_LINE_ZONES.includes(cur.zk)) return false;
+  const c=anticPos(cur.zk);
+  const earlier=[];
+  seq.slice(0,-1).forEach(p=>{
+    if(ANTIC_LINE_ZONES.includes(p.zk)&&!earlier.includes(p.zk)) earlier.push(p.zk);
+  });
+  if(earlier.includes(cur.zk)) return false;
+  const near=(a,b)=>Math.abs(a.x-b.x)<0.01&&Math.abs(a.y-b.y)<0.01;
+  const zoneAt=pt=>ANTIC_LINE_ZONES.find(z=>near(anticPos(z),pt))||null;
+  for(const zk of earlier){
+    const p=anticPos(zk);
+    const mid=zoneAt({x:(p.x+c.x)/2,y:(p.y+c.y)/2}); // this pitch and zk are the flanks
+    const pastC=zoneAt({x:2*c.x-p.x,y:2*c.y-p.y});  // this pitch is the anchor
+    const pastP=zoneAt({x:2*p.x-c.x,y:2*p.y-c.y});  // zk is the anchor
+    if((mid&&mid!==zk&&mid!==cur.zk)||pastC||pastP) return true;
+  }
+  return false;
+}
+function computeAnticipation(){
+  if(typeof seq==='undefined'||!seq||!seq.length) return null;
+  const cur=seq[seq.length-1];
+  const mem=anticMemory(cur);
+  const W=mem.reduce((s,m)=>s+m.w,0);
+  const cp=anticPos(cur.zk);
+  let locRaw=0.5,typeRaw=0.5,speedRaw=0.5,orderRaw=0.5,orderW=0;
+  let expSpd=null,gap=null,expPk=null,expHt=null;
+  if(W>0){
+    let loc=0,typ=0;
+    const pkW={},htW={};
+    mem.forEach(m=>{
+      const mp=anticPos(m.p.zk);
+      if(cp&&mp){
+        const d=Math.hypot(cp.x-mp.x,cp.y-mp.y);
+        loc+=m.w*(0.4*(d<0.03?1:0)+0.3*(Math.abs(cp.y-mp.y)<0.10?1:0)
+          +0.3*(Math.abs(cp.x-mp.x)<0.08?1:0));
+        const h=anticHeight(mp.y);htW[h]=(htW[h]||0)+m.w;
+      }
+      if(m.p.pk===cur.pk) typ+=m.w;
+      pkW[m.p.pk]=(pkW[m.p.pk]||0)+m.w;
+    });
+    locRaw=loc/W;typeRaw=typ/W;
+    const top=o=>Object.keys(o).reduce((a,b)=>o[a]>=o[b]?a:b,Object.keys(o)[0]);
+    expPk=top(pkW);expHt=Object.keys(htW).length?top(htW):null;
+    const sp=mem.filter(m=>m.p.spd);
+    const sw=sp.reduce((s,m)=>s+m.w,0);
+    if(sw>0&&cur.spd){
+      expSpd=sp.reduce((s,m)=>s+m.w*m.p.spd,0)/sw;
+      gap=expSpd-cur.spd;
+      const dir=typeof SPEED_DIFF_DIRECTION!=='undefined'?SPEED_DIFF_DIRECTION:
+        {fastToBraking:1,breakingToFast:1};
+      const eff=gap>0?gap*dir.fastToBraking:-gap*dir.breakingToFast;
+      speedRaw=Math.max(0,1-eff/ANTIC_SPEED_RANGE);
+    }
+    const prevPk=mem[mem.length-1].p.pk;
+    let hit=0;
+    for(let i=0;i<mem.length-1;i++){
+      if(mem[i].p.pk!==prevPk) continue;
+      orderW+=mem[i+1].w;
+      if(mem[i+1].p.pk===cur.pk) hit+=mem[i+1].w;
+    }
+    if(orderW>0) orderRaw=hit/orderW;
+  }
+  const building=anticLineBuilding(cur);
+  const r={
+    loc:building?0.5:anticBlend(locRaw,W),
+    type:anticBlend(typeRaw,W),
+    speed:anticBlend(speedRaw,W),
+    order:anticBlend(orderRaw,orderW)
+  };
+  const A=ANTIC_W.loc*r.loc+ANTIC_W.type*r.type+ANTIC_W.speed*r.speed+ANTIC_W.order*r.order;
+  const ceiling=ANTIC_CEILING[batterLevel]||0.55;
+  const E=(A-0.5)*2*ceiling;
+  let timing='no expectation yet';
+  if(gap!==null){
+    if(Math.abs(gap)<=ANTIC_ON_TIME_MPH) timing='on time';
+    else timing=(gap>0?'early ':'late ')+Math.round(Math.abs(gap))+' mph';
+  }
+  return {
+    n:(typeof gameSeq!=='undefined'&&gameSeq?gameSeq.length:0)+seq.length,
+    batterType:cur.batterType||'GENERIC',inning:cur.inning,
+    pk:cur.pk,spd:cur.spd,zk:cur.zk,
+    expPk:expPk,expSpd:expSpd,expHt:expHt,memoryWeight:W,
+    readings:r,building:building,A:A,ceiling:ceiling,level:batterLevel,E:E,
+    gap:gap,timing:timing
+  };
+}
+function logAnticipation(){
+  try{
+    const a=computeAnticipation();
+    window.__lastAnticipation=a;
+    if(!a||window.ANTICIPATION_LOG===false) return;
+    const f=v=>v.toFixed(2);
+    const exp=a.expPk?('expecting '+a.expPk+' ~'+Math.round(a.expSpd||0)+' mph'
+      +(a.expHt?', '+a.expHt:'')):'no memory yet';
+    const verdict=a.A<0.4?'fooled':a.A>0.6?'sitting on it':'mixed';
+    const r=a.readings;
+    console.log('ANTICIPATION #'+a.n+' ('+a.batterType+', inn '+a.inning+'): '+exp
+      +'\n  pitch '+a.pk+' '+a.spd+' '+a.zk+' → loc '+f(r.loc)
+      +(a.building?' (line building)':'')+' type '+f(r.type)+' speed '+f(r.speed)
+      +' order '+f(r.order)+' → A '+f(a.A)+' ('+verdict+')'
+      +'\n  ceiling '+f(a.ceiling)+' ('+a.level+') → E '+(a.E>=0?'+':'')+f(a.E)
+      +' · timing: '+a.timing);
+  }catch(e){console.log('ANTICIPATION error (no effect on the game):',e&&e.message);}
+}

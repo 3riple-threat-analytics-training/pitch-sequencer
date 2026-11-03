@@ -3667,7 +3667,7 @@ function throwPitch(){
   commitPitch(makeCurve(pitch,zone,bd).getPoints(90).map(v=>v.clone()),pitch,zone,spd,bd,role,ctBefore,outcome);
 
   // Courage pitch and danger zone log — runs after every pitch
-  if(simMode){
+  if(simMode){ if(typeof logAnticipation==='function') logAnticipation();
     const clm=window.__lastCountLocMod;
     // debug removed
     if(clm){

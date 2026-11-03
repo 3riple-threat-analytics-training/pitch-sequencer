@@ -22,6 +22,7 @@
     log('REFUSED: the harness only runs on localhost (this page is ' + location.hostname + '). Nothing was changed.');
     report(); return;
   }
+  window.ANTICIPATION_LOG = false; // A6 part 1: no anticipation console lines during runs
 
   const ENDINGS = ['STRIKEOUT', 'WALK', 'SINGLE', 'DOUBLE', 'TRIPLE', 'HOME RUN', 'GROUND OUT', 'POP FLY'];
   const HITS = ['SINGLE', 'DOUBLE', 'TRIPLE', 'HOME RUN'];
