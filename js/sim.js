@@ -6677,7 +6677,8 @@ function addPitchesInTunnelsBox(game,tnStats,tnGameStat){
   if(game.pitchesInTunnels==null) return;
   tnStats.appendChild(tnGameStat('PITCHES IN TUNNELS',game.pitchesInTunnels,'#0c4a6e'));
 }
-// A6 part 1 (Nov 2, 2026): batter anticipation, logged to the console only.
+// A6 batter anticipation, logged to the console only (part 1 Nov 2; part 2 Nov 3, 2026).
+// Part 2: computed BEFORE the outcome (C4), with the pitch's tunnel hiding its type.
 // Changes no outcome and uses no random numbers. Design: a6-anticipation-design.md.
 // Turn printing off with window.ANTICIPATION_LOG=false (the harness does this).
 const ANTIC_W={loc:0.30,type:0.25,speed:0.30,order:0.15};
@@ -6686,6 +6687,7 @@ const ANTIC_RECENCY=0.85;
 const ANTIC_CONF=2;
 const ANTIC_ON_TIME_MPH=3;
 const ANTIC_SPEED_RANGE=15;
+const ANTIC_TUNNEL_REPEAT=0.8;
 const ANTIC_CEILING={
   rec10:0.30,rec12:0.30,club10:0.40,club12:0.48,comp13:0.58,
   hsjv:0.70,hsvar:0.82,college:0.92,pro:1.00
@@ -6699,25 +6701,33 @@ function anticHeight(y){
   if(y<Y_MID-SQ/2) return 'down';
   return 'middle';
 }
-// Memory = earlier pitches this game (gameSeq) + earlier pitches this at-bat.
-function anticMemory(cur){
-  const myType=cur.batterType||'GENERIC';
+// The first batter of a sim session is labeled RANDOM but plays as GENERIC (Nov 3, decision A).
+function anticType(t){return (!t||t==='RANDOM')?'GENERIC':t;}
+// Release point of a pitch: stored rp (part 2), else the first point of its path.
+function anticRelease(p){
+  if(p&&p.rp) return p.rp;
+  if(p&&p.pts3d&&p.pts3d.length) return {x:p.pts3d[0].x,y:p.pts3d[0].y,z:p.pts3d[0].z};
+  return null;
+}
+// Memory = earlier pitches this game (gameSeq) + earlier pitches this at-bat (abPrev).
+function anticMemory(cur,abPrev){
+  const myType=anticType(cur.batterType);
   const past=(typeof gameSeq!=='undefined'&&gameSeq?gameSeq:[]).map(p=>({p:p,ab:false}));
-  const ab=seq.slice(0,-1).map(p=>({p:p,ab:true}));
+  const ab=abPrev.map(p=>({p:p,ab:true}));
   const all=past.concat(ab);
   const n=all.length;
   return all.map((m,i)=>{
-    const share=m.ab?1.0:((m.p.batterType||'GENERIC')===myType?ANTIC_SHARE.same:ANTIC_SHARE.other);
+    const share=m.ab?1.0:(anticType(m.p.batterType)===myType?ANTIC_SHARE.same:ANTIC_SHARE.other);
     return {p:m.p,ab:m.ab,w:share*Math.pow(ANTIC_RECENCY,n-1-i)};
   });
 }
 // A8: is this pitch a new spot on a line (flank-anchor-flank) with a spot already thrown
 // this at-bat? Then it is building toward its anchor (neutral). Repeats are counted.
-function anticLineBuilding(cur){
+function anticLineBuilding(cur,abPrev){
   if(!ANTIC_LINE_ZONES.includes(cur.zk)) return false;
   const c=anticPos(cur.zk);
   const earlier=[];
-  seq.slice(0,-1).forEach(p=>{
+  abPrev.forEach(p=>{
     if(ANTIC_LINE_ZONES.includes(p.zk)&&!earlier.includes(p.zk)) earlier.push(p.zk);
   });
   if(earlier.includes(cur.zk)) return false;
@@ -6732,10 +6742,29 @@ function anticLineBuilding(cur){
   }
   return false;
 }
-function computeAnticipation(){
-  if(typeof seq==='undefined'||!seq||!seq.length) return null;
-  const cur=seq[seq.length-1];
-  const mem=anticMemory(cur);
+// C4: how much the current pitch's tunnel hides its type (A6 section 7).
+// hide = overlap x 0.8 per earlier tunnel this game with the same type pair, same entrance.
+function anticTunnelHide(cur,mem){
+  const td=cur.tunnelData;
+  if(!td||!td.detected||!td.prevPk) return {hide:0,repeats:0};
+  const pair=[cur.pk,td.prevPk].sort().join('|');
+  const me=cur.rp;
+  const spot=typeof TUNNEL_SAME_SPOT!=='undefined'?TUNNEL_SAME_SPOT:0.051;
+  let repeats=0;
+  mem.forEach(m=>{
+    const t=m.p.tunnelData;
+    if(!t||!t.detected||!t.prevPk) return;
+    if([m.p.pk,t.prevPk].sort().join('|')!==pair) return;
+    const r=anticRelease(m.p);
+    if(!me||!r) return;
+    if(Math.hypot(me.x-r.x,me.y-r.y,me.z-r.z)<=spot) repeats++;
+  });
+  return {hide:(td.length||0)*Math.pow(ANTIC_TUNNEL_REPEAT,repeats),repeats:repeats};
+}
+// cur = the pitch about to be thrown (not yet in seq); abPrev = earlier pitches this at-bat.
+function computeAnticipation(cur,abPrev){
+  if(!cur) return null;
+  const mem=anticMemory(cur,abPrev);
   const W=mem.reduce((s,m)=>s+m.w,0);
   const cp=anticPos(cur.zk);
   let locRaw=0.5,typeRaw=0.5,speedRaw=0.5,orderRaw=0.5,orderW=0;
@@ -6776,10 +6805,11 @@ function computeAnticipation(){
     }
     if(orderW>0) orderRaw=hit/orderW;
   }
-  const building=anticLineBuilding(cur);
+  const building=anticLineBuilding(cur,abPrev);
+  const tun=anticTunnelHide(cur,mem);
   const r={
     loc:building?0.5:anticBlend(locRaw,W),
-    type:anticBlend(typeRaw,W),
+    type:anticBlend(typeRaw,W)*(1-tun.hide),
     speed:anticBlend(speedRaw,W),
     order:anticBlend(orderRaw,orderW)
   };
@@ -6792,17 +6822,26 @@ function computeAnticipation(){
     else timing=(gap>0?'early ':'late ')+Math.round(Math.abs(gap))+' mph';
   }
   return {
-    n:(typeof gameSeq!=='undefined'&&gameSeq?gameSeq.length:0)+seq.length,
-    batterType:cur.batterType||'GENERIC',inning:cur.inning,
+    n:(typeof gameSeq!=='undefined'&&gameSeq?gameSeq.length:0)+abPrev.length+1,
+    batterType:anticType(cur.batterType),inning:cur.inning,
     pk:cur.pk,spd:cur.spd,zk:cur.zk,
     expPk:expPk,expSpd:expSpd,expHt:expHt,memoryWeight:W,
-    readings:r,building:building,A:A,ceiling:ceiling,level:batterLevel,E:E,
-    gap:gap,timing:timing
+    readings:r,building:building,
+    tunnel:cur.tunnelData&&cur.tunnelData.detected?
+      {partner:cur.tunnelData.prevPk,overlap:cur.tunnelData.length,
+        hide:tun.hide,repeats:tun.repeats}:null,
+    A:A,ceiling:ceiling,level:batterLevel,E:E,gap:gap,timing:timing
   };
 }
-function logAnticipation(){
+// Called from throwPitch BEFORE the outcome, with the pitch's path and tunnel (C4).
+function logAnticipation(pts3d,pk,zk,spd,tunnelData){
   try{
-    const a=computeAnticipation();
+    const cur={pk:pk,zk:zk,spd:spd,tunnelData:tunnelData,
+      rp:pts3d&&pts3d.length?{x:pts3d[0].x,y:pts3d[0].y,z:pts3d[0].z}:null,
+      batterType:(typeof secretBatterType!=='undefined'&&secretBatterType)?secretBatterType:
+        (typeof batterType!=='undefined'?batterType:'GENERIC'),
+      inning:typeof inningNumber!=='undefined'?inningNumber:1};
+    const a=computeAnticipation(cur,typeof seq!=='undefined'&&seq?seq:[]);
     window.__lastAnticipation=a;
     if(!a||window.ANTICIPATION_LOG===false) return;
     const f=v=>v.toFixed(2);
@@ -6810,11 +6849,13 @@ function logAnticipation(){
       +(a.expHt?', '+a.expHt:'')):'no memory yet';
     const verdict=a.A<0.4?'fooled':a.A>0.6?'sitting on it':'mixed';
     const r=a.readings;
+    const tn=a.tunnel?' · tunnel with '+a.tunnel.partner+' (overlap '+f(a.tunnel.overlap)
+      +', hides '+Math.round(a.tunnel.hide*100)+'% of type, seen '+a.tunnel.repeats+'x)':'';
     console.log('ANTICIPATION #'+a.n+' ('+a.batterType+', inn '+a.inning+'): '+exp
       +'\n  pitch '+a.pk+' '+a.spd+' '+a.zk+' → loc '+f(r.loc)
       +(a.building?' (line building)':'')+' type '+f(r.type)+' speed '+f(r.speed)
       +' order '+f(r.order)+' → A '+f(a.A)+' ('+verdict+')'
       +'\n  ceiling '+f(a.ceiling)+' ('+a.level+') → E '+(a.E>=0?'+':'')+f(a.E)
-      +' · timing: '+a.timing);
+      +' · timing: '+a.timing+tn);
   }catch(e){console.log('ANTICIPATION error (no effect on the game):',e&&e.message);}
 }

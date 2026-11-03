@@ -3541,7 +3541,7 @@ function showOutcomeFlash(outcome){
   },2000);
 }
 
-function commitPitch(pts3d,pk,zk,spd,bd,rl,ct,outcome){
+function commitPitch(pts3d,pk,zk,spd,bd,rl,ct,outcome,preTunnel){
   // Sim mode: no pitch limit — at bat plays out naturally
   // Planning mode: 6 pitch default, 12 with extension
   if(simMode){
@@ -3556,36 +3556,8 @@ function commitPitch(pts3d,pk,zk,spd,bd,rl,ct,outcome){
     addLanding(pts3d[pts3d.length-1],col,spd,outcome);
     showOutcomeFlash(outcome);
   });
-  // Detect tunnel against all previous pitches and store best tunnel found
-  let tunnelData={detected:false,length:0,prevIndex:-1,prevPk:'',prevSpd:0};
-  if(seq.length>0){
-    const n=pts3d.length;
-    const s0=Math.floor(n*TUNNEL_START);
-    const s1=Math.floor(n*TUNNEL_END);
-    const windowSize=s1-s0;
-    let bestTunnel={detected:false,length:0,prevIndex:-1,prevPk:'',prevSpd:0},bestSame=false;
-    for(let si=seq.length-1;si>=0;si--){ // C2/C3: compare with every earlier pitch in the at-bat
-      const prev=seq[si];
-      if(!prev.pts3d||!prev.pts3d.length) continue;
-      // Shared tunnel check (catcher-view rules): different pitch types,
-      // early overlap > 10% of the window, plate gap >= TUNNEL_SPLIT_MIN (3 in).
-      const t=checkTunnel({pk:pk,pts3d:pts3d},prev);
-      if(!t.tunnel) continue;
-      // Keep the best VALID partner: same rubber spot first (C6), then the highest early overlap among real tunnels
-      // (not just the closest path, and not limited to the last 3 pitches).
-      const tunnelLength=t.overlap,sameSpot=sameEntrance({pts3d:pts3d},prev);
-      if((sameSpot&&!bestSame)||(sameSpot===bestSame&&tunnelLength>bestTunnel.length)){bestSame=sameSpot;
-        bestTunnel={
-          detected:true,
-          length:tunnelLength,
-          prevIndex:si,
-          prevPk:prev.pk,
-          prevSpd:prev.spd
-        };
-      }
-    }
-    tunnelData=bestTunnel;Object.assign(tunnelData,tunnelGroupInfo(seq,{pk:pk,pts3d:pts3d})); // C6: which tunnel this pitch is in
-  }
+  // C4: detectTunnelData (end of file); in sim mode throwPitch runs it before the outcome
+  let tunnelData=preTunnel||detectTunnelData(pts3d,pk);
   const foulType=(outcome==='FOUL'||
     outcome==='FOUL (PULLED)'||
     outcome==='FOUL (LATE)'||
@@ -3605,7 +3577,7 @@ function commitPitch(pts3d,pk,zk,spd,bd,rl,ct,outcome){
     batterHand:typeof batter!=='undefined'?batter:'RHB',
     batterType:typeof secretBatterType!=='undefined'&&secretBatterType?
       secretBatterType:(typeof batterType!=='undefined'?batterType:'GENERIC'),
-    pts3d:pts3d.map(v=>v.clone()),tunnelData});
+    pts3d:pts3d.map(v=>v.clone()),tunnelData,rp:{x:pts3d[0].x,y:pts3d[0].y,z:pts3d[0].z}});
   if(typeof applyAnchorHighlight==='function') applyAnchorHighlight();
   updateSeqUI();buildTunnels();
   // Save at-bat to orbit history when at-bat ends
@@ -3625,11 +3597,11 @@ function throwPitch(){
   }
   if(simMode) cancelSimScheduledClear();
   const spd=parseInt(document.getElementById('spd').value,10),bd=typeof getBdMode==='function'?getBdMode():false;
-  const ctBefore=pitchCount;
+  const ctBefore=pitchCount;const pts3d=makeCurve(pitch,zone,bd).getPoints(90).map(v=>v.clone());
   const strikesAtStart=strikeCount;
-  let outcome='';
-  if(simMode){
-    simInningLogPending=false;
+  let outcome='',preTunnel=null;
+  if(simMode){ preTunnel=detectTunnelData(pts3d,pitch); // C4: tunnel before the outcome
+    simInningLogPending=false;logAnticipation(pts3d,pitch,zone,spd,preTunnel);
     pitchesInAtBat++;
     const pitchNm=PITCHES[pitch].name;
     if(isEdgeOrCornerZone(zone)){
@@ -3664,10 +3636,10 @@ function throwPitch(){
     else if(outcome==='FOUL (LATE)') window.__lastFoulType='LATE';
     else if(outcome==='FOUL (STRAIGHT BACK)') window.__lastFoulType='STRAIGHT_BACK';
   }
-  commitPitch(makeCurve(pitch,zone,bd).getPoints(90).map(v=>v.clone()),pitch,zone,spd,bd,role,ctBefore,outcome);
+  commitPitch(pts3d,pitch,zone,spd,bd,role,ctBefore,outcome,preTunnel);
 
   // Courage pitch and danger zone log — runs after every pitch
-  if(simMode){ if(typeof logAnticipation==='function') logAnticipation();
+  if(simMode){
     const clm=window.__lastCountLocMod;
     // debug removed
     if(clm){
@@ -5961,4 +5933,41 @@ function tunnelGroupInfo(prevSeq,newP){
   if(res.tunnel<0) return {tunnelNo:0,tunnelStart:false,tunnelQ:0,inTunnel:false};
   if(res.starts&&prevSeq[res.partner]&&prevSeq[res.partner].tunnelData) prevSeq[res.partner].tunnelData.inTunnel=true;
   return {tunnelNo:res.tunnel+1,tunnelStart:res.starts,tunnelQ:res.quality,inTunnel:true};
+}
+// C4 (A6 part 2, Nov 3): tunnel detection moved here from commitPitch, unchanged, so throwPitch
+// can decide the pitch's tunnel before the outcome. Same rules (C2, C3, C6), same stored fields.
+function detectTunnelData(pts3d,pk){
+  let tunnelData={detected:false,length:0,prevIndex:-1,prevPk:'',prevSpd:0};
+  if(seq.length>0){
+    const n=pts3d.length;
+    const s0=Math.floor(n*TUNNEL_START);
+    const s1=Math.floor(n*TUNNEL_END);
+    const windowSize=s1-s0;
+    let bestTunnel={detected:false,length:0,prevIndex:-1,prevPk:'',prevSpd:0},bestSame=false;
+    for(let si=seq.length-1;si>=0;si--){ // C2/C3: compare with every earlier pitch in the at-bat
+      const prev=seq[si];
+      if(!prev.pts3d||!prev.pts3d.length) continue;
+      // Shared tunnel check (catcher-view rules): different pitch types,
+      // early overlap > 10% of the window, plate gap >= TUNNEL_SPLIT_MIN (3 in).
+      const t=checkTunnel({pk:pk,pts3d:pts3d},prev);
+      if(!t.tunnel) continue;
+      // Keep the best VALID partner: same rubber spot first (C6), then the highest early overlap
+      // among real tunnels
+      // (not just the closest path, and not limited to the last 3 pitches).
+      const tunnelLength=t.overlap,sameSpot=sameEntrance({pts3d:pts3d},prev);
+      if((sameSpot&&!bestSame)||(sameSpot===bestSame&&tunnelLength>bestTunnel.length)){
+        bestSame=sameSpot;
+        bestTunnel={
+          detected:true,
+          length:tunnelLength,
+          prevIndex:si,
+          prevPk:prev.pk,
+          prevSpd:prev.spd
+        };
+      }
+    }
+    // C6: which tunnel this pitch is in
+    tunnelData=bestTunnel;Object.assign(tunnelData,tunnelGroupInfo(seq,{pk:pk,pts3d:pts3d}));
+  }
+  return tunnelData;
 }
