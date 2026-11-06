@@ -7,9 +7,19 @@
 // No app file is changed. Firestore writes and endGame() are blocked first. Home games only.
 (async function () {
   const BUILT_FOR = '89aed9b';
-  const BLOCKS = 10;                 // blocks per pitcher
+  // Options from the page address (A6 part 4, step A), for example:
+  //   harness.html?seed=7&level=hsvar&only=P1,P4&blocks=2
+  // With no options, everything is as before: seed 20261021, rec12, six pitchers, 10 blocks.
+  let OPT = '';
+  try { OPT = parent.location.search; } catch (e) {}
+  OPT = new URLSearchParams(OPT);
+  const BLOCKS = OPT.has('blocks') ? parseInt(OPT.get('blocks'), 10) : 10; // per pitcher
   const INNINGS_PER_BLOCK = 100;     // innings per block  (10 x 100 = 1,000 innings per pitcher)
-  const BASE_SEED = 20261021;
+  const BASE_SEED = OPT.has('seed') ? parseInt(OPT.get('seed'), 10) : 20261021;
+  const LEVEL = OPT.get('level') || 'rec12';
+  const ONLY = OPT.has('only') ? OPT.get('only').toUpperCase().split(',') : null;
+  const RUN_NAME = 'harness-seed' + BASE_SEED + '-' + LEVEL + (ONLY ? '-' + ONLY.join('') : '');
+  const A6_MULT = { strong: 1.0, miss: -0.8, weak: -0.3, foul: 0.5, swing: -0.4 }; // A6 sec. 5
   const MAX_PITCHES_PER_INNING = 80;
   const lines = [];
   const log = (...a) => { const t = a.join(' '); lines.push(t); console.log('[HARNESS]', t); };
@@ -23,6 +33,18 @@
     report(); return;
   }
   window.ANTICIPATION_LOG = false; // A6 part 1: no anticipation console lines during runs
+  const badOpt = !(BLOCKS >= 1 && BLOCKS <= 10) || !Number.isFinite(BASE_SEED)
+    || typeof ANTIC_CEILING === 'undefined' || !(LEVEL in ANTIC_CEILING)
+    || (ONLY && !ONLY.every(id => /^P[1-6]$/.test(id)));
+  if (badOpt) {
+    log('REFUSED: bad option in the page address (' + OPT.toString() + ').'
+      + ' Allowed: seed=<number>, level=<a batter level>, only=P1,P4 (P1-P6), blocks=1-10.'
+      + ' Nothing was run.');
+    report(); return;
+  }
+  // A6 part 4 is in the app when applyAnticipation exists (like applyFoulTiming for B1)
+  const P4ON = typeof applyAnticipation === 'function';
+  const A6M = typeof ANTIC_EFFECT !== 'undefined' ? ANTIC_EFFECT : A6_MULT;
 
   const ENDINGS = ['STRIKEOUT', 'WALK', 'SINGLE', 'DOUBLE', 'TRIPLE', 'HOME RUN', 'GROUND OUT', 'POP FLY'];
   const HITS = ['SINGLE', 'DOUBLE', 'TRIPLE', 'HOME RUN'];
@@ -130,12 +152,44 @@
 
     // ---- 3. watchers (read-only) ---------------------------------------------
     let lastWeights = null, lastRep = null, lastContact = '';
-    const origBSW = window.buildSimWeights;
-    window.buildSimWeights = function () { const w = origBSW.apply(this, arguments); lastWeights = Object.assign({}, w); return w; };
-    restorers.push(() => { window.buildSimWeights = origBSW; });
+    // A6 part 4, step A: appOld counts the APP's calls to the three old rules on each pitch.
+    // sh = side readings of the old rules: the harness calls the originals itself just before
+    // buildSimWeights runs (it uses no dice and changes nothing before its own calls to them).
+    let appOld = 0, sh = null;
     const origRep = window.getLocationRepetitionPenalty;
-    window.getLocationRepetitionPenalty = function () { const r = origRep.apply(this, arguments); lastRep = r; return r; };
+    const origSDM = window.getSpeedDiffModifier, origTR = window.getTunnelReward;
+    const origBSW = window.buildSimWeights;
+    window.buildSimWeights = function (zk, rl, bd, ct, speed, pk) {
+      const wake = outCount >= 2 && inningStrikePitches >= 6
+        ? (inningStrikePitches >= 8 ? 'strong' : 'light') : '';
+      sh = { rep: origRep(zk, pk), tun: origTR(pk, speed), sd: speed ? origSDM(speed) : 0,
+        wake: wake };
+      const w = origBSW.apply(this, arguments);
+      lastWeights = Object.assign({}, w);
+      return w;
+    };
+    restorers.push(() => { window.buildSimWeights = origBSW; });
+    window.getLocationRepetitionPenalty = function () {
+      appOld++;
+      const r = origRep.apply(this, arguments);
+      lastRep = r;
+      return r;
+    };
     restorers.push(() => { window.getLocationRepetitionPenalty = origRep; });
+    window.getSpeedDiffModifier = function () { appOld++; return origSDM.apply(this, arguments); };
+    window.getTunnelReward = function () { appOld++; return origTR.apply(this, arguments); };
+    restorers.push(() => { window.getSpeedDiffModifier = origSDM; });
+    restorers.push(() => { window.getTunnelReward = origTR; });
+    // The harness sets the level each game; put the saved level back afterwards.
+    const level0 = batterLevel;
+    restorers.push(() => { if (batterLevel !== level0) setBatterLevel(level0); });
+    if (P4ON) {
+      const wakeOff = typeof ANTIC_OLD_WAKEUP_OFF !== 'undefined'
+        && ANTIC_OLD_WAKEUP_OFF === true;
+      log('A6 part 4 in the app: yes. ANTIC_OLD_WAKEUP_OFF: '
+        + (wakeOff ? 'true (old "wakes up" rule off)' : 'NOT true'));
+      check(wakeOff, 'A6 part 4 is in, but ANTIC_OLD_WAKEUP_OFF is not true');
+    } else log('A6 part 4 in the app: no (old rules apply; their checks run)');
     const origCSO = window.getContactSubOutcome;
     window.getContactSubOutcome = function (raw) { if (raw === 'WEAK CONTACT' || raw === 'STRONG CONTACT') lastContact = raw; return origCSO.apply(this, arguments); };
     restorers.push(() => { window.getContactSubOutcome = origCSO; });
@@ -158,7 +212,7 @@
     // ---- helpers ----------------------------------------------------------------
     function freshGame() {
       if (!simMode) { toggleSimMode(); drain(); }
-      if (batterLevel !== 'rec12') setBatterLevel('rec12');
+      if (batterLevel !== LEVEL) setBatterLevel(LEVEL);
       setBatterType('RANDOM');
       clearAll();
       resetPitchCount();
@@ -179,6 +233,23 @@
       sl.value = v;
       if (typeof handleSpeedInput === 'function') handleSpeedInput(v);
       return v;
+    }
+    // A6 part 4 CSV columns: anticipation, side readings of the old rules, part-4 multipliers
+    const n3 = x => {
+      if (x === null || x === undefined || !Number.isFinite(Number(x))) return '';
+      return Number(x).toFixed(3);
+    };
+    function a6Cols(a, s, calls) {
+      const r = a ? a.readings : {};
+      const e = a ? a.E : null;
+      const m = k => e === null ? '' : n3(1 + A6M[k] * e);
+      const ant = a ? [n3(a.A), n3(e), n3(a.ceiling), n3(a.expSpd), n3(a.gap), a.building ? 1 : 0]
+        : ['', '', '', '', '', ''];
+      const old = s ? [n3(s.rep.strongMult), n3(s.rep.weakMult), n3(s.rep.swingMissMult),
+        n3(s.tun.strongMult), n3(s.tun.swingMissMult), n3(s.tun.overridesRepetition),
+        n3(s.sd), s.wake] : ['', '', '', '', '', '', '', ''];
+      return [n3(r.loc), n3(r.type), n3(r.speed), n3(r.order)].concat(ant, old,
+        [m('strong'), m('miss'), m('weak'), m('foul'), m('swing'), calls]);
     }
     function countSituation() {
       const ct = ballCount + '-' + strikeCount;
@@ -231,6 +302,8 @@
                   fLate: 0, fPulled: 0, fStraight: 0, immaculate: 0, tunnels: 0, totK: 0, totBB: 0, totH: 0, logK: 0, logBB: 0, logH: 0 };
       let game = 0;
       S.tunneled = 0; S.inTunnel = 0; let abRecs = []; // C6 counts
+      S.abs = 0; S.ab6 = 0; S.ab8 = 0; S.ab10 = 0; // A6 part 4: at-bat lengths (H4)
+      S.sumA = 0; S.sumE = 0; S.nA = 0;            // A6 part 4: average A and E
       while (S.innings < innings) {
         game++; S.games++;
         freshGame();
@@ -251,7 +324,7 @@
             const spd = setSpeed(choice.speed);
             const b0 = ballCount, s0 = strikeCount, o0 = outCount, ctr0 = inningStrikePitches, seqBefore = seq.length;
             check(b0 <= 3 && s0 <= 2 && o0 <= 2 && !atBatOver, P.id + ' bad state before pitch: ' + b0 + '-' + s0 + ', outs ' + o0 + ', atBatOver ' + atBatOver);
-            lastWeights = null; lastRep = null; lastContact = '';
+            lastWeights = null; lastRep = null; lastContact = ''; appOld = 0; sh = null;
             throwPitch();
             inningPitches++; pitchInAB++; S.pitches++;
             const rec = seq.length > seqBefore ? seq[seq.length - 1] : null;
@@ -274,11 +347,38 @@
                 + ant.gap.toFixed(1) + ' mph (' + ant.pk + ')');
               b1Fouls++;
             }
+            // A6 part 4 checks (step A): A in 0-1, E within the ceiling, ceiling = level value;
+            // with part 4 in the app, the app must not call any of the three old rules.
+            check(!!ant, P.id + ' no anticipation computed for this pitch');
+            if (ant) {
+              check(ant.A >= 0 && ant.A <= 1, P.id + ' A ' + ant.A + ' is outside 0-1');
+              check(Math.abs(ant.E) <= ant.ceiling + 1e-9,
+                P.id + ' E ' + ant.E + ' is beyond the ceiling ' + ant.ceiling);
+              check(ant.ceiling === ANTIC_CEILING[LEVEL],
+                P.id + ' ceiling ' + ant.ceiling + ' is not the ' + LEVEL + ' value');
+              S.sumA += ant.A; S.sumE += ant.E; S.nA++;
+            }
+            if (P4ON) {
+              check(appOld === 0, P.id + ' the app called an old rule ' + appOld + ' time(s)');
+            }
             check(inningStrikePitches === ctr0 + (g === 'edge' && isStrikeResult ? 1 : 0),
               P.id + ' strike counter ' + ctr0 + ' -> ' + inningStrikePitches + ' after ' + g + ' ' + outcome);
             const fouls = lastWeights ? [lastWeights['FOUL (STRAIGHT BACK)'], lastWeights['FOUL (PULLED)'], lastWeights['FOUL (LATE)']].join('/') : '';
-            if (lastWeights && g === 'inner' && !(o0 >= 2 && ctr0 >= 6)) check(['7/6/5', '8/7/5'].includes(fouls), P.id + ' inner foul mix ' + fouls);
-            if (P.id === 'P1' && lastRep) {
+            const innerMix = lastWeights && g === 'inner';
+            if (innerMix && !P4ON && !(o0 >= 2 && ctr0 >= 6)) {
+              check(['7/6/5', '8/7/5'].includes(fouls), P.id + ' inner foul mix ' + fouls);
+            }
+            if (innerMix && P4ON) { // part 4 scales the three fouls by one factor: check shares
+              const f = [lastWeights['FOUL (STRAIGHT BACK)'], lastWeights['FOUL (PULLED)'],
+                lastWeights['FOUL (LATE)']];
+              const t = f[0] + f[1] + f[2];
+              const share = m => m.every((x, i) =>
+                Math.abs(f[i] / t - x / (m[0] + m[1] + m[2])) < 0.005);
+              check(share([7, 6, 5]) || share([8, 7, 5]),
+                P.id + ' inner foul shares ' + fouls + ' are not 7/6/5 or 8/7/5');
+            }
+            // the expected values below are the rec12 ones (verified Oct 19)
+            if (P.id === 'P1' && lastRep && LEVEL === 'rec12') {
               const e = pitchInAB === 1 ? 1 : pitchInAB === 2 ? 1.125 : pitchInAB === 3 ? 1.25 : 1.5;
               check(Math.abs(lastRep.strongMult - e) < 0.0005, 'P1 repetition ×' + lastRep.strongMult + ' expected ×' + e);
             }
@@ -333,11 +433,16 @@
               choice.zk, g, choice.pk, spd, outcome, lastContact, lastRep ? lastRep.strongMult.toFixed(3) : '',
               fouls, ctr0 + '>' + inningStrikePitches, totalScore, tunnel, tPartner, tOverlap, tGapIn,
               (rec && rec.tunnelData && rec.tunnelData.tunnelNo) || 0, (rec && rec.tunnelData && rec.tunnelData.tunnelStart) ? 1 : 0].join(','));
+            rows[rows.length - 1] += ',' + a6Cols(ant, sh, appOld).join(','); // A6 part 4
 
             drain(); // app's own end-of-at-bat timers
 
             if (ENDINGS.includes(outcome)) {
               S.inTunnel += abRecs.filter(r => r.tunnelData && r.tunnelData.inTunnel).length; abRecs = []; // C6
+              S.abs++; // H4: at-bat length
+              if (pitchInAB >= 6) S.ab6++;
+              if (pitchInAB >= 8) S.ab8++;
+              if (pitchInAB >= 10) S.ab10++;
               if (outCount >= 3 || simInningBreak) {
                 S.runs += totalScore - score0;
                 if (inningK === 3 && inningPitches === 9 && inningAllStrikes) S.immaculate++;
@@ -386,6 +491,7 @@
     const results = []; // {P, blocks:[S,...]}
     for (let pi = 0; pi < PITCHERS.length; pi++) {
       const P = PITCHERS[pi];
+      if (ONLY && !ONLY.includes(P.id)) continue; // option only=: same seeds as a full run
       const blocks = [];
       for (let b = 1; b <= BLOCKS; b++) {
         const seed = BASE_SEED + pi * 100 + b;
@@ -426,6 +532,15 @@
       { key: 'FP', label: 'FOUL (PULLED) % of fouls', f: S => { const t = S.fLate + S.fPulled + S.fStraight; return t ? 100 * S.fPulled / t : 0; } },
       { key: 'FS', label: 'FOUL (STRAIGHT BACK) % of fouls', f: S => { const t = S.fLate + S.fPulled + S.fStraight; return t ? 100 * S.fStraight / t : 0; } }
     ];
+    METRICS.push( // A6 part 4: at-bat length (H4) and anticipation
+      { key: 'L6', label: 'At-bats of 6+ pitches (% of at-bats)',
+        f: S => S.abs ? 100 * S.ab6 / S.abs : 0 },
+      { key: 'L8', label: 'At-bats of 8+ pitches (% of at-bats)',
+        f: S => S.abs ? 100 * S.ab8 / S.abs : 0 },
+      { key: 'L10', label: 'At-bats of 10+ pitches (% of at-bats)',
+        f: S => S.abs ? 100 * S.ab10 / S.abs : 0 },
+      { key: 'AA', label: 'Average anticipation A', f: S => S.nA ? S.sumA / S.nA : 0 },
+      { key: 'AE', label: 'Average strength E', f: S => S.nA ? S.sumE / S.nA : 0 });
     const stats = results.map(({ P, blocks }) => {
       const out = { id: P.id, name: P.name, totals: {} };
       ['innings', 'pitches', 'batters', 'games', 'K', 'BB', 'H', 'runs', 'immaculate', 'totK', 'totBB', 'totH', 'logK', 'logBB', 'logH']
@@ -442,8 +557,14 @@
     // ---- 9. report text -------------------------------------------------------
     const fmt = (x, d) => x.toFixed(d);
     log('');
-    log('Settings: rec12, batter type RANDOM, ML off (none saved on localhost), home games, ' + BLOCKS + ' blocks x ' + INNINGS_PER_BLOCK +
-        ' innings per pitcher, seeds ' + (BASE_SEED + 1) + '... (base ' + BASE_SEED + ' + pitcher*100 + block). Run time ' + minutes + ' min.');
+    log('Options: seed ' + BASE_SEED + ', level ' + LEVEL + ', pitchers '
+      + (ONLY ? ONLY.join('+') : 'all') + ', blocks ' + BLOCKS
+      + (OPT.toString() ? ' (from the page address)' : ' (defaults)')
+      + '. A6 part 4 in the app: ' + (P4ON ? 'yes' : 'no') + '.');
+    log('Settings: ' + LEVEL + ', batter type RANDOM, ML off (none saved on localhost),'
+      + ' home games, ' + BLOCKS + ' blocks x ' + INNINGS_PER_BLOCK + ' innings per pitcher,'
+      + ' seeds ' + (BASE_SEED + 1) + '... (base ' + BASE_SEED + ' + pitcher*100 + block).'
+      + ' Run time ' + minutes + ' min.');
     log('Values are the mean of the ' + BLOCKS + ' blocks ± the 95% range.');
     log('');
     log('Pitcher                     K/inn        H/inn        R/inn        BB/inn       P/inn        Whiff%       Strong%      Immac/100    Tunnels/inn  InTunnel/inn Partner/inn');
@@ -456,6 +577,12 @@
     stats.forEach(s => log((s.id + '                              ').slice(0, 29) + (fmt(s.FL.mean, 1) + '±' + fmt(s.FL.half, 1)).padEnd(13) +
       (fmt(s.FP.mean, 1) + '±' + fmt(s.FP.half, 1)).padEnd(13) + (fmt(s.FS.mean, 1) + '±' + fmt(s.FS.half, 1))));
     log('');
+    log('At-bat length and anticipation   6+ % of AB   8+ % of AB   10+ % of AB'
+      + '  avg A        avg E');
+    const pm = (m, d) => (fmt(m.mean, d) + '±' + fmt(m.half, d)).padEnd(13);
+    stats.forEach(s => log((s.id + ' '.repeat(40)).slice(0, 33) + pm(s.L6, 1) + pm(s.L8, 1)
+      + pm(s.L10, 1) + pm(s.AA, 3) + (fmt(s.AE.mean, 3) + '±' + fmt(s.AE.half, 3))));
+    log('');
     log('On-screen totals vs pitch log (double count D2):  K screen/log   BB screen/log   H screen/log');
     stats.forEach(s => log('  ' + (s.id + '    ').slice(0, 4) + '                                          ' +
       (s.totals.totK + '/' + s.totals.logK).padEnd(14) + (s.totals.totBB + '/' + s.totals.logBB).padEnd(16) + (s.totals.totH + '/' + s.totals.logH)));
@@ -465,11 +592,20 @@
     log('Automatic checks: ' + (failures.length === 0 ? 'ALL PASSED' : failures.length + ' FAILED (first 30 shown above)'));
 
     // ---- 10. files: CSV of every pitch, and a results page with charts --------
-    const header = 'pitcher,block,seed,game,inning,batter,batterType,hand,pitchInAB,countBefore,outsBefore,zone,zoneGroup,pitch,speed,outcome,contact,repStrong,foulsSB/PULL/LATE,strikeCounter,scoreAfter,tunnel,tunnelPartner,tunnelOverlap,plateGapIn,tunnelNo,tunnelStart';
-    post({ type: 'harness-file', name: 'harness-baseline-' + BUILT_FOR + '.csv', mime: 'text/csv', text: header + '\n' + rows.join('\n') + '\n' });
-    post({ type: 'harness-file', name: 'harness-baseline-' + BUILT_FOR + '.html', mime: 'text/html',
-           text: resultsPage(stats, METRICS, { built: BUILT_FOR, blocks: BLOCKS, inningsPerBlock: INNINGS_PER_BLOCK, baseSeed: BASE_SEED,
-                                               pitches: rows.length, checks: failures.length, minutes: minutes }) });
+    const header = 'pitcher,block,seed,game,inning,batter,batterType,hand,pitchInAB,countBefore,'
+      + 'outsBefore,zone,zoneGroup,pitch,speed,outcome,contact,repStrong,foulsSB/PULL/LATE,'
+      + 'strikeCounter,scoreAfter,tunnel,tunnelPartner,tunnelOverlap,plateGapIn,'
+      + 'tunnelNo,tunnelStart'
+      + ',antLoc,antType,antSpeed,antOrder,A,E,ceiling,expSpd,gap,building'
+      + ',shRepStrong,shRepWeak,shRepMiss,shTunStrong,shTunMiss,shTunOverride'
+      + ',shSpeedDiff,shWake,newStrong,newMiss,newWeak,newFoul,newSwing,appOldCalls';
+    const csv = header + '\n' + rows.join('\n') + '\n';
+    post({ type: 'harness-file', name: RUN_NAME + '.csv', mime: 'text/csv', text: csv });
+    const meta = { built: RUN_NAME, level: LEVEL, blocks: BLOCKS,
+      inningsPerBlock: INNINGS_PER_BLOCK, baseSeed: BASE_SEED, pitches: rows.length,
+      checks: failures.length, minutes: minutes };
+    post({ type: 'harness-file', name: RUN_NAME + '.html', mime: 'text/html',
+      text: resultsPage(stats, METRICS, meta) });
   } catch (e) {
     log('ERROR:', e && e.message ? e.message : String(e));
     log(e && e.stack ? e.stack.split('\n').slice(0, 4).join(' | ') : '');
@@ -505,9 +641,9 @@
     let d2 = '<table><tr><th>Pitcher</th><th>K screen / log</th><th>BB screen / log</th><th>H screen / log</th></tr>';
     stats.forEach(s => { d2 += '<tr><td>' + esc(s.id + ' ' + s.name) + '</td><td>' + s.totals.totK + ' / ' + s.totals.logK + '</td><td>' + s.totals.totBB + ' / ' + s.totals.logBB + '</td><td>' + s.totals.totH + ' / ' + s.totals.logH + '</td></tr>'; });
     d2 += '</table>';
-    const show = ['K', 'H', 'R', 'ST', 'WH', 'IM', 'TU', 'PI', 'FL', 'FP', 'FS'];
+    const show = ['K', 'H', 'R', 'ST', 'WH', 'IM', 'TU', 'PI', 'FL', 'FP', 'FS', 'L6', 'AA'];
     return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">' +
-      '<title>Harness Baseline ' + meta.built + '</title><style>' +
+      '<title>Harness Run ' + meta.built + '</title><style>' +
       ':root{--bg:#fff;--fg:#1a1a1a;--muted:#555;--line:#ddd;--err:#111}' +
       '@media (prefers-color-scheme: dark){:root{--bg:#15171a;--fg:#e8e8e8;--muted:#aaa;--line:#333;--err:#eee}}' +
       'body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;background:var(--bg);color:var(--fg);margin:0;padding:16px;max-width:980px}' +
@@ -515,9 +651,10 @@
       '.lbl{font-size:12px;fill:var(--fg)}.val{font-size:11px;fill:var(--muted)}.err{stroke:var(--err);stroke-width:1.5}' +
       'table{border-collapse:collapse;font-size:12px;margin:8px 0;display:block;overflow-x:auto}th,td{border:1px solid var(--line);padding:4px 6px;text-align:left;white-space:nowrap}' +
       '</style></head><body>' +
-      '<h1>Sim engine baseline — app commit ' + meta.built + '</h1>' +
+      '<h1>Sim engine run — ' + meta.built + '</h1>' +
       '<p>Six simulated pitchers, ' + meta.blocks + ' blocks × ' + meta.inningsPerBlock + ' innings each (' + (meta.blocks * meta.inningsPerBlock) + ' innings per pitcher), ' +
-      'rec12 batters, batter type RANDOM, ML off, home games. Played through the app\'s own functions by tools/harness-engine.js on localhost. ' +
+      meta.level + ' batters, batter type RANDOM, ML off, home games.' +
+      ' Played through the app\'s own functions by tools/harness-engine.js on localhost. ' +
       'Bars show the mean of the blocks; whiskers show the 95% range. ' + meta.pitches + ' pitches; automatic checks failed: ' + meta.checks + '. Run time ' + meta.minutes + ' min. Base seed ' + meta.baseSeed + '.</p>' +
       show.map(k => { const m = METRICS.find(x => x.key === k); return '<h2>' + esc(m.label) + '</h2>' + chart(m); }).join('') +
       '<h2>All numbers (mean ± 95% range)</h2>' + tbl +
