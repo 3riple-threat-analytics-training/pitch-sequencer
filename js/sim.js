@@ -5419,9 +5419,9 @@ function getEdgeZoneOutcome(zoneKey,strikesNow,roleVal,bdVal,countVal,strikesAtS
 }
 
 function getContactSubOutcome(raw){
-  if(raw==='WEAK CONTACT') return pickWeightedTable(WEAK_CONTACT_TABLE);
-  if(raw==='STRONG CONTACT') return pickWeightedTable(STRONG_CONTACT_TABLE);
-  return raw;
+  if(raw==='WEAK CONTACT') return applyFoulTiming(pickWeightedTable(WEAK_CONTACT_TABLE));
+  if(raw==='STRONG CONTACT') return applyFoulTiming(pickWeightedTable(STRONG_CONTACT_TABLE));
+  return applyFoulTiming(raw); // B1: a foul's label comes from the batter's timing (end of file)
 }
 
 function getLocationRepetitionPenalty(zk,pitchKey){
@@ -6835,6 +6835,7 @@ function computeAnticipation(cur,abPrev){
 }
 // Called from throwPitch BEFORE the outcome, with the pitch's path and tunnel (C4).
 function logAnticipation(pts3d,pk,zk,spd,tunnelData){
+  window.__lastAnticipation=null; // part 3: never reuse the previous pitch's timing
   try{
     const cur={pk:pk,zk:zk,spd:spd,tunnelData:tunnelData,
       rp:pts3d&&pts3d.length?{x:pts3d[0].x,y:pts3d[0].y,z:pts3d[0].z}:null,
@@ -6855,7 +6856,27 @@ function logAnticipation(pts3d,pk,zk,spd,tunnelData){
       +'\n  pitch '+a.pk+' '+a.spd+' '+a.zk+' → loc '+f(r.loc)
       +(a.building?' (line building)':'')+' type '+f(r.type)+' speed '+f(r.speed)
       +' order '+f(r.order)+' → A '+f(a.A)+' ('+verdict+')'
-      +'\n  ceiling '+f(a.ceiling)+' ('+a.level+') → E '+(a.E>=0?'+':'')+f(a.E)
+      +'\n  ceiling '+f(a.ceiling)+' ('+a.level+') → E '+(a.E>-0.005?'+':'')
+      +f(Math.abs(a.E)<0.005?0:a.E)
       +' · timing: '+a.timing+tn);
   }catch(e){console.log('ANTICIPATION error (no effect on the game):',e&&e.message);}
+}
+// B1 (A6 part 3, Nov 4): a foul's label comes from the batter's timing (A6 section 6).
+// The foul itself was already drawn with the usual odds, so the total foul share is unchanged.
+// Early (pitch more than 3 mph slower than expected) = PULLED; late (faster) = LATE;
+// on time = STRAIGHT BACK; fastball family: a drawn STRAIGHT BACK stays, else PULLED.
+// No expectation yet (first pitches): the drawn label is kept (Rafael, Nov 4, decision 1a).
+const ANTIC_FAST_KEYS=['4FB','2FB','SK','CT'];
+function applyFoulTiming(o){
+  if(typeof o!=='string'||o.indexOf('FOUL (')!==0) return o;
+  const a=window.__lastAnticipation;
+  if(!a||a.gap===null||a.gap===undefined) return o;
+  let t;
+  if(a.gap>ANTIC_ON_TIME_MPH) t='FOUL (PULLED)';
+  else if(a.gap<-ANTIC_ON_TIME_MPH) t='FOUL (LATE)';
+  else if(ANTIC_FAST_KEYS.includes(a.pk)) // no extra random number (Rafael, Nov 6, option b)
+    t=o==='FOUL (STRAIGHT BACK)'?o:'FOUL (PULLED)';
+  else t='FOUL (STRAIGHT BACK)';
+  a.foul={drawn:o,timed:t};
+  return t;
 }

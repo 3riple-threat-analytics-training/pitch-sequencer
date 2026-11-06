@@ -56,7 +56,7 @@
     return id;
   }
   function ffClearTimeout(id) { if (queue.has(id)) queue.delete(id); else realCT(id); }
-  let loopReports = 0;
+  let loopReports = 0, b1Fouls = 0; // b1Fouls: fouls checked against timing (A6 part 3)
   function drain() {
     let guard = 0;
     const start = vNow;
@@ -165,6 +165,7 @@
       resetRunners();
       totalScore = 0; teamScore = 0; scoreboardData = []; inningStrikePitches = 0;
       inningHits = 0; inningRunsAllowed = 0; gameSeq = [];
+      setBatter('RHB'); // every game starts from the same batter hand (fix, Nov 5)
       handleNewBatter();
       drain();
       check(isHomeTeam === true, 'game is not a home game');
@@ -259,6 +260,20 @@
             if (rec) check(rec.zk === choice.zk && rec.pk === choice.pk, P.id + ' recorded ' + rec.zk + '/' + rec.pk + ' but intended ' + choice.zk + '/' + choice.pk);
             const g = group(choice.zk);
             const isStrikeResult = STRIKE_RESULTS.includes(outcome);
+            // B1 check (A6 part 3): a foul's label must match the batter's timing (A6 section 6)
+            const ant = window.__lastAnticipation;
+            const hasGap = typeof applyFoulTiming === 'function'
+              && ant && ant.gap !== null && ant.gap !== undefined;
+            if (rec && /^FOUL \(/.test(outcome) && hasGap) {
+              const fastB1 = ['4FB', '2FB', 'SK', 'CT'].includes(ant.pk);
+              const okB1 = ant.gap > 3 ? outcome === 'FOUL (PULLED)'
+                : ant.gap < -3 ? outcome === 'FOUL (LATE)'
+                : fastB1 ? ['FOUL (STRAIGHT BACK)', 'FOUL (PULLED)'].includes(outcome)
+                : outcome === 'FOUL (STRAIGHT BACK)';
+              check(okB1, P.id + ' B1 foul ' + outcome + ' does not match timing gap '
+                + ant.gap.toFixed(1) + ' mph (' + ant.pk + ')');
+              b1Fouls++;
+            }
             check(inningStrikePitches === ctr0 + (g === 'edge' && isStrikeResult ? 1 : 0),
               P.id + ' strike counter ' + ctr0 + ' -> ' + inningStrikePitches + ' after ' + g + ' ' + outcome);
             const fouls = lastWeights ? [lastWeights['FOUL (STRAIGHT BACK)'], lastWeights['FOUL (PULLED)'], lastWeights['FOUL (LATE)']].join('/') : '';
@@ -446,6 +461,7 @@
       (s.totals.totK + '/' + s.totals.logK).padEnd(14) + (s.totals.totBB + '/' + s.totals.logBB).padEnd(16) + (s.totals.totH + '/' + s.totals.logH)));
     log('');
     log('Pitches run: ' + rows.length + ' | app timers run by fast-forward: ' + timersRun + ' | animation frames blocked: ' + rafBlocked);
+    log('B1 foul-timing checks: ' + b1Fouls + ' fouls checked against the batter\'s timing');
     log('Automatic checks: ' + (failures.length === 0 ? 'ALL PASSED' : failures.length + ' FAILED (first 30 shown above)'));
 
     // ---- 10. files: CSV of every pitch, and a results page with charts --------
