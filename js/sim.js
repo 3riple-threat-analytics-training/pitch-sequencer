@@ -5329,7 +5329,7 @@ function getChaseZoneOutcome(zoneKey,strikesNow,roleVal,bdVal,countVal,strikesAt
 
 
   // Below velocity floor — higher level batters recognize slow pitch and lay off chase zones
-  let pSwing=getChaseZoneSwingProbability(strikesNow);
+  let pSwing=anticSwing(getChaseZoneSwingProbability(strikesNow),0.97); // A6 part 4
   if(isBelowVelocityFloor(effSpeed,effPitchKey)){
     const chaseReduction={
       rec10:1.0,rec12:1.0,    // young batters still chase regardless
@@ -5388,7 +5388,7 @@ function getEdgeZoneOutcome(zoneKey,strikesNow,roleVal,bdVal,countVal,strikesAtS
     strongContactMult=0.7*contactScale;
   }
 
-  const pSwing=Math.min(0.95,baseSwing*edgeTypeMult);
+  const pSwing=anticSwing(Math.min(0.95,baseSwing*edgeTypeMult),0.95); // A6 part 4
   let outcome='';
   if(Math.random()<pSwing){
     const w=buildSimWeights(zoneKey,roleVal,bdVal,countVal,effSpeed,effPitchKey);
@@ -5853,7 +5853,7 @@ function buildSimWeights(zk,rl,bd,ct,speed,pitchKey){
   w['WEAK CONTACT']=Math.max(1,w['WEAK CONTACT']*(2-sitMod.contactQualityMult));
   // ── Immaculate inning prevention ──
   // When pitcher has thrown 6+ strike pitches with 2 outs, batter becomes more alert
-  if(outCount>=2&&inningStrikePitches>=6){
+  if(!ANTIC_OLD_WAKEUP_OFF&&outCount>=2&&inningStrikePitches>=6){ // A6 part 4: old rule off
     const mlConf=window._mlWeights?window._mlWeights.confidence:0;
     const mlBoost=1+mlConf*0.5; // up to 50% stronger at 85% confidence
     if(inningStrikePitches>=8){
@@ -5928,10 +5928,10 @@ function buildSimWeights(zk,rl,bd,ct,speed,pitchKey){
     }
   }
 
-  if(speed){
-    const diffMod=getSpeedDiffModifier(speed);
-    w['SWING & MISS']=Math.max(1,w['SWING & MISS']+(diffMod*100));
-  }
+  // A6 part 4 (Nov 2026): the speed-difference rule (getSpeedDiffModifier, which added to
+  // swing & miss by the speed change from the last pitch) is folded into anticipation's speed
+  // reading: this speed vs the speed the batter expects from memory (A6 section 4, decision 1).
+  // getSpeedDiffModifier stays in the file but is no longer called.
 
   if(pitchKey){
     if(pitchKey==='KN'){
@@ -5948,28 +5948,28 @@ function buildSimWeights(zk,rl,bd,ct,speed,pitchKey){
 
   // Location repetition penalty, tunnel reward, and count-location interaction
   if(simMode){
-    const rep=getLocationRepetitionPenalty(zk,pitchKey);
-    const tun=getTunnelReward(pitchKey,speed);
+    // A6 part 4 (Nov 2026): batter anticipation replaces the repetition penalty and the
+    // tunnel reward here (A6 sections 4, 5 and 7). getLocationRepetitionPenalty and
+    // getTunnelReward stay in the file but are no longer called. Their old parts now live in
+    // the anticipation readings:
+    //   - repeated zone / height / side   -> location reading
+    //   - repeated pitch type             -> type reading
+    //   - tunnel overlap tiers            -> type hidden by the tunnel (x0.8 per repeat)
+    //   - the 8+ mph bonus, hesitation    -> speed and order readings
+    // The batter remembers the whole game, shared by batter type (same 0.6, other 0.3).
     const countLoc=getCountLocationModifier(zk,pitchKey);
 
     // Store count-location result for sim log — accessible in throwPitch
     window.__lastCountLocMod=countLoc;
 
-    // Tunnel reward can override repetition penalty based on tunnel quality
-    const repScale=1.0-tun.overridesRepetition;
-    const effectiveStrongMult=1.0+((rep.strongMult-1.0)*repScale);
-    const effectiveWeakMult=1.0+((rep.weakMult-1.0)*repScale);
-    const effectiveSwingMissMult=1.0+((rep.swingMissMult-1.0)*repScale);
-
-    // Apply repetition penalty (scaled by tunnel override)
-    w['STRONG CONTACT']=Math.max(1,(w['STRONG CONTACT']||1)*effectiveStrongMult);
-    w['WEAK CONTACT']=Math.max(1,(w['WEAK CONTACT']||1)*effectiveWeakMult);
-    w['SWING & MISS']=Math.max(1,(w['SWING & MISS']||1)*effectiveSwingMissMult);
-
-    // Apply tunnel reward on top
-    w['STRONG CONTACT']=Math.max(1,(w['STRONG CONTACT']||1)*tun.strongMult);
-    w['WEAK CONTACT']=Math.max(1,(w['WEAK CONTACT']||1)*tun.weakMult);
-    w['SWING & MISS']=Math.max(1,(w['SWING & MISS']||1)*tun.swingMissMult);
+    // Apply batter anticipation: E from -ceiling (fooled) to +ceiling (sitting on it).
+    // Strong contact x(1+1.0E), swing & miss x(1-0.8E), weak contact x(1-0.3E),
+    // the three fouls x(1+0.5E) (their mix is kept; B1 sets the label afterwards).
+    // Same place on all three zone paths (edge, inner, chase all use buildSimWeights).
+    // The edge and chase swing chance get x(1-0.4E) where they are decided.
+    // No anticipation (sim mode off, or no pitch yet): E is 0 and nothing changes.
+    applyAnticipation(w);
+    // Count-location below is unchanged (A6 section 5).
 
     // Apply count-location modifier on top
     w['STRONG CONTACT']=Math.max(1,(w['STRONG CONTACT']||1)*countLoc.strongMult);
@@ -6039,7 +6039,7 @@ function simulateOutcome(zk,rl,bd,ct,speed,pitchKey){
     window.__lastCountLocMod=getCountLocationModifier(zk,effPitchKey);
   }
   if(CHASE_ZONE_KEYS.includes(zk)){
-    const pSwing=getChaseZoneSwingProbability(strikeCount);
+    const pSwing=anticSwing(getChaseZoneSwingProbability(strikeCount),0.97); // A6 part 4
     if(Math.random()<pSwing){
       const w=buildSimWeights(zk,rl,bd,ct,effSpeed,effPitchKey);
       delete w.BALL;
@@ -6879,4 +6879,33 @@ function applyFoulTiming(o){
   else t='FOUL (STRAIGHT BACK)';
   a.foul={drawn:o,timed:t};
   return t;
+}
+// A6 part 4 (Nov 2026): anticipation applied to outcomes (A6 sections 4, 5 and 11).
+// Turned off in this part: the repetition penalty and the tunnel reward (buildSimWeights),
+// the speed-difference call and the old "wakes up" block. The strike counter still counts.
+const ANTIC_OLD_WAKEUP_OFF=true;
+// Starting values (A6 decision 5: the harness tunes them). E runs from -ceiling to +ceiling.
+const ANTIC_EFFECT={strong:2.0,miss:-0.8,weak:-0.3,foul:0.5,swing:-0.4}; // strong: tuning round 1
+// E of the pitch being thrown: logAnticipation sets it in throwPitch before the outcome.
+function anticE(){
+  const a=window.__lastAnticipation;
+  return a&&typeof a.E==='number'&&isFinite(a.E)?a.E:0;
+}
+// Edge and chase swing chance x(1-0.4E): a batter sitting on it lays off, a fooled one chases.
+function anticSwing(p,cap){
+  const m=1+ANTIC_EFFECT.swing*anticE();
+  return m===1?p:Math.min(cap,p*m);
+}
+// One place for all three zone paths (called from buildSimWeights in sim mode).
+function applyAnticipation(w){
+  const E=anticE();
+  if(!E) return w;
+  const m=k=>1+ANTIC_EFFECT[k]*E;
+  w['STRONG CONTACT']=Math.max(1,(w['STRONG CONTACT']||1)*m('strong'));
+  w['SWING & MISS']=Math.max(1,(w['SWING & MISS']||1)*m('miss'));
+  w['WEAK CONTACT']=Math.max(1,(w['WEAK CONTACT']||1)*m('weak'));
+  ['FOUL (STRAIGHT BACK)','FOUL (PULLED)','FOUL (LATE)'].forEach(k=>{
+    if(w[k]!==undefined) w[k]=w[k]*m('foul');
+  });
+  return w;
 }
