@@ -3572,7 +3572,7 @@ function commitPitch(pts3d,pk,zk,spd,bd,rl,ct,outcome,preTunnel){
   // Trigger SRE hint if enabled
   if(sreEnabled) setTimeout(()=>showSREHint(),800);
   seq.push({pk,zk,spd,bd,role:rl,count:ct,outcome:outcome||'',
-    foulType,checkSwing,
+    foulType,checkSwing,...batterReadForPitch(), // A6 part 5
     inning:typeof inningNumber!=='undefined'?inningNumber:1,
     batterHand:typeof batter!=='undefined'?batter:'RHB',
     batterType:typeof secretBatterType!=='undefined'&&secretBatterType?

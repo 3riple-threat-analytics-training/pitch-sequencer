@@ -468,7 +468,7 @@ function saveGameHistory(){
         Math.round(tunnelQualities.reduce(function(a,b){return a+b;},0)/tunnelQualities.length*100):0,
       totalTunnels:tunnelQualities.length,...tunnelCountsC6(pitches), // C6
       contactByInning,
-      vsBatterType,vsLHB,vsRHB
+      vsBatterType,vsLHB,vsRHB,...batterAtBatsForGame(pitches) // A6 part 5
     };
     // Load existing history
     const raw=localStorage.getItem('pitchseq-game-history');
@@ -685,7 +685,7 @@ function showGameReport(game,title,onClose){
   // Tab bar
   const tabBar=document.createElement('div');
   tabBar.style.cssText='display:flex;gap:4px;margin-bottom:16px;border-bottom:2px solid #bae6fd;';
-  const tabs=['GAME','BUNDLES','CAREER','SEQUENCES','TUNNEL','COUNTER'];
+  const tabs=['GAME','BATTER','BUNDLES','CAREER','SEQUENCES','TUNNEL','COUNTER']; // A6 part 5
   const tabContents={};
   tabs.forEach(function(t){
     const btn=document.createElement('button');
@@ -718,7 +718,7 @@ function showGameReport(game,title,onClose){
   // Add tab content containers to card
   tabs.forEach(function(t){card.appendChild(tabContents[t]);});
   // All game content goes into GAME tab
-  const gameTab=tabContents['GAME'];
+  const gameTab=tabContents['GAME'];buildBatterTab(tabContents['BATTER'],game); // A6 part 5
   // Summary stats
   const stats=document.createElement('div');
   stats.style.cssText='display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px;';
@@ -6908,4 +6908,132 @@ function applyAnticipation(w){
     if(w[k]!==undefined) w[k]=w[k]*m('foul');
   });
   return w;
+}
+// A6 part 5 (Nov 2026): "What the batter was sitting on" - the BATTER tab of the game report.
+// Each sim pitch keeps what the batter expected (from logAnticipation, set before the outcome)
+// and the runs allowed after it. A saved game gets batterAtBats, one entry per at-bat:
+// {i: batter no., inn, h: 'R'/'L', t: batter type, p: [[pk, spd, zk, outcome, A, expected pk,
+// expected mph, expected height, runs on this pitch], ...]}. No outcome changes; the ML does not
+// read this field. Games without it (older or not sim) show no BATTER tab.
+function batterReadForPitch(){
+  if(typeof simMode==='undefined'||!simMode) return {};
+  const a=window.__lastAnticipation;
+  const sa=typeof totalScore!=='undefined'?totalScore:0;
+  if(!a) return {sa:sa};
+  return {sa:sa,br:[Math.round(a.A*100)/100,a.expPk||'',
+    a.expSpd?Math.round(a.expSpd):0,a.expHt||'']};
+}
+const BATTER_AB_ENDINGS=['STRIKEOUT','WALK','SINGLE','DOUBLE','TRIPLE','HOME RUN',
+  'GROUND OUT','POP FLY'];
+function batterAtBatsForGame(pitches){
+  if(!Array.isArray(pitches)||!pitches.some(p=>p&&p.br)) return {};
+  const abs=[];
+  let cur=null,prevSa=0;
+  pitches.forEach(p=>{
+    if(!cur){
+      const t=p.batterType&&p.batterType!=='RANDOM'?p.batterType:'GENERIC';
+      cur={i:abs.length+1,inn:p.inning||1,h:p.batterHand==='LHB'?'L':'R',t:t,p:[]};
+      abs.push(cur);
+    }
+    let runs=0;
+    if(typeof p.sa==='number'){runs=Math.max(0,p.sa-prevSa);prevSa=p.sa;}
+    const b=p.br||[null,'',0,''];
+    cur.p.push([p.pk,p.spd,p.zk,p.outcome||'',b[0],b[1],b[2],b[3],runs]);
+    if(BATTER_AB_ENDINGS.includes(p.outcome)) cur=null;
+  });
+  return {batterAtBats:abs};
+}
+// Verdict from A: same thresholds as the console log (fooled < 0.40, sitting on it > 0.60).
+function batterVerdict(A,expPk){
+  if(A===null||A===undefined||!expPk) return {w:'NO MEMORY YET',c:'#94a3b8'};
+  if(A<0.4) return {w:'FOOLED',c:'#16a34a'};
+  if(A>0.6) return {w:'SITTING ON IT',c:'#dc2626'};
+  return {w:'MIXED',c:'#d97706'};
+}
+function buildBatterTab(el,game){
+  const abs=game&&game.batterAtBats;
+  if(!el) return;
+  // The report is not in the page yet when this runs: find the button inside it.
+  const btn=el.parentNode?el.parentNode.querySelector('#report-tab-BATTER'):null;
+  if(!Array.isArray(abs)||!abs.length){if(btn) btn.style.display='none';return;}
+  const ESC={'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'};
+  const esc=s=>String(s).replace(/[&<>"]/g,c=>ESC[c]);
+  const nm=pk=>(typeof PITCHES!=='undefined'&&PITCHES[pk]&&PITCHES[pk].name)||pk;
+  const cap=s=>String(s).toLowerCase().replace(/(^|[\s(])\w/g,m=>m.toUpperCase());
+  const HITS=['SINGLE','DOUBLE','TRIPLE','HOME RUN'],XBH=['DOUBLE','TRIPLE','HOME RUN'];
+  const TYPES={GENERIC:'Generic',FREE_SWINGER:'Free swinger',PATIENT:'Patient',
+    LOW_BALL:'Low ball',HIGH_BALL:'High ball',PULL:'Pull'};
+  const tag=(v,a)=>'<span style="display:inline-block;font-size:8px;font-weight:700;color:#fff;'
+    +'padding:1px 5px;border-radius:3px;background:'+v.c+'">'+v.w
+    +(a!==null&&a!==undefined&&v.w!=='NO MEMORY YET'?' '+Number(a).toFixed(2):'')+'</span>';
+  const expTxt=(pk,mph,ht)=>pk?esc(nm(pk))+' ~'+mph+', '+esc(ht):'— (no memory yet)';
+  const sum={FOOLED:[0,0,0],MIXED:[0,0,0],'SITTING ON IT':[0,0,0]};
+  abs.forEach(ab=>{
+    const k=ab.p[ab.p.length-1],v=batterVerdict(k[4],k[5]);
+    if(!sum[v.w]) return;
+    sum[v.w][0]++;
+    if(HITS.includes(k[3])) sum[v.w][1]++;
+    sum[v.w][2]+=ab.p.reduce((s,q)=>s+(q[8]||0),0);
+  });
+  let h='<div style="font-size:8px;color:#0c4a6e;letter-spacing:2px;font-weight:700;'
+    +'margin:0 0 6px 0;">WHAT THE BATTER WAS SITTING ON — KEY PITCH OF EACH AT-BAT</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:8px;">';
+  [['FOOLED','#16a34a'],['MIXED','#d97706'],['SITTING ON IT','#dc2626']].forEach(x=>{
+    const s=sum[x[0]];
+    h+='<div style="background:#f0f9ff;border:0.5px solid #bae6fd;border-radius:6px;padding:8px;'
+      +'text-align:center;"><div style="font-family:\'Bebas Neue\',sans-serif;font-size:22px;'
+      +'color:'+x[1]+';">'+s[0]+'</div><div style="font-size:7px;color:#0c4a6e;letter-spacing:1px;'
+      +'font-weight:600;">'+x[0]+'</div><div style="font-size:9px;color:#64748b;">'+s[1]+' hits'
+      +(s[2]?' · '+s[2]+' runs':'')+'</div></div>';
+  });
+  h+='</div><div style="font-size:9px;color:#64748b;margin-bottom:6px;">'
+    +'<span style="color:#16a34a;">■</span> Strikeout &nbsp; '
+    +'<span style="color:#ca8a04;">■</span> Extra-base hit &nbsp; '
+    +'<span style="color:#dc2626;">■</span> Drove in runs</div>';
+  let inn=null;
+  abs.forEach(ab=>{
+    if(ab.inn!==inn){
+      inn=ab.inn;
+      h+='<div style="font-family:\'Bebas Neue\',sans-serif;font-size:16px;color:#0c4a6e;'
+        +'letter-spacing:1px;margin:12px 0 6px;">INNING '+esc(inn)+'</div>';
+    }
+    const k=ab.p[ab.p.length-1],v=batterVerdict(k[4],k[5]);
+    const runs=ab.p.reduce((s,q)=>s+(q[8]||0),0);
+    const ended=BATTER_AB_ENDINGS.includes(k[3]);
+    let edge='#bae6fd',bg='#ffffff';
+    if(runs>0){edge='#dc2626';bg='#fef2f2';}
+    else if(XBH.includes(k[3])){edge='#ca8a04';bg='#fffbeb';}
+    else if(k[3]==='STRIKEOUT') edge='#16a34a';
+    const res=(ended?esc(cap(k[3])):'Not finished')
+      +(runs?' <span style="color:#dc2626;">★ '+runs+' run'+(runs>1?'s':'')+'</span>':'');
+    h+='<details style="border:0.5px solid #bae6fd;border-left:4px solid '+edge+';'
+      +'border-radius:6px;margin-bottom:6px;background:'+bg+';">'
+      +'<summary style="list-style:none;padding:8px 10px;cursor:pointer;">'
+      +'<div style="display:flex;justify-content:space-between;gap:6px;font-size:11px;">'
+      +'<div style="font-weight:700;">#'+ab.i+' <span style="color:#64748b;font-weight:500;">· '
+      +ab.h+'HB · '+esc(TYPES[ab.t]||cap(String(ab.t).replace(/_/g,' ')))+'</span></div>'
+      +'<div style="font-weight:700;white-space:nowrap;">'+res+' ▸</div></div>'
+      +'<div style="margin-top:5px;font-size:10px;line-height:1.5;">'
+      +'<b style="font-size:8px;letter-spacing:1px;color:#0c4a6e;">KEY</b> '
+      +esc(k[0])+' '+esc(k[1])+' '+esc(k[2])+' — expected '+expTxt(k[5],k[6],k[7])+' — '
+      +tag(v,k[4])+'</div></summary>'
+      +'<table style="width:100%;border-collapse:collapse;font-size:9.5px;margin:0 0 6px;">'
+      +'<tr style="font-size:7px;letter-spacing:1px;color:#0c4a6e;text-align:left;">'
+      +'<th style="padding:4px 6px;">#</th><th>THREW</th><th>EXPECTED</th><th>READ</th>'
+      +'<th>RESULT</th></tr>';
+    ab.p.forEach((q,j)=>{
+      const kv=batterVerdict(q[4],q[5]),last=j===ab.p.length-1;
+      const td='<td style="padding:4px 6px;border-top:0.5px solid #e2e8f0;">';
+      h+='<tr style="'+(last?'font-weight:700;background:#f0f9ff;':'')+'">'
+        +td+(j+1)+'</td>'+td+esc(q[0])+' '+esc(q[1])+' '+esc(q[2])+'</td>'
+        +td+'<span style="color:#64748b;">'+(q[5]?esc(q[5])+' ~'+q[6]+', '+esc(q[7]):'—')
+        +'</span></td>'+td+tag(kv,q[4])+'</td>'
+        +td+esc(cap(q[3]))+(q[8]?' · '+q[8]+' run'+(q[8]>1?'s':''):'')+'</td></tr>';
+    });
+    h+='</table></details>';
+  });
+  h+='<div style="font-size:9px;color:#64748b;margin-top:10px;">Read: how well the pitch matched '
+    +'what the batter expected (A, 0–1). Fooled below 0.40, mixed 0.40–0.60,'
+    +' sitting on it above 0.60. Expected height only (up / middle / down).</div>';
+  el.innerHTML=h;
 }
