@@ -684,7 +684,7 @@ function showGameReport(game,title,onClose){
   card.appendChild(hdr);
   // Tab bar
   const tabBar=document.createElement('div');
-  tabBar.style.cssText='display:flex;gap:4px;margin-bottom:16px;border-bottom:2px solid #bae6fd;';
+  tabBar.style.cssText='display:flex;flex-wrap:wrap;gap:4px;margin-bottom:16px;border-bottom:2px solid #bae6fd;';
   const tabs=['GAME','BATTER','BUNDLES','CAREER','SEQUENCES','TUNNEL','COUNTER']; // A6 part 5
   const tabContents={};
   tabs.forEach(function(t){
