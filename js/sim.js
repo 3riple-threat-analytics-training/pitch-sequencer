@@ -477,7 +477,7 @@ function saveGameHistory(){
     localStorage.setItem('pitchseq-game-history',JSON.stringify(history));
     // Sync to Firestore if signed in
     if(typeof fbSaveGameHistory==='function'&&typeof fbCurrentUser==='function'&&fbCurrentUser()){
-      fbSaveGameHistory(game).catch(function(e){console.warn('Firestore game history sync failed:',e);});
+      saveGameToFirestore(game); // ML part 1b
     }
   }catch(e){console.error('saveGameHistory error:',e);}
 }
@@ -6912,9 +6912,9 @@ function applyAnticipation(w){
 // A6 part 5 (Nov 2026): "What the batter was sitting on" - the BATTER tab of the game report.
 // Each sim pitch keeps what the batter expected (from logAnticipation, set before the outcome)
 // and the runs allowed after it. A saved game gets batterAtBats, one entry per at-bat:
-// {i: batter no., inn, h: 'R'/'L', t: batter type, p: [[pk, spd, zk, outcome, A, expected pk,
-// expected mph, expected height, runs on this pitch], ...]}. No outcome changes; the ML does not
-// read this field. Games without it (older or not sim) show no BATTER tab.
+// {i: batter no., inn, h: 'R'/'L', t: batter type, p: [{pk, spd, zk, out: outcome, A, xPk,
+// xSpd, xHt: expected pitch/mph/height, runs}, ...]} (objects: Firestore refuses nested arrays).
+// No outcome changes. Games without it (older or not sim) show no BATTER tab.
 function batterReadForPitch(){
   if(typeof simMode==='undefined'||!simMode) return {};
   const a=window.__lastAnticipation;
@@ -6938,7 +6938,7 @@ function batterAtBatsForGame(pitches){
     let runs=0;
     if(typeof p.sa==='number'){runs=Math.max(0,p.sa-prevSa);prevSa=p.sa;}
     const b=p.br||[null,'',0,''];
-    cur.p.push([p.pk,p.spd,p.zk,p.outcome||'',b[0],b[1],b[2],b[3],runs]);
+    cur.p.push({pk:p.pk,spd:p.spd,zk:p.zk,out:p.outcome||'',A:b[0],xPk:b[1],xSpd:b[2],xHt:b[3],runs});
     if(BATTER_AB_ENDINGS.includes(p.outcome)) cur=null;
   });
   return {batterAtBats:abs};
@@ -6951,7 +6951,7 @@ function batterVerdict(A,expPk){
   return {w:'MIXED',c:'#d97706'};
 }
 function buildBatterTab(el,game){
-  const abs=game&&game.batterAtBats;
+  const abs=batterAtBatsAsRows(game&&game.batterAtBats); // ML part 1b
   if(!el) return;
   // The report is not in the page yet when this runs: find the button inside it.
   const btn=el.parentNode?el.parentNode.querySelector('#report-tab-BATTER'):null;
@@ -7036,4 +7036,31 @@ function buildBatterTab(el,game){
     +'what the batter expected (A, 0–1). Fooled below 0.40, mixed 0.40–0.60,'
     +' sitting on it above 0.60. Expected height only (up / middle / down).</div>';
   el.innerHTML=h;
+}
+// ── ML part 1b: at-bat pitches as objects (Firestore refuses a list inside a list) ──
+// Games saved from v80 to v82 on a device still have each pitch as a list; both shapes are read.
+function atBatPitchObject(q){
+  if(!Array.isArray(q)) return q;
+  return {pk:q[0],spd:q[1],zk:q[2],out:q[3],A:q[4],xPk:q[5],xSpd:q[6],xHt:q[7],runs:q[8]};
+}
+function atBatPitchRow(q){
+  if(Array.isArray(q)||!q) return q;
+  return [q.pk,q.spd,q.zk,q.out,q.A,q.xPk,q.xSpd,q.xHt,q.runs];
+}
+// The BATTER tab reads rows (lists); this turns either shape into rows.
+function batterAtBatsAsRows(abs){
+  if(!Array.isArray(abs)) return abs;
+  return abs.map(ab=>Object.assign({},ab,{p:(ab.p||[]).map(atBatPitchRow)}));
+}
+// A copy of the game that Firestore accepts (at-bat pitches as objects).
+function firestoreSafeGame(g){
+  if(!g||!Array.isArray(g.batterAtBats)) return g;
+  return Object.assign({},g,{batterAtBats:g.batterAtBats.map(ab=>
+    Object.assign({},ab,{p:(ab.p||[]).map(atBatPitchObject)}))});
+}
+// Saves one game to Firestore and says so in the console if Firestore refuses it.
+function saveGameToFirestore(game){
+  fbSaveGameHistory(firestoreSafeGame(game)).then(function(r){
+    if(r&&!r.success) console.warn('Firestore game save failed:',r.error);
+  }).catch(function(e){console.warn('Firestore game history sync failed:',e);});
 }

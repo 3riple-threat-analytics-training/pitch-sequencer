@@ -407,3 +407,29 @@ function playerGamesFrom(raw){
   }
   return all.filter(g=>g&&(!g.playerId||g.playerId===id));
 }
+// ── ML part 1b: sign-in merges the account's games with games saved only on this device ──
+// Before: the account's games replaced the device's list, erasing games Firestore didn't have.
+// Now a device-only game is kept and uploaded when it is this account's player's game
+// (same playerId, or no id and the same pitcher name). Other device-only games: as before.
+async function mergeGameHistoryOnSignIn(remote){
+  let me=null;
+  try{const r=await fbLoadProfile();me=r.success?r.data:null;}catch(e){}
+  let local=[];
+  try{local=JSON.parse(localStorage.getItem('pitchseq-game-history')||'[]');}catch(e){}
+  if(!Array.isArray(local)) local=[];
+  const have=new Set(remote.map(g=>g&&g.date));
+  const mine=g=>me&&(g.playerId?g.playerId===me.playerId:g.pitcher===me.name);
+  const rescue=local.filter(g=>g&&g.date&&!have.has(g.date)&&mine(g));
+  if(!rescue.length){
+    localStorage.setItem('pitchseq-game-history',JSON.stringify(remote));
+    return;
+  }
+  const merged=remote.concat(rescue).sort((a,b)=>(a.date||0)-(b.date||0));
+  localStorage.setItem('pitchseq-game-history',JSON.stringify(merged));
+  for(const g of rescue){
+    const r=await fbSaveGameHistory(firestoreSafeGame(g));
+    const when=new Date(g.date).toLocaleString();
+    if(r&&r.success) console.log('Uploaded a game saved only on this device:',when);
+    else console.warn('Upload of a device-only game failed:',when,r&&r.error);
+  }
+}
