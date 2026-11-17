@@ -431,7 +431,7 @@ function saveGameHistory(){
     });
     const game={
       date:Date.now(),
-      pitcher:profile?profile.name:'Pitcher',
+      pitcher:profile?profile.name:'Pitcher',playerId:currentPlayerId(), // ML part 1
       ageGroup:profile?profile.ageGroup:'hsvar',
       homeAway:typeof isHomeTeam!=='undefined'?(isHomeTeam?'HOME':'AWAY'):'HOME',
       innings:typeof scoreboardData!=='undefined'&&scoreboardData.length?
@@ -596,7 +596,7 @@ function checkPendingAwayOpener(){
 function openCareerReport(tab){
   try{
     const raw=localStorage.getItem('pitchseq-game-history');
-    const history=raw?JSON.parse(raw):[];
+    const history=playerGamesFrom(raw); // ML part 1
     if(!history.length){alert('No game data available. Play some games first.');return;}
     const game=history[history.length-1];
     showGameReport(game,'GAME REPORT',function(){});
@@ -611,7 +611,7 @@ function showGameSummary(){
   // Load the most recently saved game
   try{
     const raw=localStorage.getItem('pitchseq-game-history');
-    const history=raw?JSON.parse(raw):[];
+    const history=playerGamesFrom(raw); // ML part 1
     if(!history.length){alert('No game data available.');return;}
     const game=history[history.length-1];
     const totalGames=history.length;
@@ -1253,7 +1253,7 @@ function showGameReport(game,title,onClose){
   exportBtn.onclick=function(){
     try{
       const raw=localStorage.getItem('pitchseq-game-history');
-      const history=raw?JSON.parse(raw):[];
+      const history=playerGamesFrom(raw); // ML part 1
       const exportData={
         tab:'game',
         game:history[history.length-1]||null,
@@ -1269,7 +1269,7 @@ function showGameReport(game,title,onClose){
   const bundlesTab=tabContents['BUNDLES'];
   try{
     const raw=localStorage.getItem('pitchseq-game-history');
-    const allGames=raw?JSON.parse(raw):[];
+    const allGames=playerGamesFrom(raw); // ML part 1
     if(allGames.length<2){
       const msg=document.createElement('div');
       msg.style.cssText='padding:20px;text-align:center;font-size:11px;color:#334155;';
@@ -1976,7 +1976,7 @@ function showGameReport(game,title,onClose){
   bundlesExportBtn.onclick=function(){
     try{
       const raw=localStorage.getItem('pitchseq-game-history');
-      const history=raw?JSON.parse(raw):[];
+      const history=playerGamesFrom(raw); // ML part 1
       const exportData={
         tab:'bundles',
         games:history,
@@ -1993,7 +1993,7 @@ function showGameReport(game,title,onClose){
   const careerTab=tabContents['CAREER'];
   try{
     const raw=localStorage.getItem('pitchseq-game-history');
-    const allGames=raw?JSON.parse(raw):[];
+    const allGames=playerGamesFrom(raw); // ML part 1
     if(allGames.length<1){
       const msg=document.createElement('div');
       msg.style.cssText='padding:20px;text-align:center;font-size:11px;color:#334155;';
@@ -3007,7 +3007,7 @@ function showGameReport(game,title,onClose){
   careerExportBtn.onclick=function(){
     try{
       const raw=localStorage.getItem('pitchseq-game-history');
-      const history=raw?JSON.parse(raw):[];
+      const history=playerGamesFrom(raw); // ML part 1
       const exportData={
         tab:'career',
         games:history,
@@ -3025,7 +3025,7 @@ function showGameReport(game,title,onClose){
   const seqTab=tabContents['SEQUENCES'];
   try{
     const seqRaw=localStorage.getItem('pitchseq-game-history');
-    const seqGames=seqRaw?JSON.parse(seqRaw):[];
+    const seqGames=playerGamesFrom(seqRaw); // ML part 1
     if(seqGames.length<2){
       const seqMsg=document.createElement('div');
       seqMsg.style.cssText='padding:20px;text-align:center;font-size:11px;color:#334155;';
@@ -3713,7 +3713,7 @@ function showGameReport(game,title,onClose){
       seqExportBtn.onclick=function(){
         try{
           const raw=localStorage.getItem('pitchseq-game-history');
-          const history=raw?JSON.parse(raw):[];
+          const history=playerGamesFrom(raw); // ML part 1
           const exportData={
             tab:'sequences',
             games:history,
@@ -3737,7 +3737,7 @@ function showGameReport(game,title,onClose){
   const tunnelTab=tabContents['TUNNEL'];
   try{
     const tnRaw=localStorage.getItem('pitchseq-game-history');
-    const tnGames=tnRaw?JSON.parse(tnRaw):[];
+    const tnGames=playerGamesFrom(tnRaw); // ML part 1
     // Filter games that have tunnel data
     const tnGamesWith=tnGames.filter(function(g){return g.totalTunnels>0;});
     const tnLabel=function(text){
@@ -4104,7 +4104,7 @@ function showGameReport(game,title,onClose){
       tnExportBtn.onclick=function(){
         try{
           const raw=localStorage.getItem('pitchseq-game-history');
-          const history=raw?JSON.parse(raw):[];
+          const history=playerGamesFrom(raw); // ML part 1
           const exportData={
             tab:'tunnel',
             games:history,
@@ -4128,7 +4128,7 @@ function showGameReport(game,title,onClose){
   const counterTab=tabContents['COUNTER'];
   try{
     const cpRaw=localStorage.getItem('pitchseq-game-history');
-    const cpGames=cpRaw?JSON.parse(cpRaw):[];
+    const cpGames=playerGamesFrom(cpRaw); // ML part 1
     const cpProfile=typeof getProfile==='function'?getProfile():null;
     const cpArsenal=cpProfile&&cpProfile.arsenal?cpProfile.arsenal:[];
     // Pitch family safety rules

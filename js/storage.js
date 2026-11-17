@@ -13,7 +13,7 @@ function getProfile(){
 
 function saveProfile(profile){
   try{
-    localStorage.setItem(PROFILE_KEY,JSON.stringify(profile));
+    localStorage.setItem(PROFILE_KEY,JSON.stringify(keepPlayerId(profile))); // ML part 1
   }catch(e){console.error('Profile save failed',e);}
 }
 
@@ -348,4 +348,62 @@ function savePlanForPitcher(pitcherId,planData){
   plans.push({...planData,id,pitcherId});
   setSavedPlans(plans);
   return id;
+}
+// ── ML part 1: a player id on the profile and on every saved game ──
+// ml-scouting-design.md §6. crypto.randomUUID never uses Math.random (the harness seed).
+function newPlayerId(){
+  if(window.crypto&&typeof window.crypto.randomUUID==='function'){
+    return 'player-'+window.crypto.randomUUID();
+  }
+  return 'player-'+Date.now()+'-'+Math.floor(Math.random()*100000);
+}
+// Individual mode: a profile saved without an id keeps the id already on the device.
+function keepPlayerId(profile){
+  if(!profile||profile.playerId||getAppMode()==='team') return profile;
+  const old=getProfile();
+  if(old&&old.playerId) profile.playerId=old.playerId;
+  return profile;
+}
+function uploadProfileIfSignedIn(profile){
+  if(typeof fbSaveProfile==='function'&&typeof fbCurrentUser==='function'&&fbCurrentUser()){
+    fbSaveProfile(profile).catch(function(e){
+      console.warn('Firestore profile sync failed:',e);
+    });
+  }
+}
+// Team mode: the active roster id. Individual: the profile's id, created once if missing.
+function currentPlayerId(){
+  if(getAppMode()==='team') return getActivePitcherId();
+  const profile=getProfile();
+  if(!profile) return null;
+  if(!profile.playerId){
+    profile.playerId=newPlayerId();
+    localStorage.setItem(PROFILE_KEY,JSON.stringify(profile));
+    uploadProfileIfSignedIn(profile);
+  }
+  return profile.playerId;
+}
+// Sign-in: the account's id (Firestore) wins. If it has none, keep this device's id
+// when the name matches, else create one; upload it once.
+function playerIdOnSignIn(profile){
+  if(!profile||profile.playerId) return profile;
+  const old=getProfile();
+  const same=old&&old.playerId&&old.name===profile.name;
+  profile.playerId=same?old.playerId:newPlayerId();
+  uploadProfileIfSignedIn(profile);
+  return profile;
+}
+// This player's games. Individual: this id, or no id (games saved before ML part 1).
+// Team: the active roster id, or no id and the same pitcher name.
+function playerGamesFrom(raw){
+  let all;
+  try{all=raw?JSON.parse(raw):[];}catch(e){return [];}
+  if(!Array.isArray(all)) return [];
+  const id=currentPlayerId();
+  if(getAppMode()==='team'){
+    const p=getActivePitcher();
+    const name=p?p.name:null;
+    return all.filter(g=>g&&(g.playerId?g.playerId===id:g.pitcher===name));
+  }
+  return all.filter(g=>g&&(!g.playerId||g.playerId===id));
 }
