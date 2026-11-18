@@ -142,6 +142,12 @@
     const origOrbitSave = window.orbitSaveAtBat;
     if (typeof origOrbitSave === 'function') { window.orbitSaveAtBat = function () {}; restorers.push(() => { window.orbitSaveAtBat = origOrbitSave; }); }
     log('Orbit at-bat history: not saved during the run (display only)');
+    // ML lock (ML part 2): saved ML weights load at app startup (ml.js) and change edge swings.
+    const mlWeights0 = window._mlWeights, mlFound = !!mlWeights0;
+    window._mlWeights = null;
+    restorers.push(() => { window._mlWeights = mlWeights0; });
+    log('ML: off for the run (saved ML weights found and switched off: '
+      + (mlFound ? 'yes' : 'no') + ')');
 
     // ---- 2. zone lists must match the app ------------------------------------
     const edgeOK = EDGE.every(z => isEdgeOrCornerZone(z)) && INNER.every(z => !isEdgeOrCornerZone(z)) && CHASE.every(z => !isEdgeOrCornerZone(z));
@@ -473,6 +479,8 @@
     const snap = ['hand ' + hand, 'rubber ' + rubber, 'umpire ' + umpireQuality, 'level ' + batterLevel, 'batter type ' + batterType,
       'sim ' + simMode, 'tunnel view ' + tunnelOn, 'SRE ' + sreEnabled, 'backdoor ' + getBdMode(),
       'profile ' + (prof ? (prof.ageGroup || '?') + ' ' + (prof.arsenal || []).join('+') : 'none'),
+      'top speed ' + (prof ? prof.maxVelocity : 'none'),
+      'ML off (saved weights: ' + (mlFound ? 'yes' : 'no') + ')',
       'saved: ' + savedKeys.map(k => k.slice(9) + '=' + String(localStorage.getItem(k)).slice(0, 20)).join(', ')].join(' | ');
     let fp = 0; for (const ch of snap) fp = (fp * 31 + ch.charCodeAt(0)) >>> 0;
     log('Settings snapshot: ' + snap);
@@ -541,6 +549,7 @@
         f: S => S.abs ? 100 * S.ab10 / S.abs : 0 },
       { key: 'AA', label: 'Average anticipation A', f: S => S.nA ? S.sumA / S.nA : 0 },
       { key: 'AE', label: 'Average strength E', f: S => S.nA ? S.sumE / S.nA : 0 });
+    check(window._mlWeights === null, 'ML weights were switched on during the run (ML lock)');
     const stats = results.map(({ P, blocks }) => {
       const out = { id: P.id, name: P.name, totals: {} };
       ['innings', 'pitches', 'batters', 'games', 'K', 'BB', 'H', 'runs', 'immaculate', 'totK', 'totBB', 'totH', 'logK', 'logBB', 'logH']
@@ -561,7 +570,7 @@
       + (ONLY ? ONLY.join('+') : 'all') + ', blocks ' + BLOCKS
       + (OPT.toString() ? ' (from the page address)' : ' (defaults)')
       + '. A6 part 4 in the app: ' + (P4ON ? 'yes' : 'no') + '.');
-    log('Settings: ' + LEVEL + ', batter type RANDOM, ML off (none saved on localhost),'
+    log('Settings: ' + LEVEL + ', batter type RANDOM, ML off (locked by the harness),'
       + ' home games, ' + BLOCKS + ' blocks x ' + INNINGS_PER_BLOCK + ' innings per pitcher,'
       + ' seeds ' + (BASE_SEED + 1) + '... (base ' + BASE_SEED + ' + pitcher*100 + block).'
       + ' Run time ' + minutes + ' min.');
