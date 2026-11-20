@@ -475,7 +475,7 @@ function saveGameHistory(){
     const history=raw?JSON.parse(raw):[];
     history.push(game);
     localStorage.setItem('pitchseq-game-history',JSON.stringify(history));
-    // Sync to Firestore if signed in
+    if(typeof updateScoutingReport==='function') updateScoutingReport(); // ML part 3
     if(typeof fbSaveGameHistory==='function'&&typeof fbCurrentUser==='function'&&fbCurrentUser()){
       saveGameToFirestore(game); // ML part 1b
     }
@@ -6913,7 +6913,7 @@ function applyAnticipation(w){
 // Each sim pitch keeps what the batter expected (from logAnticipation, set before the outcome)
 // and the runs allowed after it. A saved game gets batterAtBats, one entry per at-bat:
 // {i: batter no., inn, h: 'R'/'L', t: batter type, p: [{pk, spd, zk, out: outcome, A, xPk,
-// xSpd, xHt: expected pitch/mph/height, runs}, ...]} (objects: Firestore refuses nested arrays).
+// xSpd, xHt: expected pitch/mph/height, runs, c: count}, ...]} (objects, see ML part 1b).
 // No outcome changes. Games without it (older or not sim) show no BATTER tab.
 function batterReadForPitch(){
   if(typeof simMode==='undefined'||!simMode) return {};
@@ -6938,7 +6938,8 @@ function batterAtBatsForGame(pitches){
     let runs=0;
     if(typeof p.sa==='number'){runs=Math.max(0,p.sa-prevSa);prevSa=p.sa;}
     const b=p.br||[null,'',0,''];
-    cur.p.push({pk:p.pk,spd:p.spd,zk:p.zk,out:p.outcome||'',A:b[0],xPk:b[1],xSpd:b[2],xHt:b[3],runs});
+    cur.p.push({pk:p.pk,spd:p.spd,zk:p.zk,out:p.outcome||'',A:b[0],xPk:b[1],xSpd:b[2],xHt:b[3],
+      runs,c:p.count||''}); // c: count before the pitch (ML part 3)
     if(BATTER_AB_ENDINGS.includes(p.outcome)) cur=null;
   });
   return {batterAtBats:abs};

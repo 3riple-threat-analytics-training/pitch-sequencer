@@ -475,7 +475,7 @@
     // ---- 7. run all pitchers, all blocks --------------------------------------
     // ---- 6a. settings snapshot (C6 update): what can change outcomes, recorded before the run ----
     const prof = typeof getProfile === 'function' ? getProfile() : null;
-    const savedKeys = Object.keys(localStorage).filter(k => k.startsWith('pitchseq-') && !/history|export|weights|plans|roster|profile/.test(k)).sort();
+    const savedKeys = Object.keys(localStorage).filter(k => k.startsWith('pitchseq-') && !/history|export|weights|plans|roster|profile|scout/.test(k)).sort();
     const snap = ['hand ' + hand, 'rubber ' + rubber, 'umpire ' + umpireQuality, 'level ' + batterLevel, 'batter type ' + batterType,
       'sim ' + simMode, 'tunnel view ' + tunnelOn, 'SRE ' + sreEnabled, 'backdoor ' + getBdMode(),
       'profile ' + (prof ? (prof.ageGroup || '?') + ' ' + (prof.arsenal || []).join('+') : 'none'),

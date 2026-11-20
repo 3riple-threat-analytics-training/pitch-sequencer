@@ -1159,7 +1159,7 @@ document.addEventListener('fbAuthStateChanged',function(e){
     // Sync game history from Firestore
     fbLoadGameHistory().then(function(r){
       if(r.success&&r.data.length){
-        mergeGameHistoryOnSignIn(r.data); // ML part 1b
+        mergeGameHistoryOnSignIn(r.data).then(updateScoutingReport); // ML part 1b, 3
         // game history loaded
       }
     });

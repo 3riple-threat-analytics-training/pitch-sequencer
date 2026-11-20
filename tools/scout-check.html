@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scouting Report Check</title>
+<style>
+  :root{--bg:#fff;--fg:#1f2937;--muted:#6b7280;--line:#d1d5db;--hi:#2563eb}
+  @media (prefers-color-scheme:dark){:root{--bg:#111827;--fg:#e5e7eb;--muted:#9ca3af;
+    --line:#374151;--hi:#60a5fa}}
+  body{background:var(--bg);color:var(--fg);font:14px/1.45 -apple-system,system-ui,sans-serif;
+    margin:0;padding:16px;max-width:1000px}
+  h1{font-size:20px;margin:0 0 4px}h2{font-size:16px;margin:24px 0 6px}
+  p,.muted{color:var(--muted)}label{display:block;margin:10px 0 4px;font-weight:600}
+  input[type=text]{width:100%;max-width:420px;padding:6px;font:inherit;color:inherit;
+    background:transparent;border:1px solid var(--line);border-radius:4px}
+  table{border-collapse:collapse;font-size:12px;margin:6px 0;display:block;overflow-x:auto}
+  th,td{border:1px solid var(--line);padding:3px 6px;text-align:left;white-space:nowrap}
+  button{font:inherit;padding:5px 10px;margin:4px 0;cursor:pointer}
+  pre{white-space:pre-wrap;font-size:12px}
+</style>
+</head>
+<body>
+<h1>Scouting report check</h1>
+<p>ML part 3, read-only, localhost only. Loads the app's own scouting code (js/ml.js) and runs
+the self-check on a file: a game history copied from the live app (.json), or a harness run
+(.csv). Nothing is saved or sent anywhere.</p>
+<label for="ars">Arsenal for the blind guess (comma-separated)</label>
+<input id="ars" type="text" value="4FB,CH,SL,2FB,SP">
+<p class="muted">Maxwell: 4FB,CH,SL,2FB,SP. Harness pitchers: 4FB,2FB,CH,CB
+(filled in automatically for a .csv).</p>
+<label for="file">File</label>
+<input id="file" type="file" accept=".json,.csv,.txt">
+<div id="out"></div>
+<script src="../js/config.js"></script>
+<script src="../js/zones.js"></script>
+<script src="../js/ml.js"></script>
+<script>
+(function(){
+  'use strict';
+  var out=document.getElementById('out');
+  if(!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)){
+    out.textContent='This page runs on localhost only.';return;
+  }
+  function esc(s){return String(s).replace(/[&<>]/g,function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
+  function pc(x){return x===null||x===undefined?'–':Math.round(100*x)+'%';}
+  // Harness CSV -> one list of games per pitcher, in the saved-game shape (at-bats in order).
+  function gamesFromCsv(text){
+    var lines=text.split(/\r?\n/).filter(function(l){return l.trim();});
+    var head=lines.shift().split(',');
+    var col=function(n){return head.indexOf(n);};
+    var iP=col('pitcher'),iB=col('block'),iG=col('game'),iI=col('inning'),iBa=col('batter');
+    var iH=col('hand'),iN=col('pitchInAB'),iC=col('countBefore'),iZ=col('zone');
+    var iK=col('pitch'),iO=col('outcome');
+    var by={},order=0;
+    lines.forEach(function(l){
+      var f=l.split(',');var pid=f[iP];
+      var P=by[pid]||(by[pid]={games:{},list:[]});
+      var gk=f[iB]+'/'+f[iG];
+      var g=P.games[gk];
+      if(!g){g=P.games[gk]={date:++order,batterAtBats:[],abs:{}};P.list.push(g);}
+      var ak=f[iI]+'/'+f[iBa];
+      var ab=g.abs[ak];
+      if(!ab){ab=g.abs[ak]={i:g.batterAtBats.length+1,inn:+f[iI],
+        h:f[iH]==='LHB'?'L':'R',t:'GENERIC',p:[]};g.batterAtBats.push(ab);}
+      ab.p.push({n:+f[iN],pk:f[iK],zk:f[iZ],out:f[iO],c:f[iC]});
+    });
+    Object.keys(by).forEach(function(pid){by[pid].list.forEach(function(g){
+      delete g.abs;g.batterAtBats.forEach(function(ab){
+        ab.p.sort(function(a,b){return a.n-b.n;});});
+    });});
+    return by;
+  }
+  function show(name,games,arsenal){
+    var gs=games.filter(scoutHasData)
+      .sort(function(a,b){return (a.date||0)-(b.date||0);});
+    var r=buildScoutingReport(gs,arsenal);
+    var wf=scoutWalkForward(gs.slice(-SCOUT_MAX_GAMES),gs.length,arsenal);
+    var h='<h2>'+esc(name)+'</h2><p>'+r.games+' games used ('+r.ordered
+      +' with pitches in order), '+r.pitches+' weighted pitches, trust '+pc(r.trust)+'.<br>'
+      +'<b>Predictability (last '+r.predictability.checked+' games): type '
+      +pc(r.predictability.type)+', location '+pc(r.predictability.loc)+'</b>'
+      +' — from his overall mix alone: type '+pc(r.predictability.fromMixType)
+      +', location '+pc(r.predictability.fromMixLoc)+'.<br>'
+      +'All '+wf.rows.length+' games checked: type '+pc(wf.type)+', location '+pc(wf.loc)+'.</p>';
+    h+='<table><tr><th>#</th><th>game date</th><th>games before</th><th>pitches</th>'
+      +'<th>type</th><th>location</th></tr>';
+    wf.rows.forEach(function(x,i){
+      var d=x.date>1e11?new Date(x.date).toLocaleDateString():x.date;
+      h+='<tr><td>'+(i+2)+'</td><td>'+esc(d)+'</td><td>'+x.before+'</td><td>'+x.pitches
+        +'</td><td>'+pc(x.type)+'</td><td>'+pc(x.loc)+'</td></tr>';
+    });
+    h+='</table><p><b>Habits listed</b> (descriptive):</p><pre>'
+      +(r.habits.length?r.habits.map(function(x){return esc(x.what)+'  '+pc(x.p)
+        +'  ('+x.n+' pitches)';}).join('\n'):'(none)')+'</pre>';
+    var div=document.createElement('div');div.innerHTML=h;
+    var b=document.createElement('button');
+    b.textContent='Download this scouting report (.json)';
+    b.onclick=function(){
+      var blob=new Blob([JSON.stringify(r)],{type:'application/json'});
+      var a=document.createElement('a');a.href=URL.createObjectURL(blob);
+      a.download='scout-'+name.replace(/[^A-Za-z0-9]+/g,'-')+'.json';a.click();
+    };
+    div.appendChild(b);out.appendChild(div);
+  }
+  document.getElementById('file').addEventListener('change',function(ev){
+    var file=ev.target.files[0];if(!file) return;
+    out.innerHTML='<p>Reading '+esc(file.name)+'…</p>';
+    file.text().then(function(text){
+      out.innerHTML='';
+      var ars=document.getElementById('ars');
+      if(/\.csv$/i.test(file.name)){
+        ars.value='4FB,2FB,CH,CB';
+        var by=gamesFromCsv(text);
+        Object.keys(by).forEach(function(pid){
+          show(pid+' (harness, '+by[pid].list.length+' games)',by[pid].list,
+            ars.value.split(',').map(function(s){return s.trim();}));
+        });
+      }else{
+        var data=JSON.parse(text);
+        if(!Array.isArray(data)) throw new Error('Expected a list of games.');
+        show(file.name,data,ars.value.split(',').map(function(s){return s.trim();}));
+      }
+    }).catch(function(e){out.textContent='Could not read the file: '+e.message;});
+  });
+})();
+</script>
+</body>
+</html>
