@@ -598,7 +598,7 @@ function scoutLoss(d,v,n){return -n*Math.log(Math.max(SCOUT_EPS,(d&&d[v])||0));}
 // How well tables T (from earlier games) predict game g, against the blind guess.
 // mix/locMix: a batter who knows only his overall mix (no count, no sequence).
 function scoutScoreGame(T,g,arsenal){
-  const L={type:0,typeBlind:0,typeMix:0,loc:0,locBlind:0,locMix:0,n:0};
+  const L={type:0,typeBlind:0,typeMix:0,loc:0,locBlind:0,locMix:0,locCount:0,n:0};
   const bt=scoutBlindType(T,arsenal),bh=SCOUT_BLIND_H,bs=SCOUT_BLIND_S;
   const mt=scoutDist(T.type['*'],bt,1);
   const mh=scoutLocDist(T,'*',scoutHeight),ms=scoutLocDist(T,'*',scoutSide);
@@ -608,6 +608,9 @@ function scoutScoreGame(T,g,arsenal){
       +scoutLoss(scoutLocSeqDist(T,c,scoutSide,z1,z2),s,n);
     L.locBlind+=scoutLoss(bh,h,n)+scoutLoss(bs,s,n);
     L.locMix+=scoutLoss(mh,h,n)+scoutLoss(ms,s,n);
+    // by count only (no location sequences): what the batter uses (ML part 4, Nov 20)
+    L.locCount+=scoutLoss(scoutLocDist(T,c,scoutHeight),h,n)
+      +scoutLoss(scoutLocDist(T,c,scoutSide),s,n);
   };
   if(Array.isArray(g.batterAtBats)&&g.batterAtBats.length){
     g.batterAtBats.forEach(function(ab){scoutAtBatEvents(ab).forEach(function(e){
@@ -637,17 +640,17 @@ function scoutScoreGame(T,g,arsenal){
 // (0 = no better than the blind guess, 1 = perfect). typeMix/locMix: the part a batter
 // gets from his overall mix alone; the rest comes from the count and the sequence.
 function scoutWalkForward(games,howMany,arsenal){
-  const rows=[];let tm=0,tb=0,lm=0,lb=0,tx=0,lx=0;
+  const rows=[];let tm=0,tb=0,lm=0,lb=0,tx=0,lx=0,lc=0;
   const from=Math.max(1,games.length-(howMany||SCOUT_CHECK_GAMES));
   for(let i=from;i<games.length;i++){
     const T=scoutTables(games.slice(Math.max(0,i-SCOUT_MAX_GAMES),i),arsenal);
     const L=scoutScoreGame(T,games[i],arsenal);
-    tm+=L.type;tb+=L.typeBlind;lm+=L.loc;lb+=L.locBlind;tx+=L.typeMix;lx+=L.locMix;
+    tm+=L.type;tb+=L.typeBlind;lm+=L.loc;lb+=L.locBlind;tx+=L.typeMix;lx+=L.locMix;lc+=L.locCount;
     rows.push({date:games[i].date,before:T.games,pitches:Math.round(L.n),
       type:L.typeBlind>0?1-L.type/L.typeBlind:null,loc:L.locBlind>0?1-L.loc/L.locBlind:null});
   }
   return {rows:rows,type:tb>0?1-tm/tb:null,loc:lb>0?1-lm/lb:null,
-    typeMix:tb>0?1-tx/tb:null,locMix:lb>0?1-lx/lb:null};
+    typeMix:tb>0?1-tx/tb:null,locMix:lb>0?1-lx/lb:null,locCount:lb>0?1-lc/lb:null};
 }
 // Plain-language habits, for the console and later the reports (descriptive only).
 function scoutHabits(T){
@@ -692,11 +695,12 @@ function buildScoutingReport(games,arsenal){
   const T=scoutTables(gs,arsenal);
   const wf=scoutWalkForward(gs,SCOUT_CHECK_GAMES,arsenal);
   const trust=Math.min(1,T.pitches/SCOUT_TRUST_PITCHES);
-  const pt=Math.max(0,wf.type||0),pl=Math.max(0,wf.loc||0);
+  const pt=Math.max(0,wf.type||0),pl=Math.max(0,wf.loc||0),pc=Math.max(0,wf.locCount||0);
   return {v:1,built:Date.now(),games:gs.length,ordered:T.ordered,pitches:Math.round(T.pitches),
     trust:trust,predictability:{type:pt,loc:pl,checked:wf.rows.length,rawType:wf.type,rawLoc:wf.loc,
-      fromMixType:wf.typeMix,fromMixLoc:wf.locMix},
-    strength:{type:trust*pt,loc:trust*pl},habits:scoutHabits(T),
+      fromMixType:wf.typeMix,fromMixLoc:wf.locMix,locByCount:pc},
+    // strength = what the batter may use: location by count only (ML part 4, Nov 20)
+    strength:{type:trust*pt,loc:trust*pc},habits:scoutHabits(T),
     tables:{type:T.type,zone:T.zone,next1:T.next1,next2:T.next2,
       nextH1:T.nextH1,nextH2:T.nextH2,nextS1:T.nextS1,nextS2:T.nextS2},
     settings:{k:SCOUT_K,recency:SCOUT_RECENCY,trustPitches:SCOUT_TRUST_PITCHES,

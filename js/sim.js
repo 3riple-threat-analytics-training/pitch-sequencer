@@ -5293,9 +5293,9 @@ function getBatterSwingMultiplier(zk,strikes){
     }
   }
   // Apply ML zone, count and velocity multipliers
-  const mlZoneMult=getMLZoneMultiplier(zk);
-  const mlCountMult=getMLCountMultiplier(zk,strikes);
-  const mlVeloMult=getMLVelocityMultiplier();
+  const mlZoneMult=ML_OLD_GAME_OFF?1:getMLZoneMultiplier(zk); // ML part 4: old ML off
+  const mlCountMult=ML_OLD_GAME_OFF?1:getMLCountMultiplier(zk,strikes);
+  const mlVeloMult=ML_OLD_GAME_OFF?1:getMLVelocityMultiplier();
   // Blend ML multipliers with base — cap total influence to avoid extremes
   const finalMult=baseMult*Math.max(0.5,Math.min(1.8,mlZoneMult*mlCountMult*mlVeloMult));
   return Math.max(0.2,Math.min(3.0,finalMult));
@@ -6807,15 +6807,18 @@ function computeAnticipation(cur,abPrev){
   }
   const building=anticLineBuilding(cur,abPrev);
   const tun=anticTunnelHide(cur,mem);
+  const sc=scoutForPitch(cur,abPrev,W,locRaw,typeRaw); // ML part 4: the scouting report
   const r={
-    loc:building?0.5:anticBlend(locRaw,W),
-    type:anticBlend(typeRaw,W)*(1-tun.hide),
+    loc:building?0.5:anticBlend(sc.loc,sc.wLoc),
+    type:anticBlend(sc.type,sc.wType)*(1-tun.hide),
     speed:anticBlend(speedRaw,W),
     order:anticBlend(orderRaw,orderW)
   };
   const A=ANTIC_W.loc*r.loc+ANTIC_W.type*r.type+ANTIC_W.speed*r.speed+ANTIC_W.order*r.order;
-  const ceiling=ANTIC_CEILING[batterLevel]||0.55;
+  const ceiling=scoutCeiling(ANTIC_CEILING[batterLevel]||0.55,sc); // ML part 4
   const E=(A-0.5)*2*ceiling;
+  const A0=sc.on?A+ANTIC_W.loc*((building?0.5:anticBlend(locRaw,W))-r.loc)
+    +ANTIC_W.type*(anticBlend(typeRaw,W)*(1-tun.hide)-r.type):A; // side reading: no report
   let timing='no expectation yet';
   if(gap!==null){
     if(Math.abs(gap)<=ANTIC_ON_TIME_MPH) timing='on time';
@@ -6830,7 +6833,8 @@ function computeAnticipation(cur,abPrev){
     tunnel:cur.tunnelData&&cur.tunnelData.detected?
       {partner:cur.tunnelData.prevPk,overlap:cur.tunnelData.length,
         hide:tun.hide,repeats:tun.repeats}:null,
-    A:A,ceiling:ceiling,level:batterLevel,E:E,gap:gap,timing:timing
+    A:A,ceiling:ceiling,level:batterLevel,E:E,gap:gap,timing:timing,scout:sc,A0:A0,
+    E0:(A0-0.5)*2*(ANTIC_CEILING[batterLevel]||0.55)
   };
 }
 // Called from throwPitch BEFORE the outcome, with the pitch's path and tunnel (C4).
@@ -6858,7 +6862,8 @@ function logAnticipation(pts3d,pk,zk,spd,tunnelData){
       +' order '+f(r.order)+' → A '+f(a.A)+' ('+verdict+')'
       +'\n  ceiling '+f(a.ceiling)+' ('+a.level+') → E '+(a.E>-0.005?'+':'')
       +f(Math.abs(a.E)<0.005?0:a.E)
-      +' · timing: '+a.timing+tn);
+      +' · timing: '+a.timing+tn
+      +(a.scout&&a.scout.on?' · scouting report '+Math.round(a.scout.share*100)+'% of it':''));
   }catch(e){console.log('ANTICIPATION error (no effect on the game):',e&&e.message);}
 }
 // B1 (A6 part 3, Nov 4): a foul's label comes from the batter's timing (A6 section 6).
@@ -7064,4 +7069,63 @@ function saveGameToFirestore(game){
   fbSaveGameHistory(firestoreSafeGame(game)).then(function(r){
     if(r&&!r.success) console.warn('Firestore game save failed:',r.error);
   }).catch(function(e){console.warn('Firestore game history sync failed:',e);});
+}
+// ── ML part 4: the batter uses the scouting report (ml-scouting-design.md §8 part 4) ──
+// The report counts like extra memory the batter brings into the game: strength x
+// SCOUT_MEMORY pitches (strength = trust x predictability). Today's memory adds on top, so
+// the report's share shrinks as the game goes on but never disappears. It feeds the type
+// reading (count + last one or two pitches) and the location reading (zone, height and side
+// by count only: location sequences are for the pitcher, Rafael Nov 20). Speed stays in-game.
+// Starting values, unverified (to be tuned with the harness):
+const SCOUT_MEMORY=20; // a fully trusted, fully predictable report = 20 pitches of memory
+const SCOUT_CEILING={  // how hard a scouting batter can act on it (Rafael, Nov 13)
+  rec10:0.45,rec12:0.45,club10:0.50,club12:0.55,comp13:0.65,
+  hsjv:0.75,hsvar:0.85,college:0.92,pro:1.00
+};
+const ML_OLD_GAME_OFF=true; // the old ML no longer changes edge swings (its reports stay)
+// The report the batter brings in: the harness sets window.__scoutOverride (null = off);
+// otherwise this player's report saved on this device (parsed again only when it changes).
+function scoutReportNow(){
+  if('__scoutOverride' in window) return window.__scoutOverride;
+  try{
+    const id=typeof currentPlayerId==='function'?currentPlayerId():null;
+    if(!id) return null;
+    const key='pitchseq-scout-'+id,raw=localStorage.getItem(key);
+    if(!raw) return null;
+    const c=window.__scoutCache;
+    if(c&&c.key===key&&c.raw===raw) return c.r;
+    const r=JSON.parse(raw);
+    window.__scoutCache={key:key,raw:raw,r:r};
+    return r;
+  }catch(e){return null;}
+}
+function scoutMix(raw,w,s,ws){return (w+ws)>0?(w*raw+ws*s)/(w+ws):raw;}
+// Readings for this pitch with the report mixed in. Without a usable report it returns
+// today's readings unchanged (on:false), so anticipation is exactly as before.
+function scoutForPitch(cur,abPrev,W,locRaw,typeRaw){
+  const off={on:false,loc:locRaw,type:typeRaw,wLoc:W,wType:W,share:0};
+  try{
+    const R=scoutReportNow();
+    if(!R||!R.tables||!R.strength||typeof scoutTypeDist!=='function') return off;
+    const wT=SCOUT_MEMORY*Math.max(0,R.strength.type||0);
+    const wL=SCOUT_MEMORY*Math.max(0,R.strength.loc||0);
+    if(!(wT>0)&&!(wL>0)) return off;
+    const T=Object.assign({arsenal:[]},R.tables);
+    const c=(typeof ballCount!=='undefined'?ballCount:0)+'-'
+      +(typeof strikeCount!=='undefined'?strikeCount:0);
+    const n=abPrev.length,p1=n>0?abPrev[n-1].pk:null,p2=n>1?abPrev[n-2].pk:null;
+    const sType=scoutTypeDist(T,c,p1,p2)[cur.pk]||0;
+    const h=scoutHeight(cur.zk),s=scoutSide(cur.zk);
+    const sLoc=0.4*(scoutLocDist(T,c,null)[cur.zk]||0)
+      +0.3*(h?scoutLocDist(T,c,scoutHeight)[h]||0:0)+0.3*(s?scoutLocDist(T,c,scoutSide)[s]||0:0);
+    const shT=(W+wT)>0?wT/(W+wT):0,shL=(W+wL)>0?wL/(W+wL):0;
+    return {on:true,loc:scoutMix(locRaw,W,sLoc,wL),type:scoutMix(typeRaw,W,sType,wT),
+      wLoc:W+wL,wType:W+wT,share:(shT+shL)/2,sType:sType,sLoc:sLoc,wT:wT,wL:wL};
+  }catch(e){return off;}
+}
+// The ceiling mixes the level's in-game ceiling with the scouting ceiling by the report's share.
+function scoutCeiling(base,sc){
+  if(!sc||!sc.on) return base;
+  const s=SCOUT_CEILING[typeof batterLevel!=='undefined'?batterLevel:'']||base;
+  return (1-sc.share)*base+sc.share*Math.max(base,s);
 }

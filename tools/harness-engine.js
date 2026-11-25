@@ -18,7 +18,13 @@
   const BASE_SEED = OPT.has('seed') ? parseInt(OPT.get('seed'), 10) : 20261021;
   const LEVEL = OPT.get('level') || 'rec12';
   const ONLY = OPT.has('only') ? OPT.get('only').toUpperCase().split(',') : null;
-  const RUN_NAME = 'harness-seed' + BASE_SEED + '-' + LEVEL + (ONLY ? '-' + ONLY.join('') : '');
+  // ML part 4: scout=self - each pitcher is first played SCOUT_INN innings with the report off,
+  // his scouting report is built from those games (the app's own code), then the measured
+  // blocks are played with the batter using it. Without the option the report is off.
+  const SCOUT = OPT.get('scout') === 'self';
+  const SCOUT_INN = OPT.has('scoutinn') ? parseInt(OPT.get('scoutinn'), 10) : 300;
+  const RUN_NAME = 'harness-seed' + BASE_SEED + '-' + LEVEL + (ONLY ? '-' + ONLY.join('') : '')
+    + (SCOUT ? '-scout' : '');
   const A6_MULT = { strong: 1.0, miss: -0.8, weak: -0.3, foul: 0.5, swing: -0.4 }; // A6 sec. 5
   const MAX_PITCHES_PER_INNING = 80;
   const lines = [];
@@ -35,7 +41,9 @@
   window.ANTICIPATION_LOG = false; // A6 part 1: no anticipation console lines during runs
   const badOpt = !(BLOCKS >= 1 && BLOCKS <= 10) || !Number.isFinite(BASE_SEED)
     || typeof ANTIC_CEILING === 'undefined' || !(LEVEL in ANTIC_CEILING)
-    || (ONLY && !ONLY.every(id => /^P[1-6]$/.test(id)));
+    || (ONLY && !ONLY.every(id => /^P[1-6]$/.test(id)))
+    || (OPT.has('scout') && !SCOUT) || !(SCOUT_INN >= 20 && SCOUT_INN <= 1000)
+    || (SCOUT && typeof buildScoutingReport !== 'function');
   if (badOpt) {
     log('REFUSED: bad option in the page address (' + OPT.toString() + ').'
       + ' Allowed: seed=<number>, level=<a batter level>, only=P1,P4 (P1-P6), blocks=1-10.'
@@ -148,6 +156,12 @@
     restorers.push(() => { window._mlWeights = mlWeights0; });
     log('ML: off for the run (saved ML weights found and switched off: '
       + (mlFound ? 'yes' : 'no') + ')');
+    // Scouting lock (ML part 4): the app reads window.__scoutOverride first; null = off.
+    const scoutHad = '__scoutOverride' in window, scout0 = window.__scoutOverride;
+    window.__scoutOverride = null;
+    restorers.push(() => { if (scoutHad) window.__scoutOverride = scout0; else delete window.__scoutOverride; });
+    log('Scouting report: ' + (SCOUT ? 'each pitcher scouted first (' + SCOUT_INN
+      + ' innings, report off), then used by the batter' : 'off for the run (locked by the harness)'));
 
     // ---- 2. zone lists must match the app ------------------------------------
     const edgeOK = EDGE.every(z => isEdgeOrCornerZone(z)) && INNER.every(z => !isEdgeOrCornerZone(z)) && CHASE.every(z => !isEdgeOrCornerZone(z));
@@ -254,8 +268,11 @@
       const old = s ? [n3(s.rep.strongMult), n3(s.rep.weakMult), n3(s.rep.swingMissMult),
         n3(s.tun.strongMult), n3(s.tun.swingMissMult), n3(s.tun.overridesRepetition),
         n3(s.sd), s.wake] : ['', '', '', '', '', '', '', ''];
+      const sc = a && a.scout && a.scout.on ? a.scout : null; // ML part 4
       return [n3(r.loc), n3(r.type), n3(r.speed), n3(r.order)].concat(ant, old,
-        [m('strong'), m('miss'), m('weak'), m('foul'), m('swing'), calls]);
+        [m('strong'), m('miss'), m('weak'), m('foul'), m('swing'), calls],
+        [sc ? 1 : 0, n3(sc ? sc.share : 0), n3(a ? (a.A0 !== undefined ? a.A0 : a.A) : null),
+          n3(a ? (a.E0 !== undefined ? a.E0 : a.E) : null)]);
     }
     function countSituation() {
       const ct = ballCount + '-' + strikeCount;
@@ -310,6 +327,7 @@
       S.tunneled = 0; S.inTunnel = 0; let abRecs = []; // C6 counts
       S.abs = 0; S.ab6 = 0; S.ab8 = 0; S.ab10 = 0; // A6 part 4: at-bat lengths (H4)
       S.sumA = 0; S.sumE = 0; S.nA = 0;            // A6 part 4: average A and E
+      S.sumA0 = 0; S.sumShare = 0;                 // ML part 4: A without the report, its share
       while (S.innings < innings) {
         game++; S.games++;
         freshGame();
@@ -360,8 +378,16 @@
               check(ant.A >= 0 && ant.A <= 1, P.id + ' A ' + ant.A + ' is outside 0-1');
               check(Math.abs(ant.E) <= ant.ceiling + 1e-9,
                 P.id + ' E ' + ant.E + ' is beyond the ceiling ' + ant.ceiling);
-              check(ant.ceiling === ANTIC_CEILING[LEVEL],
-                P.id + ' ceiling ' + ant.ceiling + ' is not the ' + LEVEL + ' value');
+              const sOn = !!(ant.scout && ant.scout.on); // ML part 4
+              const sMax = typeof SCOUT_CEILING !== 'undefined' && SCOUT_CEILING[LEVEL] !== undefined
+                ? Math.max(ANTIC_CEILING[LEVEL], SCOUT_CEILING[LEVEL]) : ANTIC_CEILING[LEVEL];
+              check(sOn ? ant.ceiling >= ANTIC_CEILING[LEVEL] - 1e-9 && ant.ceiling <= sMax + 1e-9
+                : ant.ceiling === ANTIC_CEILING[LEVEL],
+                P.id + ' ceiling ' + ant.ceiling + ' is not within the ' + LEVEL + ' values');
+              check(window.__scoutOverride !== null || !sOn,
+                P.id + ' the scouting report was used while the harness had it off');
+              S.sumA0 += (ant.A0 !== undefined ? ant.A0 : ant.A);
+              S.sumShare += sOn ? ant.scout.share : 0;
               S.sumA += ant.A; S.sumE += ant.E; S.nA++;
             }
             if (P4ON) {
@@ -495,17 +521,49 @@
     log('Repeatability check (same seed twice): ' + sig(r1) + ' vs ' + sig(r2) + ' -> ' + (sig(r1) === sig(r2) ? 'IDENTICAL' : 'DIFFERENT'));
     check(sig(r1) === sig(r2), 'same seed gave different results (run is not repeatable)');
 
+    // ML part 4 (scout=self): play the pitcher with the report off, build his report from those
+    // games with the app's own code, and leave those pitches out of the results and the CSV.
+    async function scoutPitcher(P, pi) {
+      window.__scoutOverride = null;
+      const r0 = rows.length;
+      await runBlock(P, 0, BASE_SEED + pi * 100 + 50, SCOUT_INN);
+      const sr = rows.splice(r0);
+      const games = {}, list = [];
+      sr.forEach(line => {
+        const f = line.split(',');
+        const gk = f[3];
+        let g = games[gk];
+        if (!g) { g = games[gk] = { date: list.length + 1, batterAtBats: [], abs: {} }; list.push(g); }
+        const ak = f[4] + '/' + f[5];
+        let ab = g.abs[ak];
+        if (!ab) {
+          ab = g.abs[ak] = { i: g.batterAtBats.length + 1, inn: +f[4], h: f[7] === 'LHB' ? 'L' : 'R', p: [] };
+          g.batterAtBats.push(ab);
+        }
+        ab.p.push({ pk: f[13], zk: f[11], out: f[15], c: f[9] });
+      });
+      list.forEach(g => { delete g.abs; });
+      const R = buildScoutingReport(list, ARSENAL);
+      const pc = x => Math.round(100 * (x || 0)) + '%';
+      log(P.id + ' scouting report: ' + R.games + ' games, ' + R.pitches + ' weighted pitches, trust '
+        + pc(R.trust) + '; predictability type ' + pc(R.predictability.type) + ', location by count '
+        + pc(R.predictability.locByCount) + ' (with sequences ' + pc(R.predictability.loc) + ')'
+        + '; strength type ' + (R.strength.type || 0).toFixed(2) + ', location ' + (R.strength.loc || 0).toFixed(2));
+      return R;
+    }
     const t0 = Date.now();
     const results = []; // {P, blocks:[S,...]}
     for (let pi = 0; pi < PITCHERS.length; pi++) {
       const P = PITCHERS[pi];
       if (ONLY && !ONLY.includes(P.id)) continue; // option only=: same seeds as a full run
       const blocks = [];
+      if (SCOUT) window.__scoutOverride = await scoutPitcher(P, pi);
       for (let b = 1; b <= BLOCKS; b++) {
         const seed = BASE_SEED + pi * 100 + b;
         blocks.push(await runBlock(P, b, seed));
         await yieldToBrowser();
       }
+      window.__scoutOverride = null;
       results.push({ P: P, blocks: blocks });
       progress(P.id + ' done (' + Math.round((Date.now() - t0) / 1000) + ' s so far).');
     }
@@ -548,7 +606,9 @@
       { key: 'L10', label: 'At-bats of 10+ pitches (% of at-bats)',
         f: S => S.abs ? 100 * S.ab10 / S.abs : 0 },
       { key: 'AA', label: 'Average anticipation A', f: S => S.nA ? S.sumA / S.nA : 0 },
-      { key: 'AE', label: 'Average strength E', f: S => S.nA ? S.sumE / S.nA : 0 });
+      { key: 'AE', label: 'Average strength E', f: S => S.nA ? S.sumE / S.nA : 0 },
+      { key: 'A0', label: 'Average A without the scouting report', f: S => S.nA ? S.sumA0 / S.nA : 0 },
+      { key: 'SH', label: 'Scouting report share of the expectation', f: S => S.nA ? S.sumShare / S.nA : 0 });
     check(window._mlWeights === null, 'ML weights were switched on during the run (ML lock)');
     const stats = results.map(({ P, blocks }) => {
       const out = { id: P.id, name: P.name, totals: {} };
@@ -568,6 +628,7 @@
     log('');
     log('Options: seed ' + BASE_SEED + ', level ' + LEVEL + ', pitchers '
       + (ONLY ? ONLY.join('+') : 'all') + ', blocks ' + BLOCKS
+      + (SCOUT ? ', scout=self (' + SCOUT_INN + ' scouting innings per pitcher)' : '')
       + (OPT.toString() ? ' (from the page address)' : ' (defaults)')
       + '. A6 part 4 in the app: ' + (P4ON ? 'yes' : 'no') + '.');
     log('Settings: ' + LEVEL + ', batter type RANDOM, ML off (locked by the harness),'
@@ -587,10 +648,10 @@
       (fmt(s.FP.mean, 1) + '±' + fmt(s.FP.half, 1)).padEnd(13) + (fmt(s.FS.mean, 1) + '±' + fmt(s.FS.half, 1))));
     log('');
     log('At-bat length and anticipation   6+ % of AB   8+ % of AB   10+ % of AB'
-      + '  avg A        avg E');
+      + '  avg A        avg E        A no report  report share');
     const pm = (m, d) => (fmt(m.mean, d) + '±' + fmt(m.half, d)).padEnd(13);
     stats.forEach(s => log((s.id + ' '.repeat(40)).slice(0, 33) + pm(s.L6, 1) + pm(s.L8, 1)
-      + pm(s.L10, 1) + pm(s.AA, 3) + (fmt(s.AE.mean, 3) + '±' + fmt(s.AE.half, 3))));
+      + pm(s.L10, 1) + pm(s.AA, 3) + pm(s.AE, 3) + pm(s.A0, 3) + (fmt(s.SH.mean, 3) + '±' + fmt(s.SH.half, 3))));
     log('');
     log('On-screen totals vs pitch log (double count D2):  K screen/log   BB screen/log   H screen/log');
     stats.forEach(s => log('  ' + (s.id + '    ').slice(0, 4) + '                                          ' +
@@ -607,7 +668,8 @@
       + 'tunnelNo,tunnelStart'
       + ',antLoc,antType,antSpeed,antOrder,A,E,ceiling,expSpd,gap,building'
       + ',shRepStrong,shRepWeak,shRepMiss,shTunStrong,shTunMiss,shTunOverride'
-      + ',shSpeedDiff,shWake,newStrong,newMiss,newWeak,newFoul,newSwing,appOldCalls';
+      + ',shSpeedDiff,shWake,newStrong,newMiss,newWeak,newFoul,newSwing,appOldCalls'
+      + ',scoutOn,scoutShare,A0,E0';
     const csv = header + '\n' + rows.join('\n') + '\n';
     post({ type: 'harness-file', name: RUN_NAME + '.csv', mime: 'text/csv', text: csv });
     const meta = { built: RUN_NAME, level: LEVEL, blocks: BLOCKS,
