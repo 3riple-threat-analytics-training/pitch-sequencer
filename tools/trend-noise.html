@@ -1,0 +1,198 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Trend Noise Check</title>
+<style>
+  :root{--bg:#fff;--fg:#1f2937;--muted:#6b7280;--line:#d1d5db}
+  @media (prefers-color-scheme:dark){:root{--bg:#111827;--fg:#e5e7eb;--muted:#9ca3af;
+    --line:#374151}}
+  body{background:var(--bg);color:var(--fg);font:14px/1.45 -apple-system,system-ui,sans-serif;
+    margin:0;padding:16px;max-width:1000px}
+  h1{font-size:20px;margin:0 0 4px}h2{font-size:16px;margin:24px 0 6px}
+  p,.muted{color:var(--muted)}label{display:block;margin:10px 0 4px;font-weight:600}
+  input[type=number]{width:80px;padding:6px;font:inherit;color:inherit;
+    background:transparent;border:1px solid var(--line);border-radius:4px}
+  table{border-collapse:collapse;font-size:12px;margin:6px 0;display:block;overflow-x:auto}
+  th,td{border:1px solid var(--line);padding:3px 6px;text-align:left;white-space:nowrap}
+</style>
+</head>
+<body>
+<h1>Trend noise check</h1>
+<p>ML part 5, step 0. Read-only, localhost only. Reads a game history copied from the live app
+(.json) and measures how much each trend number swings from one window of games to the
+next. Nothing is saved or sent anywhere.</p>
+<label for="minInn">Skip games shorter than this many innings (0 = keep all)</label>
+<input id="minInn" type="number" min="0" step="1" value="0">
+<label for="file">File</label>
+<input id="file" type="file" accept=".json,.txt">
+<div id="out"></div>
+<script>
+(function(){
+  'use strict';
+  var out=document.getElementById('out');
+  if(!/^(localhost|127\.0\.0\.1)$/.test(location.hostname)){
+    out.textContent='This page runs on localhost only.';return;
+  }
+  // ---- calculations (no page access) ----
+  // The four variety parts: same rules as calcPatternScore in js/sim.js (BUNDLES trends).
+  function aggCountTend(games){
+    var agg={};
+    games.forEach(function(g){
+      Object.keys(g.countTendencies||{}).forEach(function(ct){
+        agg[ct]=agg[ct]||{};
+        Object.keys(g.countTendencies[ct]).forEach(function(pk){
+          agg[ct][pk]=(agg[ct][pk]||0)+g.countTendencies[ct][pk];
+        });
+      });
+    });
+    return agg;
+  }
+  function topPct(d){
+    if(!d) return 0;
+    var vals=Object.keys(d).map(function(k){return d[k];});
+    var tot=vals.reduce(function(a,b){return a+b;},0)||1;
+    return Math.round(Math.max.apply(null,vals.concat([0]))/tot*100);
+  }
+  function countPart(games){
+    var agg=aggCountTend(games),s=25;
+    ['0-0','0-2','1-0','3-2'].forEach(function(ct){
+      var p=topPct(agg[ct]);
+      if(p>=70) s-=6; else if(p>=55) s-=3;
+    });
+    return Math.max(0,s);
+  }
+  function zonePart(games){
+    var zm={};
+    games.forEach(function(g){Object.keys(g.zoneMap||{}).forEach(function(z){
+      zm[z]=(zm[z]||0)+g.zoneMap[z];});});
+    var tot=Object.keys(zm).reduce(function(s,z){return s+zm[z];},0)||1;
+    var n=['TL','TM','TR','ML','MM','MR','BL','BM','BR'].filter(function(z){
+      return (zm[z]||0)/tot>0.05;}).length;
+    return Math.min(25,Math.round(n/9*25));
+  }
+  function seqPart(games){
+    var sq={};
+    games.forEach(function(g){Object.keys(g.sequences||{}).forEach(function(k){
+      sq[k]=(sq[k]||0)+g.sequences[k];});});
+    var vals=Object.keys(sq).map(function(k){return sq[k];});
+    var tot=vals.reduce(function(a,b){return a+b;},0)||1;
+    var top=Math.max.apply(null,vals.concat([0]));
+    return Math.min(25,Math.round(Math.round((1-top/tot)*100)/100*25));
+  }
+  function veloPart(games){
+    var v=[];
+    games.forEach(function(g){(g.velocities||[]).forEach(function(x){if(x>0) v.push(x);});});
+    if(v.length<2) return 0;
+    var m=v.reduce(function(a,b){return a+b;},0)/v.length;
+    var sd=Math.sqrt(v.reduce(function(s,x){return s+(x-m)*(x-m);},0)/v.length);
+    return Math.min(25,Math.round(Math.min(100,Math.round(sd/m*500))/100*25));
+  }
+  // Results. Damage = hits + runs allowed per inning (Rafael, Nov 25).
+  function damagePerInning(games){
+    var inn=0,d=0;
+    games.forEach(function(g){inn+=g.innings||0;d+=(g.hits||0)+(g.runsAllowed||0);});
+    return inn>0?d/inn:null;
+  }
+  // Average anticipation A from at-bat pitches (games from v80 on only).
+  function meanA(games){
+    var s=0,n=0;
+    games.forEach(function(g){(g.batterAtBats||[]).forEach(function(ab){
+      (ab.p||[]).forEach(function(q){
+        var A=Array.isArray(q)?q[4]:q&&q.A;
+        if(typeof A==='number'){s+=A;n++;}
+      });
+    });});
+    return n?s/n:null;
+  }
+  var METRICS=[
+    ['Count variety (0-25)',countPart],['Zone coverage (0-25)',zonePart],
+    ['Sequence variety (0-25)',seqPart],['Speed variation (0-25)',veloPart],
+    ['Pattern score (0-100)',function(g){return countPart(g)+zonePart(g)+seqPart(g)+veloPart(g);}],
+    ['Hits + runs per inning',damagePerInning],['Batter anticipation A',meanA]
+  ];
+  function quant(sorted,q){
+    if(!sorted.length) return null;
+    return sorted[Math.min(sorted.length-1,Math.floor(q*sorted.length))];
+  }
+  // Every pair of back-to-back windows of N games: change = last N minus the N before.
+  function swings(games,N){
+    return METRICS.map(function(m){
+      var d=[];
+      for(var e=2*N;e<=games.length;e++){
+        var a=m[1](games.slice(e-2*N,e-N)),b=m[1](games.slice(e-N,e));
+        if(a!==null&&b!==null) d.push(Math.abs(b-a));
+      }
+      d.sort(function(x,y){return x-y;});
+      return {name:m[0],n:d.length,med:quant(d,0.5),p80:quant(d,0.8),p90:quant(d,0.9),
+        max:d.length?d[d.length-1]:null};
+    });
+  }
+  function summary(games){
+    var withAB=games.filter(function(g){return (g.batterAtBats||[]).length;});
+    var withCT=games.filter(function(g){return g.countTendencies&&
+      Object.keys(g.countTendencies).length;});
+    var innings={};
+    games.forEach(function(g){var k=g.innings||0;innings[k]=(innings[k]||0)+1;});
+    // Pitches per count: from at-bat pitches (c) and from the count totals.
+    var perCount={};
+    withAB.forEach(function(g){g.batterAtBats.forEach(function(ab){(ab.p||[]).forEach(function(q){
+      var c=Array.isArray(q)?null:q&&q.c;
+      if(c){perCount[c]=perCount[c]||{ab:0,tot:0};perCount[c].ab++;}
+    });});});
+    withCT.forEach(function(g){Object.keys(g.countTendencies).forEach(function(c){
+      perCount[c]=perCount[c]||{ab:0,tot:0};
+      Object.keys(g.countTendencies[c]).forEach(function(pk){
+        perCount[c].tot+=g.countTendencies[c][pk];});
+    });});
+    return {games:games.length,withAB:withAB.length,withCT:withCT.length,innings:innings,
+      perCount:perCount};
+  }
+  window.__trendNoise={summary:summary,swings:swings}; // for console checks
+  // ---- page ----
+  function esc(s){return String(s).replace(/[&<>]/g,function(c){
+    return {'&':'&amp;','<':'&lt;','>':'&gt;'}[c];});}
+  function f(x){return x===null||x===undefined?'–':(Math.round(x*100)/100).toString();}
+  function table(head,rows){
+    return '<table><tr>'+head.map(function(h){return '<th>'+esc(h)+'</th>';}).join('')+'</tr>'
+      +rows.map(function(r){return '<tr>'+r.map(function(c){return '<td>'+esc(c)+'</td>';})
+      .join('')+'</tr>';}).join('')+'</table>';
+  }
+  function show(name,all){
+    var minInn=+document.getElementById('minInn').value||0;
+    all=all.slice().sort(function(a,b){return (a.date||0)-(b.date||0);});
+    var games=all.filter(function(g){return (g.innings||0)>=minInn;});
+    var s=summary(games),h='';
+    h+='<h2>'+esc(name)+'</h2>';
+    h+='<p>'+all.length+' games in the file; '+s.games+' kept (at least '+minInn
+      +' innings). '+s.withAB+' have at-bat detail (v80+), '+s.withCT+' have count totals.</p>';
+    h+='<h2>Games by innings</h2>'+table(['Innings','Games'],Object.keys(s.innings)
+      .sort(function(a,b){return a-b;}).map(function(k){return [k,s.innings[k]];}));
+    var counts=['0-0','0-1','0-2','1-0','1-1','1-2','2-0','2-1','2-2','3-0','3-1','3-2'];
+    h+='<h2>Pitches per count</h2>'+table(['Count','At-bat pitches (v80+)','Count totals'],
+      counts.map(function(c){var p=s.perCount[c]||{ab:0,tot:0};return [c,p.ab,p.tot];}));
+    [3,5,10].forEach(function(N){
+      h+='<h2>Swings between back-to-back windows of '+N+' games</h2>';
+      h+=table(['Measure','Window pairs','Typical (median)','80% of swings under',
+        '90% under','Largest'],swings(games,N).map(function(r){
+        return [r.name,r.n,f(r.med),f(r.p80),f(r.p90),f(r.max)];}));
+    });
+    out.innerHTML=h;
+  }
+  var last=null;
+  function run(){if(last) show(last.name,last.data);}
+  document.getElementById('minInn').addEventListener('change',run);
+  document.getElementById('file').addEventListener('change',function(ev){
+    var file=ev.target.files[0];if(!file) return;
+    out.innerHTML='<p>Reading '+esc(file.name)+'…</p>';
+    file.text().then(function(text){
+      var data=JSON.parse(text);
+      if(!Array.isArray(data)) throw new Error('Expected a list of games.');
+      last={name:file.name,data:data};run();
+    }).catch(function(e){out.textContent='Could not read the file: '+e.message;});
+  });
+})();
+</script>
+</body>
+</html>
