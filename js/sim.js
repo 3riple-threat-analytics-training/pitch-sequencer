@@ -6768,7 +6768,7 @@ function computeAnticipation(cur,abPrev){
   const W=mem.reduce((s,m)=>s+m.w,0);
   const cp=anticPos(cur.zk);
   let locRaw=0.5,typeRaw=0.5,speedRaw=0.5,orderRaw=0.5,orderW=0;
-  let expSpd=null,gap=null,expPk=null,expHt=null;
+  let expSpd=null,gap=null,expPk=null,expHt=null,expNext=null,pkSeen={}; // part 5a: report only
   if(W>0){
     let loc=0,typ=0;
     const pkW={},htW={};
@@ -6785,7 +6785,7 @@ function computeAnticipation(cur,abPrev){
     });
     locRaw=loc/W;typeRaw=typ/W;
     const top=o=>Object.keys(o).reduce((a,b)=>o[a]>=o[b]?a:b,Object.keys(o)[0]);
-    expPk=top(pkW);expHt=Object.keys(htW).length?top(htW):null;
+    expPk=top(pkW);expHt=Object.keys(htW).length?top(htW):null;pkSeen=pkW;
     const sp=mem.filter(m=>m.p.spd);
     const sw=sp.reduce((s,m)=>s+m.w,0);
     if(sw>0&&cur.spd){
@@ -6797,17 +6797,20 @@ function computeAnticipation(cur,abPrev){
       speedRaw=Math.max(0,1-eff/ANTIC_SPEED_RANGE);
     }
     const prevPk=mem[mem.length-1].p.pk;
-    let hit=0;
+    let hit=0;const nxW={};
     for(let i=0;i<mem.length-1;i++){
       if(mem[i].p.pk!==prevPk) continue;
       orderW+=mem[i+1].w;
+      nxW[mem[i+1].p.pk]=(nxW[mem[i+1].p.pk]||0)+mem[i+1].w; // part 5a: report only
       if(mem[i+1].p.pk===cur.pk) hit+=mem[i+1].w;
     }
     if(orderW>0) orderRaw=hit/orderW;
+    expNext=Object.keys(nxW).length?top(nxW):null;
   }
   const building=anticLineBuilding(cur,abPrev);
   const tun=anticTunnelHide(cur,mem);
   const sc=scoutForPitch(cur,abPrev,W,locRaw,typeRaw); // ML part 4: the scouting report
+  const expPkScout=scoutExpectedType(pkSeen,W,sc); // part 5a: report only
   const r={
     loc:building?0.5:anticBlend(sc.loc,sc.wLoc),
     type:anticBlend(sc.type,sc.wType)*(1-tun.hide),
@@ -6829,6 +6832,7 @@ function computeAnticipation(cur,abPrev){
     batterType:anticType(cur.batterType),inning:cur.inning,
     pk:cur.pk,spd:cur.spd,zk:cur.zk,
     expPk:expPk,expSpd:expSpd,expHt:expHt,memoryWeight:W,
+    expNext:expNext,expPkScout:expPkScout, // part 5a: report only
     readings:r,building:building,
     tunnel:cur.tunnelData&&cur.tunnelData.detected?
       {partner:cur.tunnelData.prevPk,overlap:cur.tunnelData.length,
@@ -6925,8 +6929,11 @@ function batterReadForPitch(){
   const a=window.__lastAnticipation;
   const sa=typeof totalScore!=='undefined'?totalScore:0;
   if(!a) return {sa:sa};
+  const r2=x=>typeof x==='number'?Math.round(x*100)/100:null,rd=a.readings||{};
   return {sa:sa,br:[Math.round(a.A*100)/100,a.expPk||'',
-    a.expSpd?Math.round(a.expSpd):0,a.expHt||'']};
+    a.expSpd?Math.round(a.expSpd):0,a.expHt||''],
+    bx:{rL:r2(rd.loc),rT:r2(rd.type),rS:r2(rd.speed),rO:r2(rd.order), // ML part 5a
+      sh:r2(a.scout&&a.scout.on?a.scout.share:0),xPkS:a.expPkScout||'',xNx:a.expNext||''}};
 }
 const BATTER_AB_ENDINGS=['STRIKEOUT','WALK','SINGLE','DOUBLE','TRIPLE','HOME RUN',
   'GROUND OUT','POP FLY'];
@@ -6944,7 +6951,7 @@ function batterAtBatsForGame(pitches){
     if(typeof p.sa==='number'){runs=Math.max(0,p.sa-prevSa);prevSa=p.sa;}
     const b=p.br||[null,'',0,''];
     cur.p.push({pk:p.pk,spd:p.spd,zk:p.zk,out:p.outcome||'',A:b[0],xPk:b[1],xSpd:b[2],xHt:b[3],
-      runs,c:p.count||''}); // c: count before the pitch (ML part 3)
+      runs,c:p.count||'',...(p.bx||{})}); // c: count (ML part 3); bx: part 5a
     if(BATTER_AB_ENDINGS.includes(p.outcome)) cur=null;
   });
   return {batterAtBats:abs};
@@ -7114,14 +7121,27 @@ function scoutForPitch(cur,abPrev,W,locRaw,typeRaw){
     const c=(typeof ballCount!=='undefined'?ballCount:0)+'-'
       +(typeof strikeCount!=='undefined'?strikeCount:0);
     const n=abPrev.length,p1=n>0?abPrev[n-1].pk:null,p2=n>1?abPrev[n-2].pk:null;
-    const sType=scoutTypeDist(T,c,p1,p2)[cur.pk]||0;
+    const sDist=scoutTypeDist(T,c,p1,p2),sType=sDist[cur.pk]||0; // sDist kept (part 5a)
     const h=scoutHeight(cur.zk),s=scoutSide(cur.zk);
     const sLoc=0.4*(scoutLocDist(T,c,null)[cur.zk]||0)
       +0.3*(h?scoutLocDist(T,c,scoutHeight)[h]||0:0)+0.3*(s?scoutLocDist(T,c,scoutSide)[s]||0:0);
     const shT=(W+wT)>0?wT/(W+wT):0,shL=(W+wL)>0?wL/(W+wL):0;
     return {on:true,loc:scoutMix(locRaw,W,sLoc,wL),type:scoutMix(typeRaw,W,sType,wT),
-      wLoc:W+wL,wType:W+wT,share:(shT+shL)/2,sType:sType,sLoc:sLoc,wT:wT,wL:wL};
+      wLoc:W+wL,wType:W+wT,share:(shT+shL)/2,sType:sType,sLoc:sLoc,wT:wT,wL:wL,sDist:sDist};
   }catch(e){return off;}
+}
+// ML part 5a (reports only): the pitch type the batter expected with the report mixed in,
+// weighted exactly as the type reading (today's memory W, the report's wT).
+function scoutExpectedType(pkW,W,sc){
+  try{
+    const wT=sc&&sc.on&&sc.sDist?sc.wT||0:0,tot=W+wT;
+    if(!(tot>0)) return null;
+    const all={};
+    Object.keys(pkW||{}).forEach(k=>{all[k]=(all[k]||0)+pkW[k]/tot;});
+    if(wT>0) Object.keys(sc.sDist).forEach(k=>{all[k]=(all[k]||0)+wT*(sc.sDist[k]||0)/tot;});
+    const ks=Object.keys(all);
+    return ks.length?ks.reduce((a,b)=>all[a]>=all[b]?a:b):null;
+  }catch(e){return null;} // never stops anticipation
 }
 // The ceiling mixes the level's in-game ceiling with the scouting ceiling by the report's share.
 function scoutCeiling(base,sc){
